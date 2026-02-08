@@ -1,0 +1,332 @@
+// ============================================
+// PRISMA SCHEMA - CAFE GONKU
+// QR-Based Restaurant Ordering System
+// ============================================
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client" // Required for Prisma 7 with driver adapters like Neon
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// 1. USER MANAGEMENT
+// ============================================
+// Admin: Kelola menu, meja, QR code, analytics
+// Kitchen: Lihat order queue, update status pesanan
+
+enum UserRole {
+  ADMIN
+  KITCHEN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed dengan bcrypt
+  name      String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  expiresAt    DateTime
+  token        String
+  createdAt    DateTime
+  updatedAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("sessions")
+}
+
+model Account {
+  id           String    @id @default(cuid())
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  password     String?
+  createdAt    DateTime
+  updatedAt    DateTime
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+// ============================================
+// 2. TABLE & QR CODE MANAGEMENT
+// ============================================
+// Setiap meja punya QR code unik
+// User scan QR → redirect ke /order?table=<qrCode>
+
+model Table {
+  id          String   @id @default(cuid())
+  tableNumber Int      @unique // Nomor meja fisik (1, 2, 3, ...)
+  qrCode      String   @unique // String unik untuk QR: "GONKU_TABLE_1_ABC123"
+  isActive    Boolean  @default(true) // Meja bisa di-disable sementara
+  capacity    Int      @default(4) // Kapasitas kursi
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  orders Order[]
+
+  @@index([qrCode])
+  @@map("tables")
+}
+
+// ============================================
+// 3. MENU
+// ============================================
+// Menu makanan & minuman yang tersedia di Cafe Gonku
+
+enum MenuCategory {
+  FOOD    // Makanan
+  DRINK   // Minuman
+  SNACK   // Cemilan
+  DESSERT // Dessert
+}
+
+model Menu {
+  id          String       @id @default(cuid())
+  name        String       // Nama menu: "Mie Nyemek", "Es Teh Manis"
+  description String?      @db.Text // Deskripsi menu
+  price       Int          // Harga BASE dalam Rupiah (integer)
+  category    MenuCategory
+  imageUrl    String?      // URL gambar di Supabase Storage
+  isAvailable Boolean      @default(true) // Kitchen bisa set false kalau habis
+  isActive    Boolean      @default(true) // Soft delete untuk admin
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  menuOptions MenuOption[] // Menu bisa punya options (level pedas, ukuran, dll)
+  orderItems  OrderItem[]
+
+  @@index([category])
+  @@index([isAvailable])
+  @@map("menus")
+}
+
+// ============================================
+// 4. MENU OPTION
+// ============================================
+// Opsi customization per menu (misal: Level Pedas, Ukuran, Rasa)
+// Menu TANPA opsi = tidak perlu bikin row di tabel ini
+
+model MenuOption {
+  id         String   @id @default(cuid())
+  menuId     String
+  menu       Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  name       String   // "Rasa", "Level Pedas", "Ukuran"
+  isRequired Boolean  @default(true) // User wajib pilih atau optional?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  values MenuOptionValue[]
+
+  @@index([menuId])
+  @@map("menu_options")
+}
+
+// ============================================
+// 5. MENU OPTION VALUE
+// ============================================
+// Pilihan dalam option
+// Contoh: Option "Rasa" → values: "Pedas Jeruk", "Asin Jeruk", "Pedas Biasa"
+
+model MenuOptionValue {
+  id           String     @id @default(cuid())
+  menuOptionId String
+  menuOption   MenuOption @relation(fields: [menuOptionId], references: [id], onDelete: Cascade)
+  label        String // "Pedas Jeruk", "Level 5", "Small", "Large"
+  priceAdjust  Int    @default(0) // Tambahan/pengurangan harga (misal: Large +10000)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  orderItemOptions OrderItemOption[]
+
+  @@index([menuOptionId])
+  @@map("menu_option_values")
+}
+
+// ============================================
+// 6. ORDER
+// ============================================
+// Pesanan dari customer
+
+enum OrderStatus {
+  PENDING   // Belum bayar
+  PAID      // Sudah bayar, masuk kitchen queue
+  PREPARING // Kitchen sedang masak
+  READY     // Siap diantar ke meja
+  SERVED    // Sudah diantar & selesai
+  CANCELLED // Dibatalin (misal payment gagal/expired)
+}
+
+enum PaymentStatus {
+  PENDING // Menunggu pembayaran
+  PAID    // Sudah dibayar
+  FAILED  // Pembayaran gagal
+  EXPIRED // Pembayaran kadaluarsa
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  orderCode String   @unique // Kode unik: "GONKU-001", "GONKU-002"
+  
+  // Table reference
+  tableId String
+  table   Table  @relation(fields: [tableId], references: [id])
+  
+  // Customer info (optional - bisa anonymous)
+  customerName  String?
+  customerPhone String?
+  
+  // Order details
+  totalAmount Int         @default(0) // Total harga keseluruhan
+  status      OrderStatus @default(PENDING)
+  
+  // Payment info
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String? // "midtrans", "qris", "cash"
+  midtransToken   String? @unique // Snap token dari Midtrans
+  midtransOrderId String? @unique // Order ID untuk Midtrans
+  paidAt          DateTime? // ⭐ Timestamp payment (untuk priority queue!)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  orderItems OrderItem[]
+  orderLogs  OrderLog[]
+
+  // Indexes untuk performa
+  @@index([paymentStatus, paidAt]) // Priority queue: yang bayar duluan tampil duluan
+  @@index([tableId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+// ============================================
+// 7. ORDER ITEM
+// ============================================
+// Item-item dalam satu order
+
+model OrderItem {
+  id       String @id @default(cuid())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuId   String
+  menu     Menu   @relation(fields: [menuId], references: [id])
+  
+  quantity Int // Jumlah item yang dipesan
+  price    Int // Total harga item ini (basePrice + option adjustments) × quantity
+  
+  // Notes TAMBAHAN dari customer (OPTIONAL)
+  // Untuk request di luar option yang disediakan
+  // Contoh: "matang banget", "tanpa bawang", "dibungkus terpisah"
+  notes String? @db.Text
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  selectedOptions OrderItemOption[] // Options yang dipilih customer
+
+  @@index([orderId])
+  @@index([menuId])
+  @@map("order_items")
+}
+
+// ============================================
+// 8. ORDER ITEM OPTION
+// ============================================
+// Menyimpan pilihan option yang dipilih customer saat order
+// Snapshot data agar tidak berubah kalau admin update option
+
+model OrderItemOption {
+  id                String          @id @default(cuid())
+  orderItemId       String
+  orderItem         OrderItem       @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  menuOptionValueId String
+  menuOptionValue   MenuOptionValue @relation(fields: [menuOptionValueId], references: [id])
+  
+  // Snapshot data saat order dibuat
+  optionName  String // "Rasa", "Level Pedas", "Ukuran"
+  optionValue String // "Pedas Jeruk", "Level 5", "Large"
+  priceAdjust Int    // Tambahan harga dari option ini
+  
+  createdAt DateTime @default(now())
+
+  @@index([orderItemId])
+  @@map("order_item_options")
+}
+
+// ============================================
+// 9. DAILY SALES
+// ============================================
+// Summary penjualan per hari untuk analytics
+
+model DailySales {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date @unique // Tanggal (format: YYYY-MM-DD)
+  totalOrders  Int      @default(0) // Jumlah order yang PAID
+  totalRevenue Int      @default(0) // Total pendapatan hari itu
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+  @@map("daily_sales")
+}
+
+// ============================================
+// 10. ORDER LOG
+// ============================================
+// Audit trail untuk tracking perubahan status order
+// Opsional tapi berguna untuk debugging
+
+model OrderLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String // Status yang diupdate
+  message   String   @db.Text // Deskripsi perubahan
+  createdBy String? // User ID yang melakukan update (admin/kitchen)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_logs")
+}
