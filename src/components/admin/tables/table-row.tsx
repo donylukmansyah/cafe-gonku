@@ -1,99 +1,93 @@
-"use client"
+"use client";
 
-import { QrCode, Trash2, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { TableCell, TableRow as ShadTableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
+import { memo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { QrCode, Trash2, Users } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { TableData } from "@/hooks/use-admin-tables";
 
-type TableData = {
-    id: string
-    tableNumber: number
-    qrCode: string
-    capacity: number
-    isActive: boolean
-    _count: {
-        orders: number
-    }
+interface TableRowItemProps {
+    table: TableData;
+    onShowQR: (table: TableData) => void;
+    onToggleStatus: (id: string, current: boolean) => void;
+    onDelete: (id: string) => void;
 }
 
-interface TableRowProps {
-    table: TableData
-    onShowQR: (table: TableData) => void
-    onToggleStatus: (id: string, currentStatus: boolean) => void
-    onDelete: (id: string) => void
-}
-
-export function TableRow({
+export const TableRowItem = memo(function TableRowItem({
     table,
     onShowQR,
     onToggleStatus,
     onDelete,
-}: TableRowProps) {
+}: TableRowItemProps) {
     return (
-        <ShadTableRow
-            className={`${!table.isActive ? "opacity-50" : ""} hover:bg-white/[0.02] border-white/5 transition-colors`}
-        >
-            <TableCell className="pl-6 py-4">
+        <TableRow className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+            <TableCell className="py-5">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center font-black text-white text-lg shadow-inner ring-1 ring-white/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="relative z-10">#{table.tableNumber}</span>
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-white/5 flex items-center justify-center font-black text-xl text-white group-hover:bg-primary group-hover:text-black transition-all">
+                        {table.tableNumber}
+                    </div>
+                    <div>
+                        <div className="font-bold text-white">Meja #{table.tableNumber}</div>
+                        <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                            Code: {table.qrCode.split('_').pop()}
+                        </div>
                     </div>
                 </div>
             </TableCell>
             <TableCell>
-                <div className="flex items-center gap-2.5 px-3 py-1.5 bg-zinc-800/50 rounded-lg border border-white/5 w-fit">
-                    <Users className="w-4 h-4 text-primary opacity-80" />
-                    <span className="font-semibold text-zinc-300 text-sm">{table.capacity} Kursi</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/50 rounded-lg w-fit border border-white/5 text-zinc-300">
+                    <Users className="w-4 h-4 text-zinc-500" />
+                    <span className="font-bold">{table.capacity}</span>
+                    <span className="text-[10px] uppercase font-black text-zinc-600">Pax</span>
                 </div>
             </TableCell>
             <TableCell>
-                <code className="text-[11px] font-mono bg-black/60 border border-white/5 px-2.5 py-1 rounded-md text-zinc-400 select-all tracking-wider shadow-sm">
-                    {table.qrCode}
-                </code>
+                <div className="flex items-center gap-2">
+                    {table._count.orders > 0 ? (
+                        <Badge className="bg-primary/20 text-primary border-primary/20 uppercase font-black text-[10px] px-3">
+                            {table._count.orders} Active Orders
+                        </Badge>
+                    ) : (
+                        <Badge variant="outline" className="text-zinc-500 border-zinc-800 uppercase font-black text-[10px] px-3">
+                            No Active Orders
+                        </Badge>
+                    )}
+                </div>
             </TableCell>
             <TableCell>
-                {table.isActive ? (
-                    <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                        Aktif
-                    </Badge>
-                ) : (
-                    <Badge variant="secondary" className="bg-zinc-800 text-zinc-500 border-white/5 rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                        Nonaktif
-                    </Badge>
-                )}
+                <div className="flex items-center gap-3">
+                    <Switch
+                        checked={table.isActive}
+                        onCheckedChange={() => onToggleStatus(table.id, table.isActive)}
+                        className="data-[state=checked]:bg-primary"
+                    />
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${table.isActive ? 'text-primary' : 'text-zinc-600'}`}>
+                        {table.isActive ? 'Active' : 'Offline'}
+                    </span>
+                </div>
             </TableCell>
-            <TableCell className="pr-6 text-right">
-                <div className="flex items-center justify-end gap-1.5">
+            <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-2">
                     <Button
-                        variant="ghost"
                         size="icon"
-                        className="w-9 h-9 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-primary transition-all cursor-pointer"
+                        variant="ghost"
+                        className="h-10 w-10 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl transition-all"
                         onClick={() => onShowQR(table)}
-                        title="Lihat QR Code"
                     >
-                        <QrCode className="w-4.5 h-4.5" />
+                        <QrCode className="h-4 w-4" />
                     </Button>
-                    <div className="px-2">
-                        <Switch
-                            checked={table.isActive}
-                            onCheckedChange={() => onToggleStatus(table.id, table.isActive)}
-                            className="data-[state=checked]:bg-primary scale-90 cursor-pointer"
-                            title={table.isActive ? "Nonaktifkan" : "Aktifkan"}
-                        />
-                    </div>
                     <Button
-                        variant="ghost"
                         size="icon"
-                        className="w-9 h-9 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                        variant="ghost"
+                        className="h-10 w-10 hover:bg-red-500 hover:text-white rounded-xl transition-all"
                         onClick={() => onDelete(table.id)}
-                        title="Hapus Meja"
                     >
-                        <Trash2 className="w-4.5 h-4.5" />
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
             </TableCell>
-        </ShadTableRow>
-    )
-}
+        </TableRow>
+    );
+});

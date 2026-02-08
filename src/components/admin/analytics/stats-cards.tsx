@@ -1,84 +1,64 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, ShoppingBag, Utensils } from "lucide-react"
+import { memo } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { TrendingUp, ShoppingBag, CalendarRange } from "lucide-react";
 
 interface StatsCardsProps {
-    totalRevenue: number
-    totalOrders: number
-    days: string
+    totalRevenue: number;
+    totalOrders: number;
+    days: string;
 }
 
-export function StatsCards({ totalRevenue, totalOrders, days }: StatsCardsProps) {
-    const averageOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
+export const StatsCards = memo(function StatsCards({ totalRevenue, totalOrders, days }: StatsCardsProps) {
+    const cards = [
+        {
+            title: "Gross Revenue",
+            value: `Rp ${totalRevenue.toLocaleString("id-ID")}`,
+            description: `Total pendapatan kotor (${days} hari)`,
+            icon: TrendingUp,
+            color: "text-emerald-400",
+            bgColor: "bg-emerald-500/10",
+        },
+        {
+            title: "Total Orders",
+            value: totalOrders,
+            description: `Jumlah pesanan lunas (${days} hari)`,
+            icon: ShoppingBag,
+            color: "text-primary",
+            bgColor: "bg-primary/10",
+        },
+        {
+            title: "Average Check",
+            value: `Rp ${totalOrders > 0 ? (totalRevenue / totalOrders).toLocaleString("id-ID", { maximumFractionDigits: 0 }) : 0}`,
+            description: "Rata-rata pengeluaran per order",
+            icon: CalendarRange,
+            color: "text-blue-400",
+            bgColor: "bg-blue-500/10",
+        },
+    ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="bg-zinc-900/40 backdrop-blur-md border-white/5 shadow-2xl relative overflow-hidden group hover:border-primary/20 transition-all duration-500 cursor-pointer">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                        Total Pendapatan
-                    </CardTitle>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform">
-                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+        <div className="grid gap-6 md:grid-cols-3">
+            {cards.map((card) => (
+                <Card key={card.title} className="bg-zinc-900/50 border-white/5 overflow-hidden relative group backdrop-blur-sm">
+                    <div className={`absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-500 ${card.color}`}>
+                        <card.icon className="w-16 h-16" />
                     </div>
-                </CardHeader>
-                <CardContent className="relative z-10 pt-2">
-                    <div className="text-3xl font-black text-white tracking-tight">
-                        <span className="text-emerald-500 mr-1">Rp</span>
-                        {totalRevenue.toLocaleString("id-ID")}
-                    </div>
-                    <p className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider mt-2 flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500/40" />
-                        Dalam {days} hari terakhir
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card className="bg-zinc-900/40 backdrop-blur-md border-white/5 shadow-2xl relative overflow-hidden group hover:border-blue-500/20 transition-all duration-500 cursor-pointer">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-blue-500/10 transition-colors" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                        Total Order
-                    </CardTitle>
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
-                        <ShoppingBag className="w-4 h-4 text-blue-400" />
-                    </div>
-                </CardHeader>
-                <CardContent className="relative z-10 pt-2">
-                    <div className="text-3xl font-black text-white tracking-tight">
-                        {totalOrders}
-                        <span className="text-blue-400 ml-1.5 text-lg font-bold">Orders</span>
-                    </div>
-                    <p className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider mt-2 flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-blue-500/40" />
-                        Transaksi Berhasil
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card className="bg-zinc-900/40 backdrop-blur-md border-white/5 shadow-2xl relative overflow-hidden group hover:border-orange-500/20 transition-all duration-500 md:col-span-2 lg:col-span-1 cursor-pointer">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-orange-500/10 transition-colors" />
-                <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                        Rata-rata Order
-                    </CardTitle>
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20 group-hover:scale-110 transition-transform">
-                        <Utensils className="w-4 h-4 text-orange-400" />
-                    </div>
-                </CardHeader>
-                <CardContent className="relative z-10 pt-2">
-                    <div className="text-3xl font-black text-white tracking-tight">
-                        <span className="text-orange-400 mr-1">Rp</span>
-                        {averageOrder.toLocaleString("id-ID")}
-                    </div>
-                    <p className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider mt-2 flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-orange-500/40" />
-                        Nilai per transaksi
-                    </p>
-                </CardContent>
-            </Card>
+                    <CardHeader className="pb-2">
+                        <div className={`w-10 h-10 rounded-xl ${card.bgColor} flex items-center justify-center mb-2`}>
+                            <card.icon className={`w-5 h-5 ${card.color}`} />
+                        </div>
+                        <CardTitle className="text-sm font-bold text-zinc-400 uppercase tracking-widest">{card.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-black text-white tracking-tighter">{card.value}</div>
+                        <CardDescription className="text-zinc-500 font-medium mt-1">
+                            {card.description}
+                        </CardDescription>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
-    )
-}
+    );
+});

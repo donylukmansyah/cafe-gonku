@@ -8,7 +8,10 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Admin client for server-side operations (bypasses RLS)
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
+// We only initialize this if the key is present (server-side only)
+export const supabaseAdmin = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey)
+    : null;
 
 // Helper function untuk upload image (bisa dipakai di client/server, tapi server route pakai admin client sendiri)
 // Kita pertahankan ini untuk referensi, tapi route upload pakai logic sendiri.
@@ -27,6 +30,11 @@ export async function deleteMenuImage(imageUrl: string) {
         if (parts.length < 2) return // Invalid URL or not from our bucket
 
         const filePath = parts[1]
+
+        if (!supabaseAdmin) {
+            console.error("Supabase Admin client not initialized (check environment variables)")
+            return
+        }
 
         const { error } = await supabaseAdmin.storage
             .from('menu-images')

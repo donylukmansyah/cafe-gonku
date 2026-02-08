@@ -1,79 +1,95 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, Search, LayoutGrid, List, Filter } from "lucide-react"
 import { toast } from "sonner"
 import { showConfirm, showSuccess, showError } from "@/lib/sweetalert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MenuList } from "@/components/admin/menus/menu-list"
+import { useAdminMenus, type Menu } from "@/hooks/use-admin-menus"
+import {
+    Input
+} from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
-type Menu = {
-    id: string
-    name: string
-    description: string | null
-    price: number
-    category: string
-    imageUrl: string | null
-    isAvailable: boolean
-    isActive: boolean
-    menuOptions: {
-        id: string
-        name: string
-        values: { id: string; label: string; priceAdjust: number }[]
-    }[]
-}
+// Menu type is now imported from useAdminMenus hook
 
 export default function MenusPage() {
-    const [menus, setMenus] = useState<Menu[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const router = useRouter()
+    const [view, setView] = useState<"grid" | "table">("grid")
+    const [searchQuery, setSearchQuery] = useState("")
+    const [categoryFilter, setCategoryFilter] = useState("ALL")
+    const [statusFilter, setStatusFilter] = useState("ALL")
 
-    const fetchMenus = useCallback(async () => {
-        try {
-            const res = await fetch("/api/menus")
-            if (!res.ok) throw new Error("Failed to fetch")
-            const data = await res.json()
-            setMenus(data)
-        } catch (error) {
-            toast.error("Gagal memuat menu")
-            console.error(error)
-        } finally {
-            setIsLoading(false)
-        }
-    }, [])
+    const {
+        menus,
+        isLoading,
+        fetchMenus,
+        initialize
+    } = useAdminMenus();
 
     useEffect(() => {
-        fetchMenus()
-    }, [fetchMenus])
+        const cleanup = initialize();
+        return cleanup;
+    }, [initialize]);
 
-    const handleDelete = async (id: string) => {
+    const filteredMenus = useMemo(() => {
+        return menus.filter(menu => {
+            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = categoryFilter === "ALL" || menu.category === categoryFilter
+            const matchesStatus = statusFilter === "ALL" ||
+                (statusFilter === "ACTIVE" && menu.isActive) ||
+                (statusFilter === "INACTIVE" && !menu.isActive) ||
+                (statusFilter === "AVAILABLE" && menu.isAvailable) ||
+                (statusFilter === "OUT_OF_STOCK" && !menu.isAvailable)
+
+            return matchesSearch && matchesCategory && matchesStatus
+        })
+    }, [menus, searchQuery, categoryFilter, statusFilter]);
+
+    const handleDelete = useCallback(async (id: string) => {
         const result = await showConfirm(
             "Hapus Menu?",
-            "Menu akan dihapus secara permanen.",
-            "Ya, Hapus",
+            "Menu akan dihapus secara permanen!",
+            "Ya, Hapus!",
             "warning"
         )
 
-        if (!result.isConfirmed) return
-
-        try {
-            const res = await fetch(`/api/menus/${id}`, {
-                method: "DELETE",
-            })
-
-            if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Failed to delete")
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/api/menus/${id}`, { method: "DELETE" })
+                if (!res.ok) throw new Error("Gagal menghapus")
+                showSuccess("Menu berhasil dihapus")
+                fetchMenus()
+            } catch (error) {
+                showError("Gagal menghapus menu")
             }
-
-            showSuccess("Berhasil", "Menu berhasil dihapus")
-            setMenus((prev) => prev.filter((m) => m.id !== id))
-        } catch (error) {
-            showError("Gagal", error instanceof Error ? error.message : "Terjadi kesalahan")
-            console.error(error)
         }
-    }
+    }, [fetchMenus]);
+
+    const handleToggleAvailability = useCallback(async (id: string, current: boolean) => {
+        try {
+            const res = await fetch(`/api/menus/${id}/availability`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isAvailable: !current }),
+            })
+            if (!res.ok) throw new Error("Gagal update")
+            toast.success("Status ketersediaan diupdate")
+            fetchMenus()
+        } catch (error) {
+            toast.error("Gagal update status")
+        }
+    }, [fetchMenus]);
 
     if (isLoading) {
         return <MenusLoadingSkeleton />
@@ -97,7 +113,73 @@ export default function MenusPage() {
                 </Link>
             </div>
 
-            <MenuList initialMenus={menus} onDelete={handleDelete} />
+            {/* Filters & Actions */}
+            <div className="flex flex-col lg:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full lg:w-auto">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <Input
+                        placeholder="Cari menu..."
+                        className="pl-11 h-12 bg-zinc-900/50 border-white/5 rounded-xl focus-visible:ring-primary/20"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="h-12 w-[160px] bg-zinc-900/50 border-white/5 rounded-xl text-zinc-300">
+                            <Filter className="w-4 h-4 mr-2 opacity-50" />
+                            <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-white/10 rounded-xl">
+                            <SelectItem value="ALL">All Categories</SelectItem>
+                            <SelectItem value="FOOD">Food</SelectItem>
+                            <SelectItem value="DRINK">Drink</SelectItem>
+                            <SelectItem value="SNACK">Snack</SelectItem>
+                            <SelectItem value="DESSERT">Dessert</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="h-12 w-[160px] bg-zinc-900/50 border-white/5 rounded-xl text-zinc-300">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-white/10 rounded-xl">
+                            <SelectItem value="ALL">All Status</SelectItem>
+                            <SelectItem value="ACTIVE">Active Only</SelectItem>
+                            <SelectItem value="INACTIVE">Archived</SelectItem>
+                            <SelectItem value="AVAILABLE">In Stock</SelectItem>
+                            <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <div className="flex p-1 bg-zinc-900/50 rounded-xl border border-white/5">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-10 w-10 rounded-lg ${view === "grid" ? "bg-primary text-black" : "text-zinc-500 hover:text-white"}`}
+                            onClick={() => setView("grid")}
+                        >
+                            <LayoutGrid className="w-5 h-5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-10 w-10 rounded-lg ${view === "table" ? "bg-primary text-black" : "text-zinc-500 hover:text-white"}`}
+                            onClick={() => setView("table")}
+                        >
+                            <List className="w-5 h-5" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <MenuList
+                menus={filteredMenus}
+                view={view}
+                onDelete={handleDelete}
+                onToggleAvailability={handleToggleAvailability}
+            />
         </div>
     )
 }

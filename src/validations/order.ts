@@ -1,0 +1,55 @@
+import { z } from "zod"
+
+const sanitizedString = z.string().trim().transform((val) => {
+    return val.replace(/<[^>]*>?/gm, "").trim();
+});
+
+// Order status enum matching Prisma schema
+export const orderStatusSchema = z.enum([
+    "PENDING",
+    "PAID",
+    "PREPARING",
+    "READY",
+    "SERVED",
+    "CANCELLED",
+]);
+
+export const paymentStatusSchema = z.enum([
+    "PENDING",
+    "PAID",
+    "FAILED",
+    "EXPIRED",
+]);
+
+// Schema for updating order status (Kitchen)
+export const updateOrderStatusSchema = z.object({
+    status: orderStatusSchema,
+});
+
+// Schema for creating a new order (Customer)
+export const createOrderSchema = z.object({
+    tableId: z.string().cuid(),
+    customerName: z.string().trim().min(1).max(100).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
+    customerPhone: z.string().trim().min(10).max(15).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
+    items: z.array(
+        z.object({
+            menuId: z.string().cuid(),
+            quantity: z.number().int().min(1).max(99),
+            notes: z.string().trim().max(500).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
+            selectedOptions: z.array(
+                z.object({
+                    menuOptionValueId: z.string().cuid(),
+                    optionName: z.string().trim().transform(val => val.replace(/<[^>]*>?/gm, "")),
+                    optionValue: z.string().trim().transform(val => val.replace(/<[^>]*>?/gm, "")),
+                    priceAdjust: z.number().int(),
+                })
+            ).optional(),
+        })
+    ).min(1),
+});
+
+// Types
+export type OrderStatus = z.infer<typeof orderStatusSchema>;
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+export type CreateOrderInput = z.infer<typeof createOrderSchema>;

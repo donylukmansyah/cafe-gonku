@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
@@ -10,22 +10,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { TableList } from "@/components/admin/tables/table-list"
 import { CreateTableDialog } from "@/components/admin/tables/create-table-dialog"
 import { QRDialog } from "@/components/admin/tables/qr-dialog"
-
-type TableData = {
-    id: string
-    tableNumber: number
-    qrCode: string
-    capacity: number
-    isActive: boolean
-    _count: {
-        orders: number
-    }
-}
+import { useState, useCallback, useMemo } from "react"
+import { useAdminTables, type TableData } from "@/hooks/use-admin-tables"
 
 export default function TablesPage() {
-    const [tables, setTables] = useState<TableData[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [isRefreshing, setIsRefreshing] = useState(false)
+    const {
+        tables,
+        setTables,
+        isLoading,
+        isRefreshing,
+        fetchTables,
+        initialize
+    } = useAdminTables();
+
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [showQRDialog, setShowQRDialog] = useState(false)
     const [selectedTable, setSelectedTable] = useState<TableData | null>(null)
@@ -33,29 +30,12 @@ export default function TablesPage() {
 
     const appUrl = useMemo(() => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", [])
 
-    const fetchTables = useCallback(async (quiet = false) => {
-        if (!quiet) setIsLoading(true)
-        else setIsRefreshing(true)
-
-        try {
-            const res = await fetch("/api/tables")
-            if (!res.ok) throw new Error("Failed to fetch")
-            const data = await res.json()
-            setTables(data)
-        } catch (error) {
-            toast.error("Gagal memuat data meja")
-            console.error(error)
-        } finally {
-            setIsLoading(false)
-            setIsRefreshing(false)
-        }
-    }, [])
-
     useEffect(() => {
-        fetchTables()
-    }, [fetchTables])
+        const cleanup = initialize();
+        return cleanup;
+    }, [initialize]);
 
-    const handleCreateTable = async (values: { tableNumber: number, capacity: number }) => {
+    const handleCreateTable = useCallback(async (values: { tableNumber: number, capacity: number }) => {
         try {
             const res = await fetch("/api/tables", {
                 method: "POST",
@@ -70,13 +50,13 @@ export default function TablesPage() {
 
             toast.success(`Meja #${values.tableNumber} berhasil dibuat`)
             setShowCreateDialog(false)
-            fetchTables(true)
+            fetchTables()
         } catch (error: any) {
             toast.error(error.message || "Gagal membuat meja")
         }
-    }
+    }, [fetchTables]);
 
-    const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    const handleToggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
         // Optimistic update
         setTables(prev => prev.map(t => t.id === id ? { ...t, isActive: !currentStatus } : t))
 
@@ -93,9 +73,9 @@ export default function TablesPage() {
             setTables(prev => prev.map(t => t.id === id ? { ...t, isActive: currentStatus } : t))
             toast.error("Gagal mengubah status meja")
         }
-    }
+    }, [setTables]);
 
-    const handleShowQR = async (table: TableData) => {
+    const handleShowQR = useCallback(async (table: TableData) => {
         setSelectedTable(table)
         setQrDataUrl(null)
         setShowQRDialog(true)
@@ -116,17 +96,17 @@ export default function TablesPage() {
             console.error("QR generation error:", error)
             toast.error("Gagal generate QR code")
         }
-    }
+    }, [appUrl]);
 
-    const handleDownloadQR = () => {
+    const handleDownloadQR = useCallback(() => {
         if (!selectedTable || !qrDataUrl) return
         const link = document.createElement("a")
         link.download = `meja-${selectedTable.tableNumber}-qr.png`
         link.href = qrDataUrl
         link.click()
-    }
+    }, [selectedTable, qrDataUrl]);
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = useCallback(async (id: string) => {
         const result = await showConfirm(
             "Hapus Meja?",
             "Meja yang dihapus tidak dapat dikembalikan.",
@@ -144,12 +124,12 @@ export default function TablesPage() {
             if (!res.ok) throw new Error("Failed to delete")
 
             showSuccess("Berhasil", "Meja berhasil dihapus")
-            setTables(prev => prev.filter((t) => t.id !== id))
+            fetchTables()
         } catch (error) {
             showError("Gagal", "Terjadi kesalahan saat menghapus meja")
             console.error(error)
         }
-    }
+    }, [fetchTables]);
 
     if (isLoading) {
         return <TablesLoadingSkeleton />
@@ -169,7 +149,7 @@ export default function TablesPage() {
                     <Button
                         variant="outline"
                         className="h-12 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white rounded-xl px-4 flex-1 sm:flex-none cursor-pointer"
-                        onClick={() => fetchTables(true)}
+                        onClick={() => fetchTables()}
                         disabled={isRefreshing}
                     >
                         <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />

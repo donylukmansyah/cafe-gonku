@@ -1,85 +1,72 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-} from "recharts"
+import { memo } from "react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface RevenueChartProps {
     data: {
-        date: string
-        revenue: number
-        orders: number
-    }[]
+        date: string;
+        revenue: number;
+        orders: number;
+    }[];
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export const RevenueChart = memo(function RevenueChart({ data }: RevenueChartProps) {
     return (
-        <Card className="bg-zinc-900/40 backdrop-blur-md border-white/5 shadow-2xl overflow-hidden ring-1 ring-white/5">
-            <CardHeader className="border-b border-white/[0.02] pb-6">
-                <CardTitle className="text-white text-lg font-bold">Trend Pendapatan</CardTitle>
-                <CardDescription className="text-zinc-500 text-sm">Visualisasi pendapatan harian</CardDescription>
+        <Card className="bg-zinc-900 shadow-2xl border-white/5 overflow-hidden group">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-white">Revenue Analysis</CardTitle>
+                <CardDescription className="text-zinc-500">
+                    Tren pendapatan kotor selama periode yang dipilih.
+                </CardDescription>
             </CardHeader>
-            <CardContent className="pt-8">
-                <div className="h-[340px] w-full pr-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                            <XAxis
-                                dataKey="date"
-                                stroke="#52525b"
-                                fontSize={11}
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#71717a' }}
-                                dy={10}
-                            />
-                            <YAxis
-                                stroke="#52525b"
-                                fontSize={11}
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#71717a' }}
-                                tickFormatter={(value) => `Rp${value >= 1000 ? (value / 1000) + 'k' : value}`}
-                            />
-                            <Tooltip
-                                formatter={(value?: number) => [`Rp ${value?.toLocaleString("id-ID") ?? "0"}`, "Pendapatan"]}
-                                cursor={{ fill: "rgba(255, 255, 255, 0.03)" }}
-                                contentStyle={{
-                                    backgroundColor: "rgba(9, 9, 11, 0.95)", // zinc-950 deep
-                                    borderColor: "rgba(255, 255, 255, 0.1)",
-                                    borderRadius: "16px",
-                                    color: "#fff",
-                                    backdropFilter: "blur(12px)",
-                                    boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)",
-                                    border: "1px solid rgba(255,255,255,0.05)",
-                                    padding: "12px 16px"
-                                }}
-                                itemStyle={{ color: "#2EFE3C", fontWeight: "bold" }}
-                                labelStyle={{ color: "#71717a", marginBottom: "4px", fontSize: "12px", fontWeight: "bold" }}
-                            />
-                            <Bar
-                                dataKey="revenue"
-                                fill="url(#barGradient)"
-                                radius={[6, 6, 0, 0]}
-                                barSize={40}
-                            />
-                            <defs>
-                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#2EFE3C" stopOpacity={0.8} />
-                                    <stop offset="100%" stopColor="#2EFE3C" stopOpacity={0.2} />
-                                </linearGradient>
-                            </defs>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+            <CardContent className="h-[400px] w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data}>
+                        <defs>
+                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="oklch(0.4 0 0)" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="oklch(0.4 0 0)" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis
+                            dataKey="date"
+                            stroke="#52525b"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            dy={10}
+                        />
+                        <YAxis
+                            stroke="#52525b"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => `Rp ${value.toLocaleString()}`}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: "#18181b",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "12px",
+                                color: "#fff"
+                            }}
+                            formatter={(value: any) => [`Rp ${value.toLocaleString()}`, "Revenue"]}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="oklch(0.4 0 0)"
+                            strokeWidth={3}
+                            fillOpacity={1}
+                            fill="url(#colorRevenue)"
+                            animationDuration={1500}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
             </CardContent>
         </Card>
-    )
-}
+    );
+});

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect } from "react"
 import {
     Select,
     SelectContent,
@@ -8,51 +8,27 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { toast } from "sonner"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useAdminAnalytics } from "@/hooks/use-admin-analytics"
+
+// Components (All memoized)
 import { StatsCards } from "@/components/admin/analytics/stats-cards"
 import { RevenueChart } from "@/components/admin/analytics/revenue-chart"
 import { TopMenus } from "@/components/admin/analytics/top-menus"
-import { Card, CardHeader, CardContent } from "@/components/ui/card"
-
-type AnalyticsData = {
-    chartData: {
-        date: string
-        revenue: number
-        orders: number
-    }[]
-    topMenus: {
-        name: string
-        quantity: number
-        category: string
-    }[]
-    totalRevenue: number
-    totalOrders: number
-}
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function AnalyticsPage() {
-    const [data, setData] = useState<AnalyticsData | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [days, setDays] = useState("7")
-
-    const fetchData = useCallback(async () => {
-        setIsLoading(true)
-        try {
-            const res = await fetch(`/api/analytics?days=${days}`)
-            if (!res.ok) throw new Error("Failed to fetch")
-            const result = await res.json()
-            setData(result)
-        } catch (error) {
-            console.error(error)
-            toast.error("Gagal memuat data analytics")
-        } finally {
-            setIsLoading(false)
-        }
-    }, [days])
+    const {
+        data,
+        isLoading,
+        days,
+        setDays,
+        initialize
+    } = useAdminAnalytics();
 
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        const cleanup = initialize();
+        return cleanup;
+    }, [initialize]);
 
     if (isLoading) {
         return <AnalyticsLoadingSkeleton />

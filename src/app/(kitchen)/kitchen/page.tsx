@@ -1,68 +1,197 @@
-"use client"
+"use client";
 
-import { useSession, signOut } from "@/lib/auth-client"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Loader2, LogOut, UtensilsCrossed } from "lucide-react"
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useSession, signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChefHat, UtensilsCrossed } from "lucide-react";
+import { toast, Toaster } from "sonner";
+
+// Hooks
+import { useKitchenOrders } from "@/hooks/use-kitchen-orders";
+import { useKitchenMenus } from "@/hooks/use-kitchen-menus";
+
+// Components
+import { KitchenNavbar } from "@/components/kitchen/kitchen-navbar";
+import { KitchenStatsBar } from "@/components/kitchen/kitchen-stats-bar";
+import { OrderQueue } from "@/components/kitchen/order-queue";
+import { MenuAvailability } from "@/components/kitchen/menu-availability";
 
 export default function KitchenPage() {
-    const { data: session, isPending } = useSession()
-    const router = useRouter()
+    const { data: session, isPending } = useSession();
+    const router = useRouter();
 
-    const handleLogout = async () => {
-        await signOut()
-        router.push("/login")
-        router.refresh()
-    }
+    const [soundEnabled, setSoundEnabled] = useState(true);
+    const [activeTab, setActiveTab] = useState("queue");
+    const audioRef = useRef<HTMLAudioElement>(null);
 
+    // Custom hooks for data management
+    const {
+        orders,
+        paidOrders,
+        preparingOrders,
+        readyOrders,
+        showHistory,
+        setShowHistory,
+        isLoading: isLoadingOrders,
+        isUpdating,
+        lastUpdated,
+        fetchOrders,
+        updateOrderStatus,
+        startPolling,
+    } = useKitchenOrders({
+        soundEnabled,
+        audioRef,
+    });
+
+    const {
+        menus,
+        groupedMenus,
+        isLoading: isLoadingMenus,
+        fetchMenus,
+        toggleAvailability,
+        initialize: initializeMenus,
+    } = useKitchenMenus();
+
+    // Initialization correctly handles cleanup
+    useEffect(() => {
+        const cleanupOrders = startPolling();
+        const cleanupMenus = initializeMenus();
+
+        return () => {
+            cleanupOrders();
+            cleanupMenus();
+        };
+    }, [startPolling, initializeMenus]);
+
+    // Stable event handlers
+    const handleStatusChange = useCallback(async (orderId: string, newStatus: string) => {
+        try {
+            return await updateOrderStatus(orderId, newStatus);
+        } catch {
+            toast.error("Gagal mengupdate status order");
+            return false;
+        }
+    }, [updateOrderStatus]);
+
+    const handleMenuToggle = useCallback(async (menuId: string, isAvailable: boolean) => {
+        return await toggleAvailability(menuId, isAvailable);
+    }, [toggleAvailability]);
+
+    const handleRefresh = useCallback(() => {
+        fetchOrders();
+        fetchMenus();
+        toast.success("Data diperbarui");
+    }, [fetchOrders, fetchMenus]);
+
+    const handleSoundToggle = useCallback(() => {
+        setSoundEnabled((prev) => !prev);
+    }, []);
+
+    const handleLogout = useCallback(async () => {
+        await signOut();
+        router.push("/login");
+        router.refresh();
+    }, [router]);
+
+    // Loading state
     if (isPending) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center shadow-2xl">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                    <p className="text-zinc-500 font-medium">Memuat Database...</p>
+                </div>
             </div>
-        )
+        );
     }
 
-    const user = session?.user as { role?: string } | undefined
+    // Auth check
+    const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
     if (!session || (user?.role !== "KITCHEN" && user?.role !== "ADMIN")) {
-        router.push("/login")
-        return null
+        router.push("/login");
+        return null;
     }
 
     return (
-        <div className="min-h-screen bg-black text-white">
-            <nav className="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_10px_rgba(46,254,60,0.3)]">
-                        <UtensilsCrossed className="w-5 h-5 text-black" />
+        <div className="min-h-screen bg-black text-white selection:bg-primary/30">
+            <Toaster position="top-right" theme="dark" richColors />
+
+            {/* Hidden audio element */}
+            <audio ref={audioRef} src="/notif/notification.wav" preload="auto" />
+
+            {/* UI Shell */}
+            <KitchenNavbar
+                userName={user?.name || user?.email || "Kitchen Staff"}
+                soundEnabled={soundEnabled}
+                onSoundToggle={handleSoundToggle}
+                onRefresh={handleRefresh}
+                onLogout={handleLogout}
+            />
+
+            <KitchenStatsBar
+                paidCount={paidOrders.length}
+                preparingCount={preparingOrders.length}
+                readyCount={readyOrders.length}
+                lastUpdated={lastUpdated}
+            />
+
+            <main className="p-6 max-w-[1800px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900/40 p-2 rounded-2xl border border-zinc-800">
+                        <TabsList className="bg-zinc-900 border border-zinc-700/50 p-1 h-auto w-full sm:w-auto justify-start">
+                            <TabsTrigger
+                                value="queue"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                            >
+                                <ChefHat className="w-4 h-4 mr-2" />
+                                Pesanan Aktif
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="menu"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                            >
+                                <UtensilsCrossed className="w-4 h-4 mr-2" />
+                                Status Menu
+                            </TabsTrigger>
+                        </TabsList>
+
+                        {activeTab === "queue" && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-black/40 rounded-xl border border-zinc-800 self-end sm:self-auto">
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${!showHistory ? "text-primary/70" : "text-zinc-600"}`}>LIVE</span>
+                                <div
+                                    onClick={() => setShowHistory(!showHistory)}
+                                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 relative ${showHistory ? "bg-primary" : "bg-zinc-800"}`}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${showHistory ? "translate-x-6" : "translate-x-0"}`} />
+                                </div>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${showHistory ? "text-primary/70" : "text-zinc-600"}`}>HISTORY</span>
+                            </div>
+                        )}
                     </div>
-                    <span className="font-bold text-lg">Kitchen Display</span>
-                </div>
 
-                <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-zinc-400">
-                        {session.user.name} ({session.user.email})
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLogout}
-                        className="bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-                    >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Logout
-                    </Button>
-                </div>
-            </nav>
+                    <TabsContent value="queue" className="mt-0 outline-none">
+                        <OrderQueue
+                            orders={orders}
+                            isLoading={isLoadingOrders}
+                            isUpdating={isUpdating}
+                            onStatusChange={handleStatusChange}
+                        />
+                    </TabsContent>
 
-            <main className="p-8">
-                <div className="text-center py-20">
-                    <h1 className="text-2xl font-bold text-white mb-2">Kitchen Dashboard</h1>
-                    <p className="text-zinc-500">
-                        Order queue will appear here.
-                    </p>
-                </div>
+                    <TabsContent value="menu" className="mt-0 outline-none">
+                        <MenuAvailability
+                            menus={menus}
+                            groupedMenus={groupedMenus}
+                            onToggle={handleMenuToggle}
+                            isLoading={isLoadingMenus}
+                        />
+                    </TabsContent>
+                </Tabs>
             </main>
         </div>
-    )
+    );
 }

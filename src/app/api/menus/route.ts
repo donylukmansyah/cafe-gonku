@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
         })
 
-        return NextResponse.json(menus)
+        return NextResponse.json({ menus })
     } catch (error) {
         return handleApiError(error)
     }
