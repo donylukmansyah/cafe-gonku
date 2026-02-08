@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const category = searchParams.get("category")
         const includeInactive = searchParams.get("includeInactive") === "true"
+        const onlyAvailable = searchParams.get("onlyAvailable") === "true"
 
         const menus = await prisma.menu.findMany({
             where: {
                 ...(category && { category: category as any }),
                 ...(!includeInactive && { isActive: true }),
+                ...(onlyAvailable && { isAvailable: true }),
             },
             include: {
                 menuOptions: {

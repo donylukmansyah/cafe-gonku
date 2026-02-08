@@ -37,26 +37,26 @@ export default function AnalyticsPage() {
     if (!data) return null
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700 pb-10">
+        <div className="space-y-6 animate-in fade-in duration-700 pb-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6 border-b border-white/5 pb-8 relative">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6 border-b border-white/5 pb-4 relative">
                 <div className="text-center sm:text-left">
-                    <h1 className="text-4xl font-black tracking-tighter text-white mb-2 uppercase italic bg-clip-text text-transparent bg-gradient-to-r from-white to-white/40">
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
                         Performance Analytics
                     </h1>
-                    <p className="text-zinc-500 font-medium max-w-md">
+                    <p className="text-zinc-400 max-w-md mx-auto sm:mx-0">
                         Monitoring laporan pendapatan dan tren menu paling populer di Cafe Gonku secara real-time.
                     </p>
                 </div>
                 <div className="w-full sm:w-auto">
                     <Select value={days} onValueChange={setDays}>
-                        <SelectTrigger className="h-12 w-full sm:w-44 bg-zinc-900/50 border-white/10 rounded-xl focus:ring-primary/20 hover:bg-zinc-800/80 transition-all font-bold text-zinc-300 cursor-pointer">
+                        <SelectTrigger className="h-10 w-full sm:w-40 bg-zinc-900/50 border-white/10 rounded-xl focus:ring-primary/20 hover:bg-zinc-800/80 transition-all font-bold text-zinc-300 text-xs cursor-pointer">
                             <SelectValue placeholder="Pilih periode" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-900 border-white/10 rounded-xl">
-                            <SelectItem value="7" className="rounded-lg focus:bg-primary/20 focus:text-primary">7 Hari Terakhir</SelectItem>
-                            <SelectItem value="14" className="rounded-lg focus:bg-primary/20 focus:text-primary">14 Hari Terakhir</SelectItem>
-                            <SelectItem value="30" className="rounded-lg focus:bg-primary/20 focus:text-primary">30 Hari Terakhir</SelectItem>
+                            <SelectItem value="7" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">7 Hari Terakhir</SelectItem>
+                            <SelectItem value="14" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">14 Hari Terakhir</SelectItem>
+                            <SelectItem value="30" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">30 Hari Terakhir</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
                 days={days}
             />
 
-            <div className="grid gap-8 lg:grid-cols-5">
+            <div className="grid gap-6 lg:grid-cols-5">
                 <div className="lg:col-span-3">
                     <RevenueChart data={data.chartData} />
                 </div>

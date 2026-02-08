@@ -59,7 +59,6 @@ export const TableList = memo(function TableList({
                         <TableRow className="border-white/5 pointer-events-none">
                             <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-6 py-4">Nomor Meja</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kapasitas</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status Order</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Visibility</TableHead>
                             <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-zinc-500 px-6">Aksi</TableHead>
                         </TableRow>
@@ -76,7 +75,7 @@ export const TableList = memo(function TableList({
                         ))}
                         {filteredTables.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-32 text-center text-zinc-500 italic">
+                                <TableCell colSpan={4} className="h-32 text-center text-zinc-500 italic">
                                     Meja tidak ditemukan
                                 </TableCell>
                             </TableRow>

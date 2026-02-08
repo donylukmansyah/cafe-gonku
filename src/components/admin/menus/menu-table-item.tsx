@@ -65,7 +65,7 @@ export const MenuTableItem = memo(function MenuTableItem({
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-9 w-9 hover:bg-primary hover:text-black rounded-xl transition-all"
+                        className="h-9 w-9 hover:bg-primary/10 hover:text-primary rounded-xl transition-all"
                         asChild
                     >
                         <Link href={`/admin/menus/${menu.id}/edit`}>
@@ -75,7 +75,7 @@ export const MenuTableItem = memo(function MenuTableItem({
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-9 w-9 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                        className="h-9 w-9 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
                         onClick={() => onDelete(menu.id)}
                     >
                         <Trash2 className="h-4 w-4" />

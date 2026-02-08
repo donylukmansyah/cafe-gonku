@@ -44,19 +44,6 @@ export const TableRowItem = memo(function TableRowItem({
                 </div>
             </TableCell>
             <TableCell>
-                <div className="flex items-center gap-2">
-                    {table._count.orders > 0 ? (
-                        <Badge className="bg-primary/20 text-primary border-primary/20 uppercase font-black text-[10px] px-3">
-                            {table._count.orders} Active Orders
-                        </Badge>
-                    ) : (
-                        <Badge variant="outline" className="text-zinc-500 border-zinc-800 uppercase font-black text-[10px] px-3">
-                            No Active Orders
-                        </Badge>
-                    )}
-                </div>
-            </TableCell>
-            <TableCell>
                 <div className="flex items-center gap-3">
                     <Switch
                         checked={table.isActive}
@@ -73,7 +60,7 @@ export const TableRowItem = memo(function TableRowItem({
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-10 w-10 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl transition-all"
+                        className="h-10 w-10 hover:bg-primary/10 text-zinc-400 hover:text-primary rounded-xl transition-all"
                         onClick={() => onShowQR(table)}
                     >
                         <QrCode className="h-4 w-4" />
@@ -81,7 +68,7 @@ export const TableRowItem = memo(function TableRowItem({
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-10 w-10 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                        className="h-10 w-10 hover:bg-red-500/10 text-zinc-400 hover:text-red-500 rounded-xl transition-all"
                         onClick={() => onDelete(table.id)}
                     >
                         <Trash2 className="h-4 w-4" />

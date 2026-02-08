@@ -449,7 +449,7 @@ Socket.io Emit → User (optional notification)
 - [ ] Mark menu as unavailable
 
 ### Phase 5: Real-time & Polish
-- [ ] Socket.io server setup
+- [ ] supabase realtime server setup
 - [ ] Real-time order updates
 - [ ] Toast notifications
 - [ ] Loading states

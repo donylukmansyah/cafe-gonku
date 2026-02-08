@@ -25,7 +25,7 @@ import {
 
 export default function MenusPage() {
     const router = useRouter()
-    const [view, setView] = useState<"grid" | "table">("grid")
+    const [view, setView] = useState<"grid" | "table">("table")
     const [searchQuery, setSearchQuery] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("ALL")
     const [statusFilter, setStatusFilter] = useState("ALL")

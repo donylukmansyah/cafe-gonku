@@ -98,6 +98,9 @@ importers:
       sweetalert2-react-content:
         specifier: ^5.1.1
         version: 5.1.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(sweetalert2@11.26.18)
+      swr:
+        specifier: ^2.4.0
+        version: 2.4.0(react@19.2.3)
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -2586,6 +2589,10 @@ packages:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
 
+  dequal@2.0.3:
+    resolution: {integrity: sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==}
+    engines: {node: '>=6'}
+
   destr@2.0.5:
     resolution: {integrity: sha512-ugFTXCtDZunbzasqBxrK93Ik/DRYsO6S/fedkWEMKqt04xZ4csmnmwGDBAb07QWNaGMAmnTIemsYZCksjATwsA==}
 
@@ -4494,6 +4501,11 @@ packages:
 
   sweetalert2@11.26.18:
     resolution: {integrity: sha512-3O5feBqV+hTIOwCRKGuZGHosjiuBAKP/vpBl6vKFZeVYfCUGdXqXuuidn6YXHan3f6e62UdmnjwJBt8UtDVBhg==}
+
+  swr@2.4.0:
+    resolution: {integrity: sha512-sUlC20T8EOt1pHmDiqueUWMmRRX03W7w5YxovWX7VR2KHEPCTMly85x05vpkP5i6Bu4h44ePSMD9Tc+G2MItFw==}
+    peerDependencies:
+      react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   tagged-tag@1.0.0:
     resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
@@ -7228,6 +7240,8 @@ snapshots:
 
   depd@2.0.0: {}
 
+  dequal@2.0.3: {}
+
   destr@2.0.5: {}
 
   detect-libc@2.1.2: {}
@@ -9403,6 +9417,12 @@ snapshots:
       sweetalert2: 11.26.18
 
   sweetalert2@11.26.18: {}
+
+  swr@2.4.0(react@19.2.3):
+    dependencies:
+      dequal: 2.0.3
+      react: 19.2.3
+      use-sync-external-store: 1.6.0(react@19.2.3)
 
   tagged-tag@1.0.0: {}
 

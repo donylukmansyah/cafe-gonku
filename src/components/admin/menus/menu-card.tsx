@@ -37,7 +37,7 @@ export const MenuCard = memo(function MenuCard({
                     <Button
                         size="icon"
                         variant="secondary"
-                        className="h-9 w-9 bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black text-white rounded-xl"
+                        className="h-9 w-9 bg-black/60 backdrop-blur-md border border-white/10 hover:border-primary/50 hover:bg-primary/10 hover:text-primary rounded-xl transition-all"
                         asChild
                     >
                         <Link href={`/admin/menus/${menu.id}/edit`}>
@@ -47,7 +47,7 @@ export const MenuCard = memo(function MenuCard({
                     <Button
                         size="icon"
                         variant="destructive"
-                        className="h-9 w-9 bg-red-500/80 backdrop-blur-md border border-red-500/20 hover:bg-red-500 text-white rounded-xl"
+                        className="h-9 w-9 bg-red-500/20 backdrop-blur-md border border-red-500/20 hover:bg-red-500/30 hover:text-red-500 rounded-xl transition-all"
                         onClick={() => onDelete(menu.id)}
                     >
                         <Trash2 className="h-4 w-4" />
@@ -82,7 +82,7 @@ export const MenuCard = memo(function MenuCard({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black hover:border-primary transition-all rounded-lg"
+                        className="h-8 border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all rounded-lg"
                         onClick={() => onToggleAvailability(menu.id, menu.isAvailable)}
                     >
                         Toggle

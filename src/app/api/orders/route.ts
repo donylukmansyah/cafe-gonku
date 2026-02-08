@@ -98,3 +98,82 @@ export async function GET(request: Request) {
         );
     }
 }
+
+// POST /api/orders - Create new order (Customer)
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+
+        // Basic validation (Full validation in production with zod)
+        const { tableId, items, totalAmount } = body;
+
+        if (!tableId || !items || items.length === 0) {
+            return NextResponse.json({ error: "Data pesanan tidak lengkap" }, { status: 400 });
+        }
+
+        // Generate Order Code (e.g. GONKU-240208-XYZ)
+        const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+        const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
+        const orderCode = `GONKU-${dateStr}-${randomStr}`;
+
+        // Create Order with Items via Transaction
+        const order = await prisma.$transaction(async (tx) => {
+            const newOrder = await tx.order.create({
+                data: {
+                    orderCode,
+                    tableId,
+                    totalAmount,
+                    status: "PENDING", // Initial status
+                    paymentStatus: "PAID", // SIMULATION: Automatically pay for demo
+                    paidAt: new Date(), // Simulating payment
+                    orderItems: {
+                        create: items.map((item: any) => ({
+                            menuId: item.id,
+                            quantity: item.quantity,
+                            price: item.price,
+                            notes: item.notes,
+                            selectedOptions: {
+                                create: item.selectedOptions.map((opt: any) => ({
+                                    optionName: opt.optionName,
+                                    optionValue: opt.optionValue,
+                                    priceAdjust: opt.priceAdjust,
+                                })),
+                            },
+                        })),
+                    },
+                },
+                include: {
+                    orderItems: {
+                        include: {
+                            menu: true,
+                            selectedOptions: true,
+                        },
+                    },
+                    table: true,
+                },
+            });
+
+            return newOrder;
+        });
+
+        // --- Supabase Broadcast for Kitchen ---
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        await supabase.channel("kitchen-updates").send({
+            type: "broadcast",
+            event: "refresh-orders",
+            payload: { orderId: order.id, tableNumber: order.table.tableNumber },
+        });
+
+        return NextResponse.json(order, { status: 201 });
+    } catch (error) {
+        console.error("[POST /api/orders] Error:", error);
+        return NextResponse.json(
+            { error: "Gagal membuat pesanan" },
+            { status: 500 }
+        );
+    }
+}

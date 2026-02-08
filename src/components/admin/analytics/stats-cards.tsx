@@ -41,23 +41,34 @@ export const StatsCards = memo(function StatsCards({ totalRevenue, totalOrders, 
     return (
         <div className="grid gap-6 md:grid-cols-3">
             {cards.map((card) => (
-                <Card key={card.title} className="bg-zinc-900/50 border-white/5 overflow-hidden relative group backdrop-blur-sm">
-                    <div className={`absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-500 ${card.color}`}>
-                        <card.icon className="w-16 h-16" />
+                <div key={card.title} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group backdrop-blur-sm hover:border-white/10 transition-all">
+                    <div className={`absolute -right-6 -top-6 p-8 opacity-[0.03] group-hover:opacity-10 transition-opacity duration-500 transform group-hover:rotate-12`}>
+                        <card.icon className={`w-32 h-32 ${card.color.replace('text-', 'stroke-')}`} />
                     </div>
-                    <CardHeader className="pb-2">
-                        <div className={`w-10 h-10 rounded-xl ${card.bgColor} flex items-center justify-center mb-2`}>
-                            <card.icon className={`w-5 h-5 ${card.color}`} />
+
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className={`p-3 rounded-2xl ${card.bgColor} ${card.color}`}>
+                                <card.icon className="w-6 h-6" />
+                            </div>
+                            {card.title === "Total Orders" && (
+                                <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-zinc-400 px-2 py-1 rounded-lg border border-white/5">
+                                    {days} Hari
+                                </span>
+                            )}
                         </div>
-                        <CardTitle className="text-sm font-bold text-zinc-400 uppercase tracking-widest">{card.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-black text-white tracking-tighter">{card.value}</div>
-                        <CardDescription className="text-zinc-500 font-medium mt-1">
-                            {card.description}
-                        </CardDescription>
-                    </CardContent>
-                </Card>
+
+                        <div>
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1">{card.title}</h3>
+                            <div className="text-3xl sm:text-4xl font-black text-white tracking-tighter mb-2">
+                                {card.value}
+                            </div>
+                            <p className="text-xs font-medium text-zinc-500 leading-relaxed max-w-[80%]">
+                                {card.description}
+                            </p>
+                        </div>
+                    </div>
+                </div>
             ))}
         </div>
     );
