@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -34,13 +34,7 @@ export default function MenusPage() {
         menus,
         isLoading,
         fetchMenus,
-        initialize
     } = useAdminMenus();
-
-    useEffect(() => {
-        const cleanup = initialize();
-        return cleanup;
-    }, [initialize]);
 
     const filteredMenus = useMemo(() => {
         return menus.filter(menu => {

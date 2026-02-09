@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 
 export async function GET(
     request: Request,
@@ -9,7 +9,7 @@ export async function GET(
         const { id } = await props.params;
 
         if (!id) {
-            return NextResponse.json({ error: "Order ID or Code required" }, { status: 400 });
+            return apiError("Order ID or Code required", 400);
         }
 
         // Try to find by ID first (CUID format), then by Order Code
@@ -20,13 +20,20 @@ export async function GET(
                 orderCode: true,
                 status: true,
                 paymentStatus: true,
+                midtransToken: true,
                 totalAmount: true,
                 createdAt: true,
+                table: {
+                    select: {
+                        tableNumber: true,
+                    }
+                },
                 orderItems: {
                     select: {
                         id: true,
                         quantity: true,
                         price: true,
+                        notes: true,
                         menu: {
                             select: {
                                 name: true,
@@ -34,7 +41,9 @@ export async function GET(
                         },
                         selectedOptions: {
                             select: {
+                                optionName: true,
                                 optionValue: true,
+                                priceAdjust: true,
                             },
                         },
                     },
@@ -45,19 +54,26 @@ export async function GET(
         if (!order) {
             // Try matching by Order Code if not found by ID
             order = await prisma.order.findUnique({
-                where: { orderCode: id }, // Treating 'id' param as 'orderCode'
+                where: { orderCode: id },
                 select: {
                     id: true,
                     orderCode: true,
                     status: true,
                     paymentStatus: true,
+                    midtransToken: true,
                     totalAmount: true,
                     createdAt: true,
+                    table: {
+                        select: {
+                            tableNumber: true,
+                        }
+                    },
                     orderItems: {
                         select: {
                             id: true,
                             quantity: true,
                             price: true,
+                            notes: true,
                             menu: {
                                 select: {
                                     name: true,
@@ -65,7 +81,9 @@ export async function GET(
                             },
                             selectedOptions: {
                                 select: {
+                                    optionName: true,
                                     optionValue: true,
+                                    priceAdjust: true,
                                 },
                             },
                         },
@@ -75,12 +93,11 @@ export async function GET(
         }
 
         if (!order) {
-            return NextResponse.json({ error: "Order not found" }, { status: 404 });
+            return apiError("Order not found", 404);
         }
 
-        return NextResponse.json(order);
+        return apiResponse(order);
     } catch (error) {
-        console.error("[GET /api/orders/[id]] Error:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+        return handleApiError(error, "GET /api/orders/[id]");
     }
 }

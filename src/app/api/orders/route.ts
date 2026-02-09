@@ -3,59 +3,54 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { Prisma, OrderStatus } from "@prisma/client";
+import { snap } from "@/lib/midtrans";
+import { supabaseAdmin } from "@/lib/supabase";
+import { createOrderSchema } from "@/validations/order";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 
 // GET /api/orders - Get orders for Kitchen Display (Priority Queue)
 export async function GET(request: Request) {
     try {
-        // Authenticate user
         const session = await auth.api.getSession({
             headers: await headers(),
         });
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return apiError("Unauthorized", 401);
         }
 
         const userRole = (session.user as { role?: string }).role;
         if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return apiError("Forbidden", 403);
         }
 
-        // Parse query params
         const { searchParams } = new URL(request.url);
-        const statusFilter = searchParams.get("status");
         const includeServed = searchParams.get("includeServed") === "true";
 
-        // Build where clause for Priority Queue (Default: Only Today's orders)
-        // Indonesia/Jakarta Timezone (GMT+7)
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         const whereClause: Prisma.OrderWhereInput = {
             paymentStatus: "PAID",
-            createdAt: { gte: startOfDay }, // Only today
+            createdAt: { gte: startOfDay },
         };
 
-        if (statusFilter) {
-            whereClause.status = { in: statusFilter.split(",") as OrderStatus[] };
-        } else if (!includeServed) {
-            // Default active queue: exclude finished items
+        if (!includeServed) {
             whereClause.status = { notIn: ["SERVED", "CANCELLED"] as OrderStatus[] };
         } else {
-            // History mode: specifically include served items
             whereClause.status = { in: ["SERVED", "CANCELLED"] as OrderStatus[] };
         }
 
-        // Optimized query - only fetch what we need (Oldest first = Priority)
         const orders = await prisma.order.findMany({
             where: whereClause,
-            orderBy: { createdAt: "asc" },
-            take: 50, // Limit to 50 orders max to prevent heavy queries
+            orderBy: [{ paidAt: "asc" }],
+            take: 50,
             select: {
                 id: true,
                 orderCode: true,
                 status: true,
                 paidAt: true,
+                createdAt: true,
                 totalAmount: true,
                 table: {
                     select: {
@@ -67,13 +62,10 @@ export async function GET(request: Request) {
                     select: {
                         id: true,
                         quantity: true,
-                        price: true,
                         notes: true,
                         menu: {
                             select: {
-                                id: true,
                                 name: true,
-                                category: true,
                             },
                         },
                         selectedOptions: {
@@ -81,7 +73,6 @@ export async function GET(request: Request) {
                                 id: true,
                                 optionName: true,
                                 optionValue: true,
-                                priceAdjust: true,
                             },
                         },
                     },
@@ -89,91 +80,154 @@ export async function GET(request: Request) {
             },
         });
 
-        return NextResponse.json({ orders });
+        return apiResponse({ orders });
     } catch (error) {
-        console.error("[GET /api/orders] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return handleApiError(error, "GET /api/orders");
     }
 }
 
 // POST /api/orders - Create new order (Customer)
+// Security Refactor: Move price calculation to server
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+        const validatedData = createOrderSchema.parse(body);
+        const { tableId, items } = validatedData;
 
-        // Basic validation (Full validation in production with zod)
-        const { tableId, items, totalAmount } = body;
+        // 1. Fetch current prices from DB to prevent client-side manipulation
+        const menuIds = items.map(i => i.menuId);
+        const menus = await prisma.menu.findMany({
+            where: { id: { in: menuIds } },
+            include: { menuOptions: { include: { values: true } } }
+        });
 
-        if (!tableId || !items || items.length === 0) {
-            return NextResponse.json({ error: "Data pesanan tidak lengkap" }, { status: 400 });
-        }
+        let totalAmount = 0;
+        const processedItems = items.map((item) => {
+            const menu = menus.find(m => m.id === item.menuId);
+            if (!menu || !menu.isAvailable) {
+                throw new Error(`Menu ${menu?.name || 'tertentu'} sedang tidak tersedia`);
+            }
 
-        // Generate Order Code (e.g. GONKU-240208-XYZ)
-        const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
-        const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
-        const orderCode = `GONKU-${dateStr}-${randomStr}`;
+            let itemPrice = menu.price;
+            const selectedOptions = (item.selectedOptions || []).map(opt => {
+                // Find option value in the DB to get official price adjustment
+                const optionValue = (menu as any).menuOptions
+                    .flatMap((o: any) => o.values)
+                    .find((v: any) => v.id === opt.menuOptionValueId);
 
-        // Create Order with Items via Transaction
-        const order = await prisma.$transaction(async (tx) => {
-            const newOrder = await tx.order.create({
-                data: {
-                    orderCode,
-                    tableId,
-                    totalAmount,
-                    status: "PENDING", // Initial status
-                    paymentStatus: "PAID", // SIMULATION: Automatically pay for demo
-                    paidAt: new Date(), // Simulating payment
-                    orderItems: {
-                        create: items.map((item: any) => ({
-                            menuId: item.id,
-                            quantity: item.quantity,
-                            price: item.price,
-                            notes: item.notes,
-                            selectedOptions: {
-                                create: item.selectedOptions.map((opt: any) => ({
-                                    optionName: opt.optionName,
-                                    optionValue: opt.optionValue,
-                                    priceAdjust: opt.priceAdjust,
-                                })),
-                            },
-                        })),
-                    },
-                },
-                include: {
-                    orderItems: {
-                        include: {
-                            menu: true,
-                            selectedOptions: true,
-                        },
-                    },
-                    table: true,
-                },
+                if (!optionValue) {
+                    throw new Error(`Opsi "${opt.optionName}" tidak valid`);
+                }
+
+                itemPrice += optionValue.priceAdjust;
+                return {
+                    optionName: opt.optionName,
+                    optionValue: opt.optionValue,
+                    priceAdjust: optionValue.priceAdjust,
+                    menuOptionValueId: opt.menuOptionValueId,
+                };
             });
 
-            return newOrder;
+            const itemTotal = itemPrice * item.quantity;
+            totalAmount += itemTotal;
+
+            return {
+                menuId: item.menuId,
+                quantity: item.quantity,
+                price: menu.price, // Base price
+                notes: item.notes,
+                selectedOptions,
+            };
         });
 
-        // --- Supabase Broadcast for Kitchen ---
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        // 2. Generate unique order code
+        const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+        const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+        const orderCode = `GONKU-${dateStr}-${randomStr}`;
 
-        await supabase.channel("kitchen-updates").send({
-            type: "broadcast",
-            event: "refresh-orders",
-            payload: { orderId: order.id, tableNumber: order.table.tableNumber },
+        // 3. Create Order
+        const order = await prisma.order.create({
+            data: {
+                orderCode,
+                tableId,
+                totalAmount,
+                status: "PENDING",
+                paymentStatus: "PENDING",
+                orderItems: {
+                    create: processedItems.map(item => ({
+                        menuId: item.menuId,
+                        quantity: item.quantity,
+                        price: item.price,
+                        notes: item.notes,
+                        selectedOptions: {
+                            create: item.selectedOptions
+                        },
+                    })),
+                },
+            },
+            include: {
+                orderItems: {
+                    include: {
+                        menu: true,
+                        selectedOptions: true,
+                    },
+                },
+                table: true,
+            },
         });
 
-        return NextResponse.json(order, { status: 201 });
+        // 4. Initialize Midtrans Transaction
+        let snapToken = null;
+        let midtransRedirectUrl = null;
+        try {
+            const parameter = {
+                transaction_details: {
+                    order_id: orderCode,
+                    gross_amount: totalAmount,
+                },
+                item_details: order.orderItems.map((item: any) => ({
+                    id: item.menuId,
+                    price: item.price + item.selectedOptions.reduce((acc: number, opt: any) => acc + opt.priceAdjust, 0),
+                    quantity: item.quantity,
+                    name: item.menu.name.substring(0, 50),
+                })),
+                customer_details: {
+                    first_name: "Customer",
+                    last_name: `#${orderCode}`,
+                },
+            };
+
+            const transaction = await snap.createTransaction(parameter);
+            snapToken = transaction.token;
+            midtransRedirectUrl = transaction.redirect_url;
+
+            await prisma.order.update({
+                where: { id: order.id },
+                data: {
+                    midtransToken: snapToken,
+                    midtransOrderId: orderCode,
+                },
+            });
+        } catch (midtransError) {
+            console.error("Midtrans Error:", midtransError);
+        }
+
+        // 5. Broadcast to Kitchen (Real-time update)
+        if (supabaseAdmin) {
+            const { sendBroadcast } = await import("@/lib/supabase");
+            await Promise.all([
+                sendBroadcast("refresh-orders", { orderId: orderCode, status: "PENDING" }, "kitchen-updates"),
+                sendBroadcast("refresh-orders", { orderId: orderCode, status: "PENDING" }, `order-${orderCode}`)
+            ]);
+        }
+
+        return apiResponse({
+            ...order,
+            midtransToken: snapToken,
+            midtransRedirectUrl: midtransRedirectUrl
+        }, 201);
+
     } catch (error) {
-        console.error("[POST /api/orders] Error:", error);
-        return NextResponse.json(
-            { error: "Gagal membuat pesanan" },
-            { status: 500 }
-        );
+        return handleApiError(error, "POST /api/orders");
     }
 }

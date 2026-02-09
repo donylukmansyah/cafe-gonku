@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu } from "@/hooks/use-customer-menus";
+import { Menu } from "@/types/menu";
 import { useCart, CartItem } from "@/hooks/use-cart";
 import {
     Dialog,
@@ -40,11 +40,12 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
 
     if (!menu) return null;
 
-    const handleOptionSelect = (optionId: string, optionName: string, value: { label: string, priceAdjust: number }) => {
+    const handleOptionSelect = (optionId: string, optionName: string, value: { id: string, label: string, priceAdjust: number }) => {
         setSelectedOptions(prev => {
-            const filtered = prev.filter(o => o.id !== optionId);
+            const filtered = prev.filter(o => o.optionId !== optionId);
             return [...filtered, {
-                id: optionId,
+                optionId,
+                valueId: value.id,
                 optionName,
                 optionValue: value.label,
                 priceAdjust: value.priceAdjust
@@ -61,7 +62,7 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
     const handleAddToCart = () => {
         // Validate required options
         const missingOptions = menu.menuOptions.filter(
-            opt => opt.isRequired && !selectedOptions.find(so => so.id === opt.id)
+            (opt) => opt.isRequired && !selectedOptions.find(so => so.optionId === opt.id)
         );
 
         if (missingOptions.length > 0) {
@@ -124,14 +125,14 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {option.values.map((val) => {
-                                    const isSelected = selectedOptions.find(so => so.id === option.id && so.optionValue === val.label);
+                                    const isSelected = selectedOptions.find(so => so.optionId === option.id && so.valueId === val.id);
                                     return (
                                         <button
                                             key={val.id}
                                             onClick={() => handleOptionSelect(option.id, option.name, val)}
-                                            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-300 relative overflow-hidden group/btn ${isSelected
-                                                ? "bg-primary text-black border-primary shadow-[0_0_20px_rgba(46,254,60,0.4)] scale-105 z-10"
-                                                : "bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/20 hover:bg-zinc-800 hover:text-white"
+                                            className={`px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all duration-500 relative overflow-hidden group/btn ${isSelected
+                                                ? "bg-primary text-black border-primary shadow-[0_0_20px_rgba(46,254,60,0.3)] scale-105 z-10"
+                                                : "bg-zinc-900/40 border-white/5 text-zinc-500 hover:border-white/20 hover:bg-zinc-800 hover:text-white"
                                                 }`}
                                         >
                                             <span className="relative z-10 flex items-center gap-2">
@@ -171,19 +172,21 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
                                 >
                                     <Minus className="w-3.5 h-3.5" />
                                 </Button>
-                                <span className="w-8 text-center font-black text-white text-base tabular-nums">{quantity}</span>
+                                <span className="w-8 text-center text-sm font-black text-white tabular-nums">
+                                    {quantity}
+                                </span>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 text-primary hover:text-primary hover:bg-primary/10 rounded-lg"
+                                    className="h-10 w-10 text-primary hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-75"
                                     onClick={() => setQuantity(quantity + 1)}
                                 >
-                                    <Plus className="w-3.5 h-3.5" />
+                                    <Plus className="w-4 h-4" />
                                 </Button>
                             </div>
 
                             <Button
-                                className="flex-1 h-12 bg-primary hover:bg-primary/90 text-black font-black text-sm rounded-xl shadow-[0_0_30px_rgba(46,254,60,0.2)] hover:shadow-[0_0_40px_rgba(46,254,60,0.4)] transition-all active:scale-95 flex items-center justify-between px-5 group"
+                                className="flex-1 h-12 bg-primary hover:bg-primary/90 text-black font-black text-sm rounded-xl shadow-[0_8px_25px_rgba(46,254,60,0.15)] hover:shadow-[0_12px_35px_rgba(46,254,60,0.25)] transition-all active:scale-95 flex items-center justify-between px-5 group"
                                 onClick={handleAddToCart}
                             >
                                 <span className="uppercase tracking-widest text-[10px] opacity-70 group-hover:opacity-100 transition-opacity">Tambah</span>

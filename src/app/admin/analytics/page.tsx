@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import {
     Select,
     SelectContent,
@@ -22,13 +21,7 @@ export default function AnalyticsPage() {
         isLoading,
         days,
         setDays,
-        initialize
     } = useAdminAnalytics();
-
-    useEffect(() => {
-        const cleanup = initialize();
-        return cleanup;
-    }, [initialize]);
 
     if (isLoading) {
         return <AnalyticsLoadingSkeleton />

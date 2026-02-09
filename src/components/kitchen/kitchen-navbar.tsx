@@ -8,6 +8,7 @@ import {
     Volume2,
     VolumeX,
     Wifi,
+    PlayCircle,
 } from "lucide-react";
 
 interface KitchenNavbarProps {
@@ -16,6 +17,7 @@ interface KitchenNavbarProps {
     onSoundToggle: () => void;
     onRefresh: () => void;
     onLogout: () => void;
+    onTestSound?: () => void;
 }
 
 export function KitchenNavbar({
@@ -24,6 +26,7 @@ export function KitchenNavbar({
     onSoundToggle,
     onRefresh,
     onLogout,
+    onTestSound,
 }: KitchenNavbarProps) {
     return (
         <nav className="bg-zinc-900 border-b border-zinc-800 px-6 py-4 sticky top-0 z-50">
@@ -63,6 +66,17 @@ export function KitchenNavbar({
                         ) : (
                             <VolumeX className="w-4 h-4" />
                         )}
+                    </Button>
+
+                    {/* Test Sound Button (Helper to unlock audio) */}
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={onTestSound}
+                        title="Test Notifikasi Suara"
+                        className="w-10 h-10 bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white cursor-pointer"
+                    >
+                        <PlayCircle className="w-4 h-4" />
                     </Button>
 
                     {/* Refresh */}

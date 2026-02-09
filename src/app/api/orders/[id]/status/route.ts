@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { updateOrderStatusSchema } from "@/validations/order";
-import { supabase } from "@/lib/supabase";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 
 // PATCH /api/orders/[id]/status - Update order status
 export async function PATCH(
@@ -19,12 +19,12 @@ export async function PATCH(
         });
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return apiError("Unauthorized", 401);
         }
 
         const userRole = (session.user as { role?: string }).role;
         if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return apiError("Forbidden", 403);
         }
 
         // Validate request body
@@ -32,10 +32,7 @@ export async function PATCH(
         const parseResult = updateOrderStatusSchema.safeParse(body);
 
         if (!parseResult.success) {
-            return NextResponse.json(
-                { error: "Invalid request body", details: parseResult.error.flatten() },
-                { status: 400 }
-            );
+            return apiError("Invalid request body", 400, parseResult.error.flatten());
         }
 
         const { status } = parseResult.data;
@@ -47,7 +44,7 @@ export async function PATCH(
         });
 
         if (!existingOrder) {
-            return NextResponse.json({ error: "Order not found" }, { status: 404 });
+            return apiError("Order not found", 404);
         }
 
         // Update order status
@@ -87,21 +84,19 @@ export async function PATCH(
         });
 
         // Emit Supabase broadcast for real-time update
-        await supabase.channel("kitchen-updates").send({
-            type: "broadcast",
-            event: "refresh-orders",
-            payload: { orderId: id, status },
-        });
+        const payload = { orderId: existingOrder.orderCode, status };
 
-        return NextResponse.json({
+        const { sendBroadcast } = await import("@/lib/supabase");
+        await Promise.all([
+            sendBroadcast("refresh-orders", payload, "kitchen-updates"),
+            sendBroadcast("refresh-orders", payload, `order-${existingOrder.orderCode}`)
+        ]);
+
+        return apiResponse({
             message: "Order status updated successfully",
             order: updatedOrder,
         });
     } catch (error) {
-        console.error("[PATCH /api/orders/[id]/status] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return handleApiError(error, "PATCH /api/orders/[id]/status");
     }
 }

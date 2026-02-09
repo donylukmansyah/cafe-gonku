@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,11 +60,12 @@ export default function KitchenPage() {
         const cleanupOrders = startPolling();
         const cleanupMenus = initializeMenus();
 
+
         return () => {
             cleanupOrders();
             cleanupMenus();
         };
-    }, [startPolling, initializeMenus]);
+    }, [startPolling, initializeMenus, soundEnabled]);
 
     // Stable event handlers
     const handleStatusChange = useCallback(async (orderId: string, newStatus: string) => {
@@ -95,6 +97,18 @@ export default function KitchenPage() {
         router.refresh();
     }, [router]);
 
+    const handleTestSound = useCallback(() => {
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play()
+                .then(() => toast.success("Suara notifikasi berfungsi! 🔊"))
+                .catch((err) => {
+                    console.error("Test sound failed:", err);
+                    toast.error("Gagal memutar suara. Coba klik dashboard lalu tes lagi.");
+                });
+        }
+    }, []);
+
     // Loading state
     if (isPending) {
         return (
@@ -121,7 +135,7 @@ export default function KitchenPage() {
             <Toaster position="top-right" theme="dark" richColors />
 
             {/* Hidden audio element */}
-            <audio ref={audioRef} src="/notif/notification.wav" preload="auto" />
+            <audio ref={audioRef} src="/notif/new-order.wav" preload="auto" />
 
             {/* UI Shell */}
             <KitchenNavbar
@@ -130,6 +144,7 @@ export default function KitchenPage() {
                 onSoundToggle={handleSoundToggle}
                 onRefresh={handleRefresh}
                 onLogout={handleLogout}
+                onTestSound={handleTestSound}
             />
 
             <KitchenStatsBar

@@ -379,8 +379,8 @@ function OptionField({
     onRemove,
 }: {
     index: number
-    control: Control<CreateMenuInput>
-    register: UseFormRegister<CreateMenuInput>
+    control: Control<any>
+    register: UseFormRegister<any>
     onRemove: () => void
 }) {
     const {

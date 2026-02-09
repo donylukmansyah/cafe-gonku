@@ -96,7 +96,7 @@ export default async function AdminDashboardPage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {statCards.map((stat) => (
                     <Link key={stat.title} href={stat.href} className="block group cursor-pointer">
                         <Card className="h-full bg-zinc-900/40 backdrop-blur-sm border-white/5 hover:border-primary/20 hover:bg-zinc-900/60 transition-all duration-300 overflow-hidden relative">

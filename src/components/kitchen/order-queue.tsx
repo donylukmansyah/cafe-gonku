@@ -3,7 +3,11 @@
 import { memo } from "react";
 import { Order } from "@/hooks/use-kitchen-orders";
 import { OrderCard } from "./order-card";
-import { ChefHat, Loader2 } from "lucide-react";
+import { ChefHat, Loader2, ListChecks, Play, CheckCircle2, Truck } from "lucide-react";
+import { useState } from "react";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { toast } from "sonner";
 
 interface OrderQueueProps {
     orders: Order[];
@@ -19,6 +23,53 @@ export const OrderQueue = memo(function OrderQueue({
     isUpdating,
     onStatusChange,
 }: OrderQueueProps) {
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const selectedOrders = orders.filter(o => selectedIds.includes(o.id));
+    const firstStatus = selectedOrders[0]?.status;
+    const isSameStatus = selectedOrders.every(o => o.status === firstStatus);
+
+    const bulkActionConfig = {
+        PAID: {
+            label: "MULAI MASAK",
+            nextStatus: "PREPARING",
+            icon: Play,
+            successMsg: "pesanan mulai dimasak! 🍳"
+        },
+        PREPARING: {
+            label: "SELESAI MASAK",
+            nextStatus: "READY",
+            icon: CheckCircle2,
+            successMsg: "pesanan selesai dimasak! ✅"
+        },
+        READY: {
+            label: "ANTAR KE MEJA",
+            nextStatus: "SERVED",
+            icon: Truck,
+            successMsg: "pesanan dalam pengantaran! 🚚"
+        }
+    };
+
+    const currentBulkAction = firstStatus ? bulkActionConfig[firstStatus as keyof typeof bulkActionConfig] : null;
+
+    const handleBulkAction = async () => {
+        if (selectedIds.length === 0 || !currentBulkAction || !isSameStatus) return;
+
+        try {
+            await (onStatusChange as any)(selectedIds, currentBulkAction.nextStatus);
+            setSelectedIds([]);
+            toast.success(`${selectedIds.length} ${currentBulkAction.successMsg}`);
+        } catch (err) {
+            toast.error("Gagal memperbarui pesanan masal");
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-32">
@@ -55,15 +106,73 @@ export const OrderQueue = memo(function OrderQueue({
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-            {orders.map((order) => (
-                <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={onStatusChange}
-                    isUpdating={isUpdating}
-                />
-            ))}
+        <div className="space-y-6">
+            {/* Bulk Actions Bar */}
+            {selectedIds.length > 0 && (
+                <div className="sticky top-0 z-50 py-4 -mt-2">
+                    <div className="bg-zinc-950/80 backdrop-blur-xl border border-primary/30 rounded-2xl p-4 flex items-center justify-between shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+                        <div className="flex items-center gap-4">
+                            <div className="flex -space-x-2">
+                                {selectedIds.length > 0 && (
+                                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center border-4 border-zinc-950 text-black font-black text-sm">
+                                        {selectedIds.length}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-white font-black text-sm leading-none">Terpilih</span>
+                                <span className="text-zinc-500 font-bold text-[11px] uppercase tracking-wider">
+                                    {isSameStatus ? "Aksi Masal" : "Status Berbeda"}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {!isSameStatus ? (
+                                <span className="text-red-400 font-bold text-xs bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 shadow-inner">
+                                    Pilih status yang sama untuk aksi masal
+                                </span>
+                            ) : null}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedIds([])}
+                                className="text-zinc-400 hover:text-white font-bold"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={handleBulkAction}
+                                disabled={isUpdating || !isSameStatus || !currentBulkAction}
+                                className="bg-primary text-black hover:bg-primary/90 font-black rounded-xl px-6 h-10 shadow-lg shadow-primary/20 disabled:opacity-30"
+                            >
+                                {isUpdating ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        {currentBulkAction?.icon && <currentBulkAction.icon className="w-4 h-4 mr-2 fill-current" />}
+                                        {isSameStatus && currentBulkAction ? currentBulkAction.label : "AKSI MASAL"} ({selectedIds.length})
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orders.map((order) => (
+                    <OrderCard
+                        key={order.id}
+                        order={order}
+                        onStatusChange={onStatusChange}
+                        isUpdating={isUpdating}
+                        isSelected={selectedIds.includes(order.id)}
+                        onSelect={() => toggleSelect(order.id)}
+                    />
+                ))}
+            </div>
         </div>
     );
 });

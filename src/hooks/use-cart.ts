@@ -11,7 +11,8 @@ export interface CartItem {
     imageUrl?: string;
     notes?: string;
     selectedOptions: {
-        id: string;
+        optionId: string;
+        valueId: string;
         optionName: string;
         optionValue: string;
         priceAdjust: number;
@@ -30,13 +31,17 @@ interface CartStore {
     getItemCount: () => number;
     activeOrderCode: string | null;
     setActiveOrderCode: (code: string | null) => void;
+    hasHydrated: boolean;
+    setHasHydrated: (state: boolean) => void;
 }
 
 // Helper to generate a unique key for items with the same menuId but different options
 export const getOptionsHash = (options: CartItem["selectedOptions"]) => {
+    if (!options || options.length === 0) return "none";
     return options
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .map((o) => `${o.id}-${o.optionValue}`)
+        .filter(o => !!o.valueId) // Defensive: skip old data format
+        .sort((a, b) => (a.valueId || "").localeCompare(b.valueId || ""))
+        .map((o) => o.valueId)
         .join("|");
 };
 
@@ -104,9 +109,15 @@ export const useCart = create<CartStore>()(
             },
             activeOrderCode: null,
             setActiveOrderCode: (code) => set({ activeOrderCode: code }),
+            hasHydrated: false,
+            setHasHydrated: (state) => set({ hasHydrated: state }),
         }),
         {
             name: "cafe-gonku-cart",
+            version: 2,
+            onRehydrateStorage: (state) => {
+                return () => state?.setHasHydrated(true);
+            }
         }
     )
 );

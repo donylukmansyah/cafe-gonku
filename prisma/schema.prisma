@@ -234,9 +234,10 @@ model Order {
 
   // Indexes untuk performa
   @@index([paymentStatus, paidAt]) // Priority queue: yang bayar duluan tampil duluan
+  @@index([status, createdAt]) // Kitchen queue: filter order aktif & urutkan
   @@index([tableId])
   @@index([status])
-  @@index([createdAt])
+  @@index([createdAt]) // Reporting range queries
   @@map("orders")
 }
 

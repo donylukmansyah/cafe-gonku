@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
@@ -20,7 +19,6 @@ export default function TablesPage() {
         isLoading,
         isRefreshing,
         fetchTables,
-        initialize
     } = useAdminTables();
 
     const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -29,11 +27,6 @@ export default function TablesPage() {
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
     const appUrl = useMemo(() => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", [])
-
-    useEffect(() => {
-        const cleanup = initialize();
-        return cleanup;
-    }, [initialize]);
 
     const handleCreateTable = useCallback(async (values: { tableNumber: number, capacity: number }) => {
         try {
@@ -58,7 +51,7 @@ export default function TablesPage() {
 
     const handleToggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
         // Optimistic update
-        setTables(prev => prev.map(t => t.id === id ? { ...t, isActive: !currentStatus } : t))
+        setTables(prev => (prev || []).map(t => t.id === id ? { ...t, isActive: !currentStatus } : t), false)
 
         try {
             const res = await fetch(`/api/tables/${id}`, {
@@ -70,7 +63,7 @@ export default function TablesPage() {
             if (!res.ok) throw new Error("Failed to update")
         } catch (error) {
             // Revert on error
-            setTables(prev => prev.map(t => t.id === id ? { ...t, isActive: currentStatus } : t))
+            setTables(prev => (prev || []).map(t => t.id === id ? { ...t, isActive: currentStatus } : t), false)
             toast.error("Gagal mengubah status meja")
         }
     }, [setTables]);

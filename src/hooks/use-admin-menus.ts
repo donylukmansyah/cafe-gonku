@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
-import { toast } from "sonner";
+import useSWR from "swr";
+import { apiFetch } from "@/lib/api-client";
 
 export interface Menu {
     id: string;
@@ -19,56 +19,15 @@ export interface Menu {
 }
 
 export function useAdminMenus() {
-    const [menus, setMenus] = useState<Menu[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const lastDataHashRef = useRef("");
-    const isMountedRef = useRef(true);
-    const isFetchingRef = useRef(false);
-
-    const getHash = (items: Menu[]) => {
-        return items.map(m => `${m.id}-${m.isAvailable}-${m.isActive}`).join("|");
-    };
-
-    const fetchMenus = useCallback(async (force = false) => {
-        if (!isMountedRef.current || isFetchingRef.current) return;
-        isFetchingRef.current = true;
-
-        try {
-            const res = await fetch("/api/menus?includeInactive=true");
-            if (!res.ok) throw new Error("Failed to fetch menus");
-            const data = await res.json();
-
-            if (!isMountedRef.current) return;
-
-            const newMenus = data.menus || [];
-            const newHash = getHash(newMenus);
-            if (newHash !== lastDataHashRef.current || force) {
-                lastDataHashRef.current = newHash;
-                setMenus(newMenus);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error("Gagal memuat menu");
-        } finally {
-            isFetchingRef.current = false;
-            if (isMountedRef.current) {
-                setIsLoading(false);
-            }
-        }
-    }, []);
-
-    const initialize = useCallback(() => {
-        isMountedRef.current = true;
-        fetchMenus();
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, [fetchMenus]);
+    const { data, error, isLoading, mutate } = useSWR<{ menus: Menu[] }>(
+        "/api/menus?includeInactive=true",
+        apiFetch
+    );
 
     return {
-        menus,
+        menus: data?.menus || [],
         isLoading,
-        fetchMenus: () => fetchMenus(true),
-        initialize,
+        fetchMenus: mutate,
+        error
     };
 }

@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 
 interface OrderItem {
     id: string;
@@ -24,8 +26,9 @@ interface OrderItem {
 export interface Order {
     id: string;
     orderCode: string;
-    status: "PAID" | "PREPARING" | "READY" | "SERVED";
-    paidAt: string;
+    status: "PENDING" | "PAID" | "PREPARING" | "READY" | "SERVED" | "CANCELLED";
+    paidAt: string | null;
+    createdAt: string;
     totalAmount: number;
     table: {
         id: string;
@@ -41,7 +44,7 @@ interface UseKitchenOrdersOptions {
 }
 
 export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
-    const { pollingInterval = 15000, soundEnabled = true, audioRef } = options;
+    const { soundEnabled = true, audioRef } = options;
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [showHistory, setShowHistory] = useState(false);
@@ -50,7 +53,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [error, setError] = useState<string | null>(null);
 
-    const lastOrderCountRef = useRef(0);
+    const soundedOrdersRef = useRef<Set<string>>(new Set());
     const lastDataHashRef = useRef(""); // Track data hash to prevent re-renders
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isMountedRef = useRef(true);
@@ -61,6 +64,19 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         return `${history}-${orders.map(o => `${o.id}-${o.status}`).join("|")}`;
     };
 
+    const playNotification = useCallback(() => {
+        if (audioRef?.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch((err) => {
+                console.warn("[Audio] Playback failed/blocked:", err);
+                toast.error("Notifikasi suara terblokir browser. Klik layar dashboard untuk mengaktifkan! 🔊", {
+                    description: "Browser butuh interaksi user sebelum memutar suara.",
+                    duration: 8000
+                });
+            });
+        }
+    }, [audioRef]);
+
     const fetchOrders = useCallback(async (isManual = false, historyOverride?: boolean) => {
         if (!isMountedRef.current || isFetchingRef.current) return;
 
@@ -68,30 +84,32 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         const historyFlag = historyOverride !== undefined ? historyOverride : showHistory;
 
         try {
-            const res = await fetch(`/api/orders?includeServed=${historyFlag}`);
-            if (!res.ok) throw new Error("Failed to fetch orders");
-            const data = await res.json();
+            const data = await apiFetch<{ orders: Order[] }>(`/api/orders?includeServed=${historyFlag}`, {
+                silent: !isManual
+            });
 
             if (!isMountedRef.current) return;
 
-            const newOrders = data.orders as Order[];
+            const newOrders = data.orders;
             const newHash = getOrdersHash(newOrders, historyFlag);
 
             // Only update state if data actually changed
             if (newHash !== lastDataHashRef.current || isManual) {
-                // Sound notification check (only on polling/initial additions & NOT in history mode)
-                if (
-                    !historyFlag &&
-                    newOrders.length > lastOrderCountRef.current &&
-                    lastOrderCountRef.current > 0 &&
-                    soundEnabled &&
-                    audioRef?.current
-                ) {
-                    audioRef.current.play().catch(() => { });
+                // On initial load (when soundedOrdersRef is empty), mark existing orders as sounded
+                // to prevent notification splash on login/refresh
+                if (soundedOrdersRef.current.size === 0 && newOrders.length > 0) {
+                    newOrders.forEach(o => soundedOrdersRef.current.add(o.id));
                 }
 
-                if (!historyFlag) {
-                    lastOrderCountRef.current = newOrders.length;
+                // Check for NEW Paid orders that haven't played sound yet (for polling fallback)
+                if (soundEnabled && audioRef?.current) {
+                    newOrders.forEach(order => {
+                        if (order.status === "PAID" && !soundedOrdersRef.current.has(order.id)) {
+                            console.log(`[Polling] Triggering sound for NEW order: ${order.orderCode}`);
+                            playNotification();
+                            soundedOrdersRef.current.add(order.id);
+                        }
+                    });
                 }
 
                 lastDataHashRef.current = newHash;
@@ -102,7 +120,6 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
             setError(null);
         } catch (err) {
             if (!isMountedRef.current) return;
-            console.error("Error fetching orders:", err);
             setError("Gagal memuat orders");
         } finally {
             isFetchingRef.current = false;
@@ -110,38 +127,34 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 setIsLoading(false);
             }
         }
-    }, [soundEnabled, audioRef, showHistory]);
+    }, [soundEnabled, audioRef, showHistory, playNotification]);
 
-    const updateOrderStatus = useCallback(
-        async (orderId: string, newStatus: string) => {
+    const updateOrdersStatus = useCallback(
+        async (orderIds: string[], newStatus: string) => {
             setIsUpdating(true);
 
             // Optimistic update
             setOrders((prev) =>
                 prev.map((order) =>
-                    order.id === orderId
+                    orderIds.includes(order.id)
                         ? { ...order, status: newStatus as Order["status"] }
                         : order
                 )
             );
 
             try {
-                const res = await fetch(`/api/orders/${orderId}/status`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status: newStatus }),
-                });
+                const promises = orderIds.map(orderId =>
+                    apiFetch(`/api/orders/${orderId}/status`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ status: newStatus }),
+                    })
+                );
 
-                if (!res.ok) {
-                    await fetchOrders(true);
-                    throw new Error("Failed to update order status");
-                }
-
-                // Manual fetch to sync server state and update hash
+                await Promise.all(promises);
                 await fetchOrders(true);
                 return true;
             } catch (err) {
-                console.error("Error updating order:", err);
+                await fetchOrders(true);
                 throw err;
             } finally {
                 setIsUpdating(false);
@@ -150,32 +163,72 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         [fetchOrders]
     );
 
+    const syncPendingOrders = useCallback(async () => {
+        if (!isMountedRef.current) return;
+        try {
+            await apiFetch("/api/orders/sync-payment", { method: "POST", silent: true });
+        } catch (err) {
+            console.error("Sync error:", err);
+        }
+    }, []);
+
     const startPolling = useCallback(() => {
         isMountedRef.current = true;
         fetchOrders();
+        syncPendingOrders();
 
-        // --- Supabase Realtime Broadcast ---
-        // Since DB is on Neon, we use Broadcast to signal updates
         const channel = supabase
             .channel("kitchen-updates")
-            .on("broadcast", { event: "refresh-orders" }, () => {
-                console.log("[Supabase] Realtime refresh signal received");
-                fetchOrders(true);
+            .on("broadcast", { event: "refresh-orders" }, (payload) => {
+                const data = payload.payload;
+                const status = data?.status;
+                const orderId = data?.orderId;
+                const isPayment = status === "PAID";
+                const isNewPaidOrder = isPayment && !soundedOrdersRef.current.has(orderId);
+
+                if (isNewPaidOrder) {
+                    if (soundEnabled) {
+                        playNotification();
+                    }
+                    if (orderId) soundedOrdersRef.current.add(orderId);
+                    toast.success(`Pesanan Masuk: ${orderId} 🔔`, {
+                        description: "Sudah bayar! Segera cek daftar Pesanan Aktif.",
+                        duration: 10000,
+                    });
+                }
+
+                if (data?.orderId && data?.status) {
+                    if (data.status === "PENDING") return;
+                    setOrders(prev => {
+                        const existing = prev.find(o => o.orderCode === data.orderId);
+                        if (!existing) {
+                            fetchOrders(true);
+                            return prev;
+                        }
+                        return prev.map(o =>
+                            o.orderCode === data.orderId
+                                ? { ...o, status: data.status }
+                                : o
+                        );
+                    });
+                } else {
+                    fetchOrders(true);
+                }
             })
             .subscribe();
 
-        const poll = () => {
-            if (document.visibilityState === "visible") {
-                fetchOrders();
-            }
-        };
+        pollingRef.current = setInterval(() => {
+            if (document.visibilityState === "visible") fetchOrders();
+        }, 5000);
 
-        // Fallback polling (slower, for safety)
-        pollingRef.current = setInterval(poll, 60000); // Check every 1 minute as fallback
+        const syncInterval = setInterval(() => {
+            syncPendingOrders();
+        }, 30000);
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {
                 fetchOrders();
+                syncPendingOrders();
             }
         };
 
@@ -184,12 +237,11 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         return () => {
             isMountedRef.current = false;
             supabase.removeChannel(channel);
-            if (pollingRef.current) {
-                clearInterval(pollingRef.current);
-            }
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            if (syncInterval) clearInterval(syncInterval);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [fetchOrders]);
+    }, [fetchOrders, syncPendingOrders, soundEnabled, playNotification]);
 
     const groupedOrders = useMemo(
         () => ({
@@ -213,7 +265,9 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         lastUpdated,
         error,
         fetchOrders: () => fetchOrders(true),
-        updateOrderStatus,
+        updateOrderStatus: (idOrIds: string | string[], status: string) =>
+            updateOrdersStatus(Array.isArray(idOrIds) ? idOrIds : [idOrIds], status),
+        updateOrdersStatus,
         startPolling,
     };
 }

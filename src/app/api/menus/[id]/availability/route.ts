@@ -1,8 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { z } from "zod/v4";
+import { z } from "zod";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { revalidateTag } from "next/cache";
 
 // Schema for updating menu availability
 const updateAvailabilitySchema = z.object({
@@ -23,13 +25,13 @@ export async function PATCH(
         });
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return apiError("Unauthorized", 401);
         }
 
         const userRole = (session.user as { role?: string }).role;
         // Both Kitchen and Admin can toggle availability
         if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return apiError("Forbidden", 403);
         }
 
         // Validate request body
@@ -37,10 +39,7 @@ export async function PATCH(
         const parseResult = updateAvailabilitySchema.safeParse(body);
 
         if (!parseResult.success) {
-            return NextResponse.json(
-                { error: "Invalid request body", details: parseResult.error.flatten() },
-                { status: 400 }
-            );
+            return apiError("Invalid request body", 400, parseResult.error.flatten());
         }
 
         const { isAvailable } = parseResult.data;
@@ -52,7 +51,7 @@ export async function PATCH(
         });
 
         if (!existingMenu) {
-            return NextResponse.json({ error: "Menu not found" }, { status: 404 });
+            return apiError("Menu not found", 404);
         }
 
         // Update menu availability
@@ -69,19 +68,21 @@ export async function PATCH(
             },
         });
 
-        // TODO: Emit Socket.IO event for real-time update
-        // emitToKitchen(SOCKET_EVENTS.MENU_UPDATED, updatedMenu);
+        // Emit Supabase broadcast for real-time update
+        const lib = await import("@/lib/supabase");
+        await lib.sendBroadcast("menu-update", {
+            menuId: updatedMenu.id,
+            isAvailable: updatedMenu.isAvailable
+        }, "kitchen-updates");
 
-        return NextResponse.json({
+        revalidateTag('public-menus', 'max');
+
+        return apiResponse({
             message: `Menu "${updatedMenu.name}" is now ${isAvailable ? "available" : "unavailable"}`,
             menu: updatedMenu,
-        });
+        }, 200);
     } catch (error) {
-        console.error("[PATCH /api/menus/[id]/availability] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return handleApiError(error, "PATCH /api/menus/[id]/availability");
     }
 }
 
@@ -103,15 +104,11 @@ export async function GET(
         });
 
         if (!menu) {
-            return NextResponse.json({ error: "Menu not found" }, { status: 404 });
+            return apiError("Menu not found", 404);
         }
 
-        return NextResponse.json({ menu });
+        return apiResponse({ menu }, 200);
     } catch (error) {
-        console.error("[GET /api/menus/[id]/availability] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return handleApiError(error, "GET /api/menus/[id]/availability");
     }
 }

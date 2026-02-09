@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { z } from "zod"
-import { handleApiError } from "@/lib/api-utils"
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { z } from "zod";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 
 const createTableSchema = z.object({
     tableNumber: z.coerce.number().min(1, "Nomor meja harus positif"),
     capacity: z.coerce.number().min(1).default(4),
-})
+});
 
 // GET /api/tables - List all tables
 export async function GET() {
@@ -26,11 +26,11 @@ export async function GET() {
                     },
                 },
             },
-        })
+        });
 
-        return NextResponse.json(tables)
+        return apiResponse(tables);
     } catch (error) {
-        return handleApiError(error)
+        return handleApiError(error, "GET /api/tables");
     }
 }
 
@@ -40,40 +40,37 @@ export async function POST(request: NextRequest) {
         // Check auth
         const session = await auth.api.getSession({
             headers: await headers(),
-        })
+        });
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+            return apiError("Unauthorized", 401);
         }
 
-        const user = session.user as { role?: string }
+        const user = session.user as { role?: string };
         if (user.role !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
+            return apiError("Forbidden: Admin access required", 403);
         }
 
         // Validate body
-        const body = await request.json()
-        const validatedData = createTableSchema.parse(body)
+        const body = await request.json();
+        const validatedData = createTableSchema.parse(body);
 
-        const { tableNumber, capacity } = validatedData
+        const { tableNumber, capacity } = validatedData;
 
         // Check if table number already exists
         const existing = await prisma.table.findUnique({
             where: { tableNumber },
-        })
+        });
 
         if (existing) {
-            return NextResponse.json(
-                { error: `Meja nomor ${tableNumber} sudah ada` },
-                { status: 400 }
-            )
+            return apiError(`Meja nomor ${tableNumber} sudah ada`, 400);
         }
 
         // Generate unique QR code
         const qrCode = `GONKU_TABLE_${tableNumber}_${Math.random()
             .toString(36)
             .substring(2, 8)
-            .toUpperCase()}`
+            .toUpperCase()}`;
 
         // Create table
         const table = await prisma.table.create({
@@ -82,10 +79,10 @@ export async function POST(request: NextRequest) {
                 capacity,
                 qrCode,
             },
-        })
+        });
 
-        return NextResponse.json(table, { status: 201 })
+        return apiResponse(table, 201);
     } catch (error) {
-        return handleApiError(error)
+        return handleApiError(error, "POST /api/tables");
     }
 }

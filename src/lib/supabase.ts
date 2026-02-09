@@ -49,3 +49,39 @@ export async function deleteMenuImage(imageUrl: string) {
         // Don't block flow if image delete fails, just log it
     }
 }
+// Helper to send broadcast via REST API (Bypasses WebSocket connection overhead)
+// Documentation: https://supabase.com/docs/guides/realtime/broadcast#sending-broadcast-messages-via-rest-api
+export async function sendBroadcast(event: string, payload: any, channelName: string = "kitchen-updates") {
+    try {
+        const endpoint = `${supabaseUrl}/realtime/v1/api/broadcast`;
+
+        // We use the Service Role Key for backend broadcasting
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "apikey": supabaseServiceRoleKey,
+                "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        topic: channelName,
+                        event: event,
+                        payload: payload,
+                    },
+                ],
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Supabase REST] Broadcast failed: ${response.status} - ${errorText}`);
+        }
+        // else {
+        //    console.log(`[Supabase REST] Broadcast sent to ${channelName}: ${event}`);
+        // }
+    } catch (error) {
+        console.error("[Supabase REST] Broadcast error:", error);
+    }
+}

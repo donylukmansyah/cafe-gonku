@@ -9,7 +9,7 @@ import {
     SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 interface CartSheetProps {
@@ -19,17 +19,18 @@ interface CartSheetProps {
 }
 
 export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
-    const { items, updateQuantity, removeItem, getTotal, getItemCount } = useCart();
+    const { items, updateQuantity, removeItem, getTotal, getItemCount, hasHydrated } = useCart();
 
-    const total = getTotal();
-    const count = getItemCount();
+    // Safety check for hydration to avoid count desync
+    const count = hasHydrated ? getItemCount() : 0;
+    const total = hasHydrated ? getTotal() : 0;
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent side="bottom" className="h-[80vh] bg-zinc-950 border-white/5 rounded-t-[3rem] p-0 overflow-hidden flex flex-col">
+            <SheetContent side="bottom" className="h-[85vh] bg-zinc-950/80 backdrop-blur-2xl border-white/5 rounded-t-[3rem] p-0 overflow-hidden flex flex-col shadow-2xl">
                 <SheetHeader className="p-6 pb-2">
                     <SheetTitle className="text-xl font-black text-white flex items-center gap-2">
-                        <ShoppingBag className="w-5 h-5 text-primary" />
+                        <ShoppingCart className="w-5 h-5 text-primary" />
                         Keranjang Belanja
                         <Badge className="bg-primary text-black border-none text-[10px] font-black">{count}</Badge>
                     </SheetTitle>
@@ -39,7 +40,7 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                     {items.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-50">
                             <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center">
-                                <ShoppingBag className="w-6 h-6" />
+                                <ShoppingCart className="w-6 h-6" />
                             </div>
                             <p className="text-sm font-bold">Keranjangmu kosong nih...</p>
                         </div>
@@ -49,29 +50,29 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                             const optionsPrice = item.selectedOptions.reduce((acc, opt) => acc + opt.priceAdjust, 0);
 
                             return (
-                                <div key={`${item.id}-${optionsHash}`} className="flex gap-4 group">
-                                    <div className="w-20 h-20 rounded-2xl bg-zinc-900 border border-white/5 overflow-hidden flex-shrink-0">
+                                <div key={`${item.id}-${optionsHash}`} className="flex gap-4 group animate-in slide-in-from-right-5 duration-500">
+                                    <div className="w-20 h-20 rounded-2xl bg-zinc-900 border border-white/5 overflow-hidden flex-shrink-0 shadow-lg group-hover:border-primary/20 transition-all">
                                         {item.imageUrl ? (
-                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center font-black text-xs italic text-zinc-800">GONKU</div>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0 flex flex-col">
                                         <div className="flex justify-between items-start gap-2">
-                                            <h4 className="font-bold text-white text-sm truncate">{item.name}</h4>
+                                            <h4 className="font-black text-white text-[15px] truncate tracking-tight">{item.name}</h4>
                                             <button
                                                 onClick={() => removeItem(item.id, optionsHash)}
-                                                className="text-zinc-600 hover:text-red-500 transition-colors"
+                                                className="text-zinc-700 hover:text-red-500 transition-colors p-1"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-1">
+                                        <p className="text-[10px] font-bold text-zinc-500 mt-0.5 line-clamp-1 uppercase tracking-tighter">
                                             {item.selectedOptions.map(o => o.optionValue).join(", ")}
                                         </p>
                                         {item.notes && (
-                                            <p className="text-[10px] text-zinc-400 italic mt-1 truncate">"{item.notes}"</p>
+                                            <p className="text-[10px] text-zinc-400 italic mt-1 truncate bg-zinc-900/50 px-2 py-0.5 rounded-lg border border-white/5 w-fit font-medium">"{item.notes}"</p>
                                         )}
 
                                         <div className="mt-auto flex items-center justify-between pt-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useMemo } from "react";
+import { apiFetch } from "@/lib/api-client";
 
 interface Menu {
     id: string;
@@ -20,27 +21,22 @@ export function useKitchenMenus() {
     const isFetchingRef = useRef(false);
     const lastDataHashRef = useRef("");
 
-    // Simple hashing for menu items
     const getMenuHash = (items: Menu[]) => {
         return items.map(m => `${m.id}-${m.isAvailable}`).join("|");
     };
 
     const fetchMenus = useCallback(async (force = false) => {
         if (!isMountedRef.current || isFetchingRef.current) return;
-
         isFetchingRef.current = true;
 
         try {
-            const res = await fetch("/api/menus");
-            if (!res.ok) throw new Error("Failed to fetch menus");
-            const data = await res.json();
+            const data = await apiFetch<{ menus: Menu[] }>("/api/menus");
 
             if (!isMountedRef.current) return;
 
             const newMenus = data.menus || [];
             const newHash = getMenuHash(newMenus);
 
-            // Only update state if data changed or forced
             if (newHash !== lastDataHashRef.current || force) {
                 lastDataHashRef.current = newHash;
                 setMenus(newMenus);
@@ -49,7 +45,6 @@ export function useKitchenMenus() {
             setError(null);
         } catch (err) {
             if (!isMountedRef.current) return;
-            console.error("Error fetching menus:", err);
             setError("Gagal memuat menu");
         } finally {
             isFetchingRef.current = false;
@@ -69,22 +64,15 @@ export function useKitchenMenus() {
             );
 
             try {
-                const res = await fetch(`/api/menus/${menuId}/availability`, {
+                await apiFetch(`/api/menus/${menuId}/availability`, {
                     method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ isAvailable }),
                 });
 
-                if (!res.ok) {
-                    await fetchMenus(true);
-                    throw new Error("Failed to update menu availability");
-                }
-
-                // Sync hash after successful move
                 await fetchMenus(true);
                 return true;
             } catch (err) {
-                console.error("Error updating menu:", err);
+                await fetchMenus(true);
                 throw err;
             }
         },
@@ -94,7 +82,6 @@ export function useKitchenMenus() {
     const initialize = useCallback(() => {
         isMountedRef.current = true;
         fetchMenus();
-
         return () => {
             isMountedRef.current = false;
         };
