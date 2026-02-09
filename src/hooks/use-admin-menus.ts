@@ -20,8 +20,12 @@ export interface Menu {
 
 export function useAdminMenus() {
     const { data, error, isLoading, mutate } = useSWR<{ menus: Menu[] }>(
-        "/api/menus?includeInactive=true",
-        apiFetch
+        "/api/menus?includeInactive=true&skipCache=true",
+        apiFetch,
+        {
+            revalidateOnFocus: false, // Less aggressive for menus
+            dedupingInterval: 10000,   // Cache for 10s
+        }
     );
 
     return {

@@ -219,11 +219,11 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
         pollingRef.current = setInterval(() => {
             if (document.visibilityState === "visible") fetchOrders();
-        }, 5000);
+        }, 10000); // Increased to 10s for better balance (still feels live)
 
         const syncInterval = setInterval(() => {
             syncPendingOrders();
-        }, 30000);
+        }, 60000); // Increased to 60s (Midtrans sync isn't that urgent)
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {

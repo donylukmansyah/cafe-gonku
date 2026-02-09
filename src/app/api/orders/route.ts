@@ -94,6 +94,19 @@ export async function POST(request: Request) {
         const validatedData = createOrderSchema.parse(body);
         const { tableId, items } = validatedData;
 
+        // 0. Basic Anti-Spam Rate Limiting (Prevent double-orders from same table)
+        const recentOrder = await prisma.order.findFirst({
+            where: {
+                tableId,
+                status: "PENDING",
+                createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) } // 2 minutes
+            }
+        });
+
+        if (recentOrder) {
+            return apiError("Sudah ada pesanan yang sedang diproses untuk meja ini. Tunggu sebentar.", 429);
+        }
+
         // 1. Fetch current prices from DB to prevent client-side manipulation
         const menuIds = items.map(i => i.menuId);
         const menus = await prisma.menu.findMany({

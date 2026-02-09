@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,12 @@ export default function KitchenPage() {
     const [activeTab, setActiveTab] = useState("queue");
     const audioRef = useRef<HTMLAudioElement>(null);
 
+    // Memoize options to prevent identity change on every render
+    const kitchenOrdersOptions = useMemo(() => ({
+        soundEnabled,
+        audioRef,
+    }), [soundEnabled, audioRef]);
+
     // Custom hooks for data management
     const {
         orders,
@@ -41,10 +47,7 @@ export default function KitchenPage() {
         fetchOrders,
         updateOrderStatus,
         startPolling,
-    } = useKitchenOrders({
-        soundEnabled,
-        audioRef,
-    });
+    } = useKitchenOrders(kitchenOrdersOptions);
 
     const {
         menus,

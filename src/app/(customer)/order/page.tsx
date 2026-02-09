@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { OrderClient } from "./order-client";
 import { Button } from "@/components/ui/button";
@@ -6,47 +6,49 @@ import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";
 import { Menu } from "@/types/menu";
 
-// 1. Fetch Data on Server
-async function getTableAndMenus(qrCode: string | undefined) {
+// 1. Fetch Data on Server with Deduplication
+const getTableAndMenus = cache(async (qrCode: string | undefined) => {
     if (!qrCode) return { table: null, menus: [] };
 
-    // Parallel Fetching for Performance
-    const [table, menus] = await Promise.all([
-        prisma.table.findFirst({
-            where: { qrCode: qrCode, isActive: true },
-            select: { id: true, tableNumber: true, qrCode: true }
-        }),
-        prisma.menu.findMany({
-            where: { isActive: true },
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                imageUrl: true,
-                category: true,
-                isAvailable: true,
-                menuOptions: {
-                    select: {
-                        id: true,
-                        name: true,
-                        isRequired: true,
-                        values: {
-                            select: {
-                                id: true,
-                                label: true,
-                                priceAdjust: true,
-                            }
+    // Optimize: Check table first to short-circuit
+    const table = await prisma.table.findFirst({
+        where: { qrCode: qrCode, isActive: true },
+        select: { id: true, tableNumber: true, qrCode: true }
+    });
+
+    if (!table) return { table: null, menus: [] };
+
+    // Only fetch menus if table is valid
+    const menus = await prisma.menu.findMany({
+        where: { isActive: true },
+        select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            imageUrl: true,
+            category: true,
+            isAvailable: true,
+            menuOptions: {
+                select: {
+                    id: true,
+                    name: true,
+                    isRequired: true,
+                    values: {
+                        select: {
+                            id: true,
+                            label: true,
+                            priceAdjust: true,
                         }
                     }
                 }
-            },
-            orderBy: { createdAt: "desc" },
-        })
-    ]);
+            }
+        },
+        orderBy: { createdAt: "desc" },
+    });
 
     return { table, menus };
-}
+});
 
 interface PageProps {
     searchParams: Promise<{ table?: string }>;

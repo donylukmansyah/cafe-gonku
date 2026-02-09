@@ -6,16 +6,19 @@ import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Edit, Trash2, CameraOff } from "lucide-react";
 import Link from "next/link";
+import { Switch } from "@/components/ui/switch";
 import { Menu } from "@/hooks/use-admin-menus";
 
 interface MenuTableItemProps {
     menu: Menu;
     onDelete: (id: string) => void;
+    onToggleAvailability: (id: string, current: boolean) => void;
 }
 
 export const MenuTableItem = memo(function MenuTableItem({
     menu,
     onDelete,
+    onToggleAvailability,
 }: MenuTableItemProps) {
     return (
         <TableRow className="border-white/5 hover:bg-white/[0.02] transition-colors group">
@@ -34,15 +37,9 @@ export const MenuTableItem = memo(function MenuTableItem({
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-white group-hover:text-primary transition-colors">{menu.name}</span>
-                            {!menu.isActive && (
-                                <Badge variant="destructive" className="text-[8px] h-4 px-1 uppercase">Archived</Badge>
+                            {typeof menu.isActive !== 'undefined' && !menu.isActive && (
+                                <Badge variant="destructive" className="text-[8px] h-4 px-1 uppercase tracking-tighter">Archived</Badge>
                             )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className={`w-1.5 h-1.5 rounded-full ${menu.isAvailable ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                                {menu.isAvailable ? 'In Stock' : 'Out of Stock'}
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -51,6 +48,21 @@ export const MenuTableItem = memo(function MenuTableItem({
                 <Badge variant="outline" className="text-[10px] uppercase font-black text-zinc-400 border-zinc-800 group-hover:border-primary/30 transition-colors">
                     {menu.category}
                 </Badge>
+            </TableCell>
+            <TableCell>
+                <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${menu.isAvailable ? 'bg-emerald-500 animate-pulse-slow' : 'bg-red-500'}`} />
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${menu.isAvailable ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
+                            {menu.isAvailable ? 'In Stock' : 'Out Stock'}
+                        </span>
+                    </div>
+                    <Switch
+                        checked={menu.isAvailable}
+                        onCheckedChange={() => onToggleAvailability(menu.id, menu.isAvailable)}
+                        className="h-4 w-8 data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-emerald-500/50 border-white/5 bg-zinc-800"
+                    />
+                </div>
             </TableCell>
             <TableCell className="font-black text-white">
                 Rp {menu.price.toLocaleString("id-ID")}

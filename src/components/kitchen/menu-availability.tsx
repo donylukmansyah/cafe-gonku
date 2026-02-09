@@ -79,24 +79,24 @@ const MenuItem = memo(function MenuItem({
 }) {
     return (
         <div
-            className={`flex items-center justify-between p-3 rounded-lg transition-colors ${menu.isAvailable
-                    ? "bg-zinc-800/50 hover:bg-zinc-800"
-                    : "bg-red-500/10 border border-red-500/20"
+            className={`flex items-center justify-between p-3.5 rounded-xl transition-all duration-300 border ${menu.isAvailable
+                ? "bg-zinc-900/40 border-white/[0.03] hover:border-primary/20"
+                : "bg-red-500/[0.03] border-red-500/20 opacity-80"
                 }`}
         >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex items-center gap-3.5 flex-1 min-w-0">
                 <div
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${menu.isAvailable ? categoryDotClass : "bg-red-400"
+                    className={`w-2 h-2 rounded-full shrink-0 transition-all duration-500 ${menu.isAvailable ? `${categoryDotClass} animate-pulse-slow` : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
                         }`}
                 />
                 <div className="flex-1 min-w-0">
                     <span
-                        className={`font-medium text-sm truncate block ${menu.isAvailable ? "text-white" : "text-red-400 line-through"
+                        className={`font-bold text-[13px] tracking-tight transition-all duration-300 block ${menu.isAvailable ? "text-white" : "text-zinc-500"
                             }`}
                     >
                         {menu.name}
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-[10px] font-medium text-zinc-500/80">
                         Rp {menu.price.toLocaleString("id-ID")}
                     </span>
                 </div>
@@ -104,8 +104,8 @@ const MenuItem = memo(function MenuItem({
             <Switch
                 checked={menu.isAvailable}
                 onCheckedChange={() => onToggle(menu)}
-                disabled={isUpdating}
-                className="data-[state=checked]:bg-primary cursor-pointer shrink-0"
+                // Disabled removed to avoid "laggy" locked feel during optimistic update
+                className="data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-primary/50 border-white/5 bg-zinc-800 h-5 w-9 cursor-pointer transition-all"
             />
         </div>
     );
@@ -244,12 +244,12 @@ export function MenuAvailability({
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-xl">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(46,254,60,0.05)]">
                         <UtensilsCrossed className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-white">Status Menu</h2>
-                        <p className="text-sm text-zinc-500">Toggle ketersediaan menu</p>
+                        <h2 className="text-xl font-black text-white tracking-tight">Status Menu</h2>
+                        <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-[0.2em]">Ketersediaan Katalog</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">

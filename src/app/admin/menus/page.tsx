@@ -71,19 +71,32 @@ export default function MenusPage() {
     }, [fetchMenus]);
 
     const handleToggleAvailability = useCallback(async (id: string, current: boolean) => {
+        // Optimistic Update
+        const updatedMenus = menus.map(m =>
+            m.id === id ? { ...m, isAvailable: !current } : m
+        );
+
         try {
+            // Apply local change immediately
+            await fetchMenus({ menus: updatedMenus }, false);
+
             const res = await fetch(`/api/menus/${id}/availability`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isAvailable: !current }),
             })
+
             if (!res.ok) throw new Error("Gagal update")
+
             toast.success("Status ketersediaan diupdate")
+            // Revalidate to ensure server state
             fetchMenus()
         } catch (error) {
+            // Rollback on error
+            fetchMenus()
             toast.error("Gagal update status")
         }
-    }, [fetchMenus]);
+    }, [menus, fetchMenus]);
 
     if (isLoading) {
         return <MenusLoadingSkeleton />

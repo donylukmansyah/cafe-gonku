@@ -59,6 +59,7 @@ export const MenuList = memo(function MenuList({
                     <TableRow className="border-white/5 pointer-events-none">
                         <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-6 py-4">Menu Item</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Category</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Status</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Price</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Add-ons</TableHead>
                         <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-zinc-500 px-6">Actions</TableHead>
@@ -66,7 +67,12 @@ export const MenuList = memo(function MenuList({
                 </TableHeader>
                 <TableBody>
                     {menus.map((menu) => (
-                        <MenuTableItem key={menu.id} menu={menu} onDelete={onDelete} />
+                        <MenuTableItem
+                            key={menu.id}
+                            menu={menu}
+                            onDelete={onDelete}
+                            onToggleAvailability={onToggleAvailability}
+                        />
                     ))}
                 </TableBody>
             </Table>

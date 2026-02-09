@@ -30,7 +30,8 @@ export function useKitchenMenus() {
         isFetchingRef.current = true;
 
         try {
-            const data = await apiFetch<{ menus: Menu[] }>("/api/menus");
+            const timestamp = new Date().getTime();
+            const data = await apiFetch<{ menus: Menu[] }>(`/api/menus?skipCache=true&t=${timestamp}`);
 
             if (!isMountedRef.current) return;
 

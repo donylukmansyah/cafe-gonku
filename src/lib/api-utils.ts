@@ -2,20 +2,46 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 
-export function apiResponse<T>(data: T, status = 200) {
-    return NextResponse.json({ success: true, data }, { status });
+export function apiResponse<T>(data: T, status = 200, cache?: string) {
+    return NextResponse.json(
+        {
+            success: true,
+            data,
+            _timestamp: new Date().toISOString(),
+        },
+        {
+            status,
+            headers: cache ? { 'Cache-Control': cache } : undefined
+        }
+    );
 }
 
 export function apiError(message: string, status = 400, details?: any) {
     return NextResponse.json(
-        { success: false, error: message, ...(details && { details }) },
+        {
+            success: false,
+            error: message,
+            ...(details && { details }),
+            _timestamp: new Date().toISOString(),
+        },
         { status }
     );
 }
 
 export function handleApiError(error: unknown, context?: string) {
     const errorPrefix = context ? `[${context}] ` : "";
-    console.error(`${errorPrefix}API Error:`, error);
+
+    // Structured Logging for Production
+    const logData = {
+        context,
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? {
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        } : error,
+    };
+
+    console.error(JSON.stringify(logData));
 
     if (error instanceof ZodError) {
         return apiError("Validation failed", 400, error.issues);

@@ -25,35 +25,51 @@ export async function proxy(request: NextRequest) {
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("Content-Security-Policy", cspHeader);
 
-    // --- Authentication Logic ---
-    // Public routes - no auth required
-    const publicRoutes = ["/", "/login", "/api/auth", "/order"]
-    const isPublicRoute = publicRoutes.some((route) =>
-        pathname === route || pathname.startsWith(route + "/")
-    )
+    // --- Authentication & Access Control ---
+    const isAuthPage = pathname.startsWith("/login");
+    const isAdminPage = pathname.startsWith("/admin");
+    const isKitchenPage = pathname.startsWith("/kitchen");
 
-    let response: NextResponse | null = null;
+    // Better Auth session check
+    const { auth } = await import("@/lib/auth");
+    const session = await auth.api.getSession({
+        headers: request.headers,
+    });
 
-    if (!isPublicRoute) {
-        // Get session cookie (Optimistic check for Middleware - Avoids DB call in Edge)
-        const sessionToken = request.cookies.get("better-auth.session_token")
+    // 1. Redirect to login if accessing protected pages without session
+    if ((isAdminPage || isKitchenPage) && !session) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("callbackUrl", pathname);
+        return NextResponse.redirect(loginUrl);
+    }
 
-        // No session cookie - redirect to login
-        if (!sessionToken) {
-            const loginUrl = new URL("/login", request.url)
-            loginUrl.searchParams.set("callbackUrl", pathname)
-            response = NextResponse.redirect(loginUrl)
+    // 2. Role-based Access Control
+    if (session) {
+        const user = session.user as { role?: string };
+
+        // Admin only pages
+        if (isAdminPage && user.role !== "ADMIN") {
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+
+        // Kitchen/Admin pages
+        if (isKitchenPage && user.role !== "KITCHEN" && user.role !== "ADMIN") {
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+
+        // Redirect from login if already authenticated
+        if (isAuthPage) {
+            const redirectUrl = user.role === "ADMIN" ? "/admin" : (user.role === "KITCHEN" ? "/kitchen" : "/");
+            return NextResponse.redirect(new URL(redirectUrl, request.url));
         }
     }
 
-    // If no redirect, continue to next
-    if (!response) {
-        response = NextResponse.next({
-            request: {
-                headers: requestHeaders,
-            },
-        });
-    }
+    // --- Prepare Response ---
+    const response = NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    });
 
     // --- Security Headers (Apply to all responses) ---
     response.headers.set("Content-Security-Policy", cspHeader);
@@ -62,6 +78,7 @@ export async function proxy(request: NextRequest) {
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("X-Response-Time", `${Date.now()}`);
 
     return response
 }

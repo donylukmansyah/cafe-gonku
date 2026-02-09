@@ -22,6 +22,7 @@ const getMenus = unstable_cache(
                 imageUrl: true,
                 category: true,
                 isAvailable: true,
+                isActive: true,
                 menuOptions: {
                     select: {
                         id: true,
@@ -40,7 +41,7 @@ const getMenus = unstable_cache(
             orderBy: { createdAt: "desc" },
         });
     },
-    ['public-menus-list'],
+    ['public-menus-list-v2'],
     { tags: ['public-menus'] }
 );
 
@@ -51,11 +52,44 @@ export async function GET(request: NextRequest) {
         const category = searchParams.get("category");
         const includeInactive = searchParams.get("includeInactive") === "true";
         const onlyAvailable = searchParams.get("onlyAvailable") === "true";
+        const skipCache = searchParams.get("skipCache") === "true" || includeInactive;
 
-        // Admin might want fresh data, so we can skip cache if needed, 
-        // but for now let's cache everything and rely on revalidation.
-        // Actually, if includeInactive is true (Admin), we might want to bypass cache or use a different key.
-        // The cache key includes these params, so it's safe.
+        // For Admin/Kitchen (includeInactive or skipCache), we pull fresh data
+        if (skipCache) {
+            const menus = await prisma.menu.findMany({
+                where: {
+                    ...(category && { category: category as any }),
+                    ...(!includeInactive && { isActive: true }),
+                    ...(onlyAvailable && { isAvailable: true }),
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    price: true,
+                    imageUrl: true,
+                    category: true,
+                    isAvailable: true,
+                    isActive: true,
+                    menuOptions: {
+                        select: {
+                            id: true,
+                            name: true,
+                            isRequired: true,
+                            values: {
+                                select: {
+                                    id: true,
+                                    label: true,
+                                    priceAdjust: true,
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy: { createdAt: "desc" },
+            });
+            return apiResponse({ menus }, 200, "no-store");
+        }
 
         const menus = await getMenus(category, includeInactive, onlyAvailable);
 

@@ -101,6 +101,7 @@ model Table {
   orders Order[]
 
   @@index([qrCode])
+  @@index([isActive])
   @@map("tables")
 }
 
@@ -134,6 +135,8 @@ model Menu {
 
   @@index([category])
   @@index([isAvailable])
+  @@index([isActive])
+  @@index([createdAt])
   @@map("menus")
 }
 
