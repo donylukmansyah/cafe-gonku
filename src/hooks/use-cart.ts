@@ -64,7 +64,10 @@ export const useCart = create<CartStore>()(
 
                 if (existingIndex > -1) {
                     const updatedItems = [...items];
-                    updatedItems[existingIndex].quantity += newItem.quantity;
+                    updatedItems[existingIndex] = {
+                        ...updatedItems[existingIndex],
+                        quantity: updatedItems[existingIndex].quantity + newItem.quantity
+                    };
                     set({ items: updatedItems });
                 } else {
                     set({ items: [...items, newItem] });
@@ -92,7 +95,10 @@ export const useCart = create<CartStore>()(
                     if (newQty <= 0) {
                         updatedItems.splice(index, 1);
                     } else {
-                        updatedItems[index].quantity = newQty;
+                        updatedItems[index] = {
+                            ...updatedItems[index],
+                            quantity: newQty
+                        };
                     }
                     set({ items: updatedItems });
                 }

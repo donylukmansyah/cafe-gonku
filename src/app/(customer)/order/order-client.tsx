@@ -12,10 +12,14 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Menu } from "@/types/menu";
-import { apiFetch } from "@/lib/api-client";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Utensils, Coffee, Cookie, IceCream, LayoutGrid, Search } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
+import { OrderResponse } from "@/types/order";
 
 interface OrderClientProps {
-    initialMenus: Menu[];
+    initialMenus?: Menu[];
     table: {
         id: string;
         tableNumber: number;
@@ -23,11 +27,42 @@ interface OrderClientProps {
     };
 }
 
-export function OrderClient({ initialMenus, table }: OrderClientProps) {
+export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     const router = useRouter();
 
     // 0. Local state for menus (for real-time availability updates)
-    const [menus, setMenus] = useState<Menu[]>(initialMenus);
+    const [menus, setMenus] = useState<Menu[]>(initialMenus || []);
+    const [activeCategory, setActiveCategory] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Dynamic Categories based on available menus
+    const categories = useMemo(() => {
+        if (!menus) return [];
+        const uniqueCategories = Array.from(new Set(menus.map(m => m.category))).sort();
+
+        const getIcon = (cat: string) => {
+            switch (cat) {
+                case "FOOD": return Utensils;
+                case "DRINK": return Coffee;
+                case "SNACK": return Cookie;
+                case "DESSERT": return IceCream;
+                default: return LayoutGrid;
+            }
+        };
+
+        return [
+            { id: "ALL", label: "Semua", icon: LayoutGrid },
+            ...uniqueCategories.map(cat => ({ id: cat, label: cat, icon: getIcon(cat) }))
+        ];
+    }, [menus]);
+
+    const filteredMenus = useMemo(() => {
+        return menus.filter((menu) => {
+            const matchesCategory = activeCategory === "ALL" || menu.category === activeCategory;
+            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [menus, activeCategory, searchQuery]);
 
     // Optimization: Select only what is needed to reduce re-renders
     const items = useCart((state) => state.items);
@@ -129,7 +164,7 @@ export function OrderClient({ initialMenus, table }: OrderClientProps) {
                 }))
             };
 
-            const order = await apiFetch<any>("/api/orders", {
+            const order = await apiFetch<OrderResponse>("/api/orders", {
                 method: "POST",
                 body: JSON.stringify(orderPayload),
             });
@@ -212,7 +247,53 @@ export function OrderClient({ initialMenus, table }: OrderClientProps) {
                 </Button>
             </header>
 
-            <MenuGrid menus={menus} isLoading={false} onSelectItem={handleSelectItem} />
+            {/* Sticky Search & Categories */}
+            <div className="sticky top-[80px] z-40 bg-zinc-950/80 backdrop-blur-md border-b border-white/5 shadow-2xl shadow-zinc-950/50 transition-all duration-300 transform-gpu">
+                <div className="px-5 pt-4 pb-4 space-y-4">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Input
+                            placeholder="Cari menu favoritmu..."
+                            className="pl-11 h-12 bg-zinc-900 border-white/5 rounded-2xl focus-visible:ring-primary/20 text-sm placeholder:text-zinc-600 w-full font-medium"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Categories */}
+                    <div className="w-full overflow-hidden">
+                        <div className="flex overflow-x-auto no-scrollbar gap-3 pb-1 snap-x">
+                            <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+                                <TabsList className="bg-transparent h-auto p-0 flex gap-3 w-max">
+                                    {categories.map((cat) => {
+                                        const Icon = cat.icon;
+                                        return (
+                                            <TabsTrigger
+                                                key={cat.id}
+                                                value={cat.id}
+                                                className="px-5 py-2.5 rounded-2xl border border-white/5 bg-zinc-900 data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary/50 text-xs font-bold transition-all shadow-sm whitespace-nowrap capitalize flex items-center gap-2 snap-center group"
+                                            >
+                                                <Icon className="w-4 h-4" />
+                                                {cat.label.toLowerCase()}
+                                            </TabsTrigger>
+                                        );
+                                    })}
+                                </TabsList>
+                            </Tabs>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <MenuGrid
+                menus={filteredMenus}
+                allMenus={menus}
+                searchQuery={searchQuery}
+                activeCategory={activeCategory}
+                isLoading={false}
+                onSelectItem={handleSelectItem}
+            />
 
             {itemCount > 0 && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-40 animate-in slide-in-from-bottom-10 duration-700">
@@ -227,7 +308,7 @@ export function OrderClient({ initialMenus, table }: OrderClientProps) {
                             <div className="flex flex-col items-start translate-y-0.5">
                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-primary/70 transition-colors">Checkout</span>
                                 <span className="text-sm font-black text-white group-hover:text-primary transition-colors">
-                                    {itemCount} Items • Rp {getTotal().toLocaleString("id-ID")}
+                                    Rp {getTotal().toLocaleString("id-ID")}
                                 </span>
                             </div>
                         </div>
@@ -238,8 +319,9 @@ export function OrderClient({ initialMenus, table }: OrderClientProps) {
                             </div>
                         </div>
                     </Button>
-                </div>
-            )}
+                </div >
+            )
+            }
 
             <ItemModal
                 menu={selectedMenu}
@@ -253,14 +335,16 @@ export function OrderClient({ initialMenus, table }: OrderClientProps) {
                 onCheckout={handleCheckout}
             />
 
-            {isSubmitting && (
-                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
-                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                    <p className="text-white font-black uppercase tracking-widest text-xs">Mengirim Pesanan...</p>
-                </div>
-            )}
+            {
+                isSubmitting && (
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
+                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                        <p className="text-white font-black uppercase tracking-widest text-xs">Mengirim Pesanan...</p>
+                    </div>
+                )
+            }
 
             <TrackingSheet />
-        </div>
+        </div >
     );
 }

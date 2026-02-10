@@ -99,7 +99,7 @@ export default async function OrderPage(props: PageProps) {
                 <p className="text-zinc-500 font-bold text-sm animate-pulse">Menyiapkan Menu...</p>
             </div>
         }>
-            <OrderClient initialMenus={menus as Menu[]} table={table} />
+            <OrderClient initialMenus={menus || []} table={table} />
         </Suspense>
     );
 }

@@ -22,8 +22,12 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
     const { items, updateQuantity, removeItem, getTotal, getItemCount, hasHydrated } = useCart();
 
     // Safety check for hydration to avoid count desync
-    const count = hasHydrated ? getItemCount() : 0;
-    const total = hasHydrated ? getTotal() : 0;
+    // Calculate locally to ensure sync with items
+    const count = items.reduce((acc, item) => acc + item.quantity, 0);
+    const total = items.reduce((acc, item) => {
+        const optionsPrice = item.selectedOptions.reduce((optAcc, opt) => optAcc + opt.priceAdjust, 0);
+        return acc + (item.price + optionsPrice) * item.quantity;
+    }, 0);
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>

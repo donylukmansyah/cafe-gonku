@@ -13,6 +13,10 @@ export interface OrderDetails {
     midtransToken?: string;
     totalAmount: number;
     createdAt: string;
+    customerName?: string;
+    table: {
+        tableNumber: number;
+    };
     orderItems: {
         id: string;
         quantity: number;
@@ -55,9 +59,9 @@ export function useRealtimeOrder() {
                 return;
             }
 
-            const data = await res.json();
+            const json = await res.json();
             if (isMounted.current) {
-                setOrder(data);
+                setOrder(json.data || json); // Fallback to json if data prop missing (legacy)
 
                 // If order is completed/cancelled, we might want to stop polling?
                 // But for now let's keep it simple.

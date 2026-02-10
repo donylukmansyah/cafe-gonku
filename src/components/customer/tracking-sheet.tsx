@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, ChefHat, Truck, Utensils, XCircle } from "lucide-react";
+import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, ChevronDown, Receipt } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -18,9 +17,9 @@ import { useRealtimeOrder } from "@/hooks/use-realtime-order";
 type OrderStatus = "PENDING" | "PAID" | "PREPARING" | "READY" | "SERVED" | "CANCELLED" | "EXPIRED";
 
 const STEPS = [
-    { status: "PENDING", label: "Menunggu Konfirmasi", icon: Clock },
-    { status: "PREPARING", label: "Sedang Disiapkan", icon: ChefHat },
-    { status: "READY", label: "Siap Diantar", icon: Truck },
+    { status: "PENDING", label: "Menunggu", icon: Clock },
+    { status: "PREPARING", label: "Disiapkan", icon: ChefHat },
+    { status: "READY", label: "Diantar", icon: Truck },
     { status: "SERVED", label: "Selesai", icon: Utensils },
 ];
 
@@ -29,6 +28,8 @@ export function TrackingSheet() {
     const { order, isLoading, refresh, activeOrderCode } = useRealtimeOrder();
     const { snapPay } = useSnap();
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
+    const hasHydrated = useCart((state) => state.hasHydrated);
+    const itemCount = useCart((state) => state.getItemCount());
 
     // Effect to handle Order Completion/Cancellation (Close sheet if finished)
     useEffect(() => {
@@ -64,22 +65,15 @@ export function TrackingSheet() {
 
     const handleCancelOrder = async () => {
         if (!activeOrderCode) return;
-
-        // Confirmation? Maybe just direct for now as per request "salah pencet"
-        // But a confirm dialog is best practice. Let's use Sonner toast action for simplicity or just direct.
-        // User asked "gimana ya kasus nya biar bisa ulang".
-
         setIsCancelling(true);
         try {
             const res = await fetch(`/api/orders/${activeOrderCode}/cancel`, {
                 method: "POST"
             });
             const data = await res.json();
-
             if (!res.ok) throw new Error(data.error || "Gagal membatalkan");
-
             toast.success("Pesanan berhasil dibatalkan 👋");
-            setActiveOrderCode(null); // Clear session
+            setActiveOrderCode(null);
             setIsOpen(false);
         } catch (error: any) {
             toast.error(error.message);
@@ -88,7 +82,7 @@ export function TrackingSheet() {
         }
     };
 
-    if (!activeOrderCode) return null;
+    if (!hasHydrated || !activeOrderCode) return null;
 
     // Determine current step index
     const getCurrentStepIndex = (status: OrderStatus) => {
@@ -108,58 +102,65 @@ export function TrackingSheet() {
     return (
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/90 text-white backdrop-blur-md border border-white/10 shadow-xl rounded-full px-6 py-6 animate-in slide-in-from-bottom-10 fade-in duration-500 hover:scale-105 active:scale-95 transition-all"
-                >
-                    <Clock className="w-4 h-4 mr-2 text-primary animate-pulse" />
-                    Lacak Pesanan
-                </Button>
+                <div className={cn(
+                    "fixed left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 pointer-events-none transition-all duration-500 ease-in-out",
+                    itemCount > 0 ? "bottom-24" : "bottom-6"
+                )}>
+                    <div className="flex justify-end">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="w-14 h-14 bg-zinc-900/90 text-primary border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-full backdrop-blur-xl pointer-events-auto hover:bg-zinc-800/95 hover:border-primary/40 ring-1 ring-white/5 active:scale-95 transition-all"
+                        >
+                            <Receipt className="w-6 h-6" />
+                        </Button>
+                    </div>
+                </div>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[85vh] rounded-t-[2.5rem] border-t border-white/10 bg-zinc-950 p-0 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
-                <div className="p-6 pb-2 relative">
-                    <div className="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-8 shadow-inner" />
-                    <SheetHeader className="text-left mb-8">
-                        <SheetTitle className="text-2xl font-black text-white flex flex-col gap-1 tracking-tight">
-                            <div className="flex items-center justify-between w-full">
-                                <span className="flex items-center gap-2">
-                                    <Clock className="w-5 h-5 text-primary" />
-                                    Pesanan Kamu
-                                </span>
-                                {order && (
-                                    <Badge variant="secondary" className="bg-zinc-900 text-zinc-400 border-white/5 font-mono px-3 py-1 rounded-xl text-[10px]">
-                                        #{order.orderCode}
-                                    </Badge>
-                                )}
+            <SheetContent side="bottom" className="h-[85vh] rounded-t-[2rem] border-t border-white/5 bg-zinc-950 p-0 flex flex-col shadow-2xl">
+                {/* Drag Handle */}
+                <div className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
+                    <div className="w-10 h-1 bg-zinc-800 rounded-full" />
+                </div>
+
+                {/* Header Section */}
+                <div className="px-6 pb-6 flex-none">
+                    <SheetHeader className="text-left mb-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <SheetTitle className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                                    Pesanan #{order?.orderCode?.slice(-4)}
+                                </SheetTitle>
+                                <p className="text-xs text-zinc-500 mt-0.5 font-medium">
+                                    {order?.customerName || "Pelanggan"} • Meja {order?.table?.tableNumber || "-"}
+                                </p>
                             </div>
                             {order && (
-                                <div className="flex items-center gap-2 mt-2">
+                                <div className="flex flex-col items-end gap-1">
                                     {order.paymentStatus === "PAID" ? (
-                                        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] uppercase font-black tracking-widest px-2.5 py-1 rounded-lg">
-                                            LUNAS ✅
+                                        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                            LUNAS <CheckCircle className="w-3 h-3" />
                                         </Badge>
                                     ) : (
-                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] uppercase font-black tracking-widest px-2.5 py-1 rounded-lg animate-pulse">
-                                            MENUNGGU PEMBAYARAN ⏳
+                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] px-2 py-0.5 rounded-lg animate-pulse">
+                                            BELUM BAYAR
                                         </Badge>
                                     )}
                                 </div>
                             )}
-                        </SheetTitle>
+                        </div>
                     </SheetHeader>
 
                     {/* Stepper */}
                     {!isCancelled ? (
-                        <div className="relative flex justify-between px-3 mb-10">
-                            {/* Line Background */}
-                            <div className="absolute top-4 left-6 right-6 h-0.5 bg-zinc-900 -z-10" />
-
-                            {/* Progress Line */}
-                            <div
-                                className="absolute top-4 left-6 h-0.5 bg-primary -z-10 transition-all duration-1000 ease-in-out shadow-[0_0_10px_rgba(46,254,60,0.5)]"
-                                style={{ width: `${(currentStep / (STEPS.length - 1)) * 92}%` }}
-                            />
+                        <div className="relative flex justify-between px-2">
+                            {/* Progress Track */}
+                            <div className="absolute top-3.5 left-[22px] right-[22px] h-[2px] -z-10 bg-zinc-900">
+                                <div
+                                    className="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(46,254,60,0.4)]"
+                                    style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                                />
+                            </div>
 
                             {STEPS.map((step, index) => {
                                 const isActive = index <= currentStep;
@@ -167,20 +168,20 @@ export function TrackingSheet() {
                                 const Icon = step.icon;
 
                                 return (
-                                    <div key={step.status} className="flex flex-col items-center gap-3">
+                                    <div key={step.status} className="flex flex-col items-center gap-2 group">
                                         <div className={cn(
-                                            "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-zinc-950 shadow-inner",
+                                            "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-zinc-950 z-10",
                                             isActive
-                                                ? "border-primary text-primary shadow-[0_0_15px_rgba(46,254,60,0.2)]"
+                                                ? "border-primary text-primary bg-zinc-900 md:bg-zinc-950"
                                                 : "border-zinc-800 text-zinc-700",
-                                            isCurrent && "ring-4 ring-primary/20 scale-125 z-10"
+                                            isCurrent && "ring-4 ring-primary/10 scale-110 shadow-[0_0_15px_rgba(46,254,60,0.2)]"
                                         )}>
-                                            <Icon className={cn("w-4.5 h-4.5 transition-transform duration-500", isCurrent && "animate-pulse")} />
+                                            <Icon className="w-3.5 h-3.5" />
                                         </div>
                                         <span className={cn(
-                                            "text-[11px] font-bold text-center max-w-[70px] leading-tight transition-all duration-500 uppercase tracking-tighter",
-                                            isActive ? "text-white" : "text-zinc-600",
-                                            isCurrent && "text-primary"
+                                            "text-[9px] font-bold text-center transition-all duration-300 uppercase tracking-tight",
+                                            isActive ? "text-zinc-300" : "text-zinc-700",
+                                            isCurrent && "text-primary scale-105"
                                         )}>
                                             {step.label}
                                         </span>
@@ -189,108 +190,106 @@ export function TrackingSheet() {
                             })}
                         </div>
                     ) : (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex items-center gap-4 mb-8 animate-in fade-in zoom-in duration-300">
-                            <XCircle className="w-10 h-10 text-red-500" />
+                        <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                                <XCircle className="w-5 h-5 text-red-500" />
+                            </div>
                             <div>
-                                <h3 className="text-white font-black text-lg">Pesanan Gagal</h3>
-                                <p className="text-zinc-400 text-sm">Pesanan ini dibatalkan atau pembayaran expired.</p>
+                                <h3 className="text-white font-bold text-sm">Pesanan Dibatalkan</h3>
+                                <p className="text-zinc-500 text-xs">Silakan hubungi pelayan jika ini kesalahan.</p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <Separator className="bg-zinc-900" />
+                <Separator className="bg-zinc-900 border-zinc-900" />
 
-                {/* Order Details List */}
-                <ScrollArea className="flex-1 px-6 py-8">
+                {/* SCROLLABLE CONTENT */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide">
                     {order ? (
-                        <div className="space-y-8">
-                            <div className="space-y-5">
-                                <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest pl-1">Rincian Item</h4>
-                                {order.orderItems.map((item) => (
-                                    <div key={item.id} className="flex justify-between items-start group">
-                                        <div className="space-y-1.5 flex-1">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center border border-zinc-800 group-hover:border-primary/30 transition-colors">
-                                                    <span className="text-primary font-black text-xs">{item.quantity}x</span>
+                        <div className="space-y-6 pb-24"> {/* Added padding bottom for safe scroll */}
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Menu Dipesan</h4>
+                                {order.orderItems?.map((item) => (
+                                    <div key={item.id} className="flex justify-between items-start py-1">
+                                        <div className="flex-1 pr-4">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center border border-zinc-800 shrink-0 mt-0.5">
+                                                    <span className="text-primary font-bold text-[10px]">{item.quantity}x</span>
                                                 </div>
-                                                <span className="text-zinc-100 text-[15px] font-bold tracking-tight">{item.menu.name}</span>
+                                                <div>
+                                                    <p className="text-zinc-200 text-sm font-medium leading-tight">{item.menu.name}</p>
+                                                    {item.selectedOptions.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                                            {item.selectedOptions.map((o, i) => (
+                                                                <span key={i} className="text-[9px] text-zinc-500 px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800/50">{o.optionValue}</span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            {item.selectedOptions.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 content-start pl-10">
-                                                    {item.selectedOptions.map((o, i) => (
-                                                        <span key={i} className="text-[10px] text-zinc-500 px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800">{o.optionValue}</span>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
-                                        <span className="text-zinc-300 text-sm font-bold pt-1">
-                                            Rp {item.price.toLocaleString("id-ID")}
+                                        <span className="text-zinc-400 text-sm font-semibold whitespace-nowrap">
+                                            Rp {(item.price * item.quantity).toLocaleString("id-ID")}
                                         </span>
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="bg-zinc-900/50 rounded-2xl p-5 border border-white/5 shadow-inner">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-zinc-400 font-bold text-sm uppercase tracking-tight">Total Pembayaran</span>
-                                    <span className="text-2xl font-black text-primary drop-shadow-[0_0_10px_rgba(46,254,60,0.3)]">
+                            <div className="border-t border-dashed border-zinc-800 pt-4 mt-4">
+                                <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
+                                    <span className="text-zinc-400 font-bold text-xs uppercase">Total Tagihan</span>
+                                    <span className="text-xl font-black text-primary">
                                         Rp {order.totalAmount.toLocaleString("id-ID")}
                                     </span>
                                 </div>
                             </div>
-
-                            <div className="flex items-center justify-center gap-2 pt-4">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Sistem sinkronisasi real-time aktif</span>
-                            </div>
-
-                            {order.paymentStatus === "PENDING" && order.midtransToken && (
-                                <div className="pt-4 px-1 space-y-3">
-                                    <Button
-                                        onClick={handlePayment}
-                                        className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-black font-black text-sm uppercase tracking-widest rounded-2xl shadow-[0_8px_30px_rgba(245,158,11,0.3)] animate-bounce-subtle"
-                                    >
-                                        Bayar Sekarang 💳
-                                    </Button>
-
-                                    <Button
-                                        variant="ghost"
-                                        disabled={isCancelling}
-                                        onClick={handleCancelOrder}
-                                        className="w-full h-10 text-red-500 hover:text-red-400 hover:bg-red-500/10 font-bold text-xs uppercase tracking-widest rounded-xl transition-all"
-                                    >
-                                        {isCancelling ? "Membatalkan..." : "Batalkan Pesanan"}
-                                    </Button>
-
-                                    <p className="text-[10px] text-zinc-600 text-center mt-1 font-bold uppercase tracking-tight italic">
-                                        Klik untuk lanjut ke pembayaran aman via Midtrans
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-48 space-y-4">
-                            <div className="relative">
-                                <Utensils className="w-10 h-10 text-zinc-800 animate-pulse" />
-                                <div className="absolute inset-0 w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                            </div>
-                            <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest">Menyambungkan ke dapur...</p>
+                        <div className="flex flex-col items-center justify-center h-full space-y-3 opacity-50">
+                            <Clock className="w-8 h-8 text-zinc-700 animate-pulse" />
+                            <p className="text-zinc-600 text-xs font-medium">Memuat data order...</p>
                         </div>
                     )}
-                </ScrollArea>
+                </div>
 
-                {order?.status === "SERVED" && (
-                    <div className="p-8 border-t border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                        <Button
-                            className="w-full h-14 rounded-2xl font-black text-sm uppercase tracking-widest bg-primary hover:bg-primary/90 text-black shadow-[0_10px_30px_rgba(46,254,60,0.3)] active:scale-95 transition-all"
-                            onClick={() => {
-                                setActiveOrderCode(null);
-                                setIsOpen(false);
-                            }}
-                        >
-                            Konfirmasi & Pesan Lagi
-                        </Button>
+                {/* Fixed Bottom Action Bar */}
+                {(order?.status === "SERVED" || order?.status === "CANCELLED" || order?.status === "EXPIRED" || (order?.paymentStatus === "PENDING" && order?.midtransToken)) && (
+                    <div className="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-zinc-950 via-zinc-950 to-zinc-950/0 pt-12">
+                        {/* CASE: Pending Payment */}
+                        {order.paymentStatus === "PENDING" && order.status !== "CANCELLED" && order.status !== "EXPIRED" && (
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    disabled={isCancelling}
+                                    onClick={handleCancelOrder}
+                                    className="flex-1 h-12 border-red-500/20 text-red-500 hover:bg-red-500/10 hover:text-red-400 rounded-xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                    {isCancelling ? "..." : "Batal"}
+                                </Button>
+                                <Button
+                                    onClick={handlePayment}
+                                    className="flex-[2] h-12 bg-amber-500 hover:bg-amber-600 text-black font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                                >
+                                    Bayar Sekarang
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* CASE: Order Finished / Failed */}
+                        {(order.status === "SERVED" || order.status === "CANCELLED" || order.status === "EXPIRED") && (
+                            <Button
+                                className="w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest bg-primary hover:bg-primary/90 text-black shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                                onClick={() => {
+                                    setActiveOrderCode(null);
+                                    setIsOpen(false);
+                                    toast.success("Silakan pesan lagi! 🍽️");
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                            >
+                                {order.status === "SERVED" ? "Pesan Menu Lain" : "Buat Pesanan Baru"}
+                            </Button>
+                        )}
                     </div>
                 )}
             </SheetContent>

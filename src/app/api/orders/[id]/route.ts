@@ -23,6 +23,7 @@ export async function GET(
                 midtransToken: true,
                 totalAmount: true,
                 createdAt: true,
+                customerName: true,
                 table: {
                     select: {
                         tableNumber: true,
@@ -63,6 +64,7 @@ export async function GET(
                     midtransToken: true,
                     totalAmount: true,
                     createdAt: true,
+                    customerName: true,
                     table: {
                         select: {
                             tableNumber: true,
