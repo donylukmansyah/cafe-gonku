@@ -1,29 +1,27 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
+import { getServerSession } from "@/lib/server-auth"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 import { updateTableSchema } from "@/validations/table"
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils"
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    props: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await params
+        const { id } = await props.params
         const body = await request.json()
 
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        })
+        const session = await getServerSession();
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+            return apiError("Unauthorized", 401)
         }
 
         const user = session.user as { role?: string }
         if (user.role !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+            return apiError("Forbidden", 403)
         }
 
         // Validate body
@@ -35,57 +33,53 @@ export async function PATCH(
             data: validatedData,
         })
 
-        return NextResponse.json(table)
+        return apiResponse(table)
     } catch (error) {
-        console.error("Error updating table:", error)
-        return NextResponse.json(
-            { error: "Failed to update table" },
-            { status: 500 }
-        )
+        return handleApiError(error, "PATCH /api/tables/[id]")
     }
 }
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    props: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await params
+        const { id } = await props.params
 
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        })
+        const session = await getServerSession();
 
         if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+            return apiError("Unauthorized", 401)
         }
 
         const user = session.user as { role?: string }
         if (user.role !== "ADMIN") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+            return apiError("Forbidden", 403)
         }
 
         // Check if table exists
         const table = await prisma.table.findUnique({
             where: { id },
+            select: { id: true }
         })
 
         if (!table) {
-            return NextResponse.json({ error: "Table not found" }, { status: 404 })
+            return apiError("Table not found", 404)
         }
+
+        // Force delete related orders first to avoid foreign key constraint errors
+        await prisma.order.deleteMany({
+            where: { tableId: id }
+        })
 
         // Delete table
         await prisma.table.delete({
             where: { id },
         })
 
-        return NextResponse.json({ message: "Table deleted successfully" })
+        return apiResponse({ message: "Table deleted successfully" })
     } catch (error) {
-        console.error("Error deleting table:", error)
-        return NextResponse.json(
-            { error: "Failed to delete table" },
-            { status: 500 }
-        )
+        return handleApiError(error, "DELETE /api/tables/[id]")
     }
 }

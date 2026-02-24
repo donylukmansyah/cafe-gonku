@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { getServerSession } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { updateMenuSchema } from "@/validations/menu";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { deleteMenuImage } from "@/lib/supabase";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
@@ -45,9 +44,7 @@ export async function PATCH(
         const { id } = await props.params;
 
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);
@@ -81,7 +78,7 @@ export async function PATCH(
         const { menuOptions, ...menuData } = validatedData;
 
         // Robust update using transaction to handle nested options
-        const updatedMenu = await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx) => {
             // 1. Update basic menu data
             await tx.menu.update({
                 where: { id },
@@ -160,7 +157,8 @@ export async function PATCH(
             },
         });
 
-        revalidateTag('public-menus', 'max');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        revalidateTag('public-menus', 'max' as any);
 
         return apiResponse(finalMenu, 200);
     } catch (error) {
@@ -177,9 +175,7 @@ export async function DELETE(
         const { id } = await props.params;
 
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);
@@ -193,6 +189,7 @@ export async function DELETE(
         // Get menu first to get image URL
         const menu = await prisma.menu.findUnique({
             where: { id },
+            select: { imageUrl: true },
         });
 
         if (!menu) {
@@ -204,11 +201,17 @@ export async function DELETE(
             await deleteMenuImage(menu.imageUrl);
         }
 
+        // Force delete related order items first to avoid foreign key constraint errors
+        await prisma.orderItem.deleteMany({
+            where: { menuId: id }
+        });
+
         await prisma.menu.delete({
             where: { id },
         });
 
-        revalidateTag('public-menus', 'max');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        revalidateTag('public-menus', 'max' as any);
 
         return apiResponse({ message: "Menu permanently deleted" }, 200);
     } catch (error) {

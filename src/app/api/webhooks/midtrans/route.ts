@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         }
 
         // 3. Determine Status Mapping
-        const statusMap: Record<string, { payment: any; order: any }> = {
+        const statusMap: Record<string, { payment: "PENDING" | "PAID" | "FAILED" | "EXPIRED"; order: "PENDING" | "PAID" | "CANCELLED" }> = {
             capture: {
                 payment: fraud_status === "challenge" ? "PENDING" : "PAID",
                 order: fraud_status === "challenge" ? "PENDING" : "PAID"
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         console.log(`[Webhook] Order: ${order_id} | Status: ${transaction_status} | Final: ${paymentStatus}/${orderStatus}`);
 
         // 4. Update Database (Idempotent update)
-        const updatedOrder = await prisma.order.update({
+        await prisma.order.update({
             where: { orderCode: order_id },
             data: {
                 paymentStatus: paymentStatus,

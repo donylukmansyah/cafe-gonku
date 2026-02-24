@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import "./globals.css";
+import { SWRProvider } from "@/components/providers/swr-provider";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -53,7 +54,9 @@ export default function RootLayout({
       <body
         className={`${rubik.variable} antialiased font-sans`}
       >
-        {children}
+        <SWRProvider>
+          {children}
+        </SWRProvider>
       </body>
     </html>
   );

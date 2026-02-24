@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function proxy(request: NextRequest) {
-    const pathname = request.nextUrl.pathname
     const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
     // --- Content Security Policy ---
@@ -25,46 +24,9 @@ export async function proxy(request: NextRequest) {
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("Content-Security-Policy", cspHeader);
 
-    // --- Authentication & Access Control ---
-    const isAuthPage = pathname.startsWith("/login");
-    const isAdminPage = pathname.startsWith("/admin");
-    const isKitchenPage = pathname.startsWith("/kitchen");
-
-    // Better Auth session check
-    const { auth } = await import("@/lib/auth");
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    // 1. Redirect to login if accessing protected pages without session
-    if ((isAdminPage || isKitchenPage) && !session) {
-        const loginUrl = new URL("/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
-        return NextResponse.redirect(loginUrl);
-    }
-
-    // 2. Role-based Access Control
-    if (session) {
-        const user = session.user as { role?: string };
-
-        // Admin only pages
-        if (isAdminPage && user.role !== "ADMIN") {
-            return NextResponse.redirect(new URL("/", request.url));
-        }
-
-        // Kitchen/Admin pages
-        if (isKitchenPage && user.role !== "KITCHEN" && user.role !== "ADMIN") {
-            return NextResponse.redirect(new URL("/", request.url));
-        }
-
-        // Redirect from login if already authenticated
-        if (isAuthPage) {
-            const redirectUrl = user.role === "ADMIN" ? "/admin" : (user.role === "KITCHEN" ? "/kitchen" : "/");
-            return NextResponse.redirect(new URL(redirectUrl, request.url));
-        }
-    }
-
     // --- Prepare Response ---
+    // Note: Authentication and RBAC are handled securely by Server Components (e.g., layouts)
+    // to avoid edge runtime limitations and database connection overhead in the proxy layer.
     const response = NextResponse.next({
         request: {
             headers: requestHeaders,
@@ -80,7 +42,7 @@ export async function proxy(request: NextRequest) {
     response.headers.set("X-XSS-Protection", "1; mode=block");
     response.headers.set("X-Response-Time", `${Date.now()}`);
 
-    return response
+    return response;
 }
 
 export const config = {

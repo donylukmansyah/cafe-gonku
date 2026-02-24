@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getServerSession } from "@/lib/server-auth";
 import { Prisma, OrderStatus } from "@prisma/client";
 import { snap } from "@/lib/midtrans";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -11,9 +10,7 @@ import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 // GET /api/orders - Get orders for Kitchen Display (Priority Queue)
 export async function GET(request: Request) {
     try {
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);
@@ -124,6 +121,7 @@ export async function POST(request: Request) {
             let itemPrice = menu.price;
             const selectedOptions = (item.selectedOptions || []).map(opt => {
                 // Find option value in the DB to get official price adjustment
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const optionValue = (menu as any).menuOptions
                     .flatMap((o: any) => o.values)
                     .find((v: any) => v.id === opt.menuOptionValueId);
@@ -198,8 +196,10 @@ export async function POST(request: Request) {
                     order_id: orderCode,
                     gross_amount: totalAmount,
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 item_details: order.orderItems.map((item: any) => ({
                     id: item.menuId,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     price: item.price + item.selectedOptions.reduce((acc: number, opt: any) => acc + opt.priceAdjust, 0),
                     quantity: item.quantity,
                     name: item.menu.name.substring(0, 50),

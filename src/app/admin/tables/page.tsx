@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import QRCode from "qrcode"
-import { showConfirm, showSuccess, showError } from "@/lib/sweetalert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TableList } from "@/components/admin/tables/table-list"
 import { CreateTableDialog } from "@/components/admin/tables/create-table-dialog"
@@ -15,10 +14,12 @@ import { useAdminTables, type TableData } from "@/hooks/use-admin-tables"
 export default function TablesPage() {
     const {
         tables,
-        setTables,
         isLoading,
         isRefreshing,
         fetchTables,
+        createTable,
+        toggleStatus,
+        deleteTable,
     } = useAdminTables();
 
     const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -27,46 +28,6 @@ export default function TablesPage() {
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
     const appUrl = useMemo(() => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", [])
-
-    const handleCreateTable = useCallback(async (values: { tableNumber: number, capacity: number }) => {
-        try {
-            const res = await fetch("/api/tables", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
-            })
-
-            if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Failed to create")
-            }
-
-            toast.success(`Meja #${values.tableNumber} berhasil dibuat`)
-            setShowCreateDialog(false)
-            fetchTables()
-        } catch (error: any) {
-            toast.error(error.message || "Gagal membuat meja")
-        }
-    }, [fetchTables]);
-
-    const handleToggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
-        // Optimistic update
-        setTables(prev => (prev || []).map(t => t.id === id ? { ...t, isActive: !currentStatus } : t), false)
-
-        try {
-            const res = await fetch(`/api/tables/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isActive: !currentStatus }),
-            })
-
-            if (!res.ok) throw new Error("Failed to update")
-        } catch (error) {
-            // Revert on error
-            setTables(prev => (prev || []).map(t => t.id === id ? { ...t, isActive: currentStatus } : t), false)
-            toast.error("Gagal mengubah status meja")
-        }
-    }, [setTables]);
 
     const handleShowQR = useCallback(async (table: TableData) => {
         setSelectedTable(table)
@@ -98,31 +59,6 @@ export default function TablesPage() {
         link.href = qrDataUrl
         link.click()
     }, [selectedTable, qrDataUrl]);
-
-    const handleDelete = useCallback(async (id: string) => {
-        const result = await showConfirm(
-            "Hapus Meja?",
-            "Meja yang dihapus tidak dapat dikembalikan.",
-            "Ya, Hapus",
-            "warning"
-        )
-
-        if (!result.isConfirmed) return
-
-        try {
-            const res = await fetch(`/api/tables/${id}`, {
-                method: "DELETE",
-            })
-
-            if (!res.ok) throw new Error("Failed to delete")
-
-            showSuccess("Berhasil", "Meja berhasil dihapus")
-            fetchTables()
-        } catch (error) {
-            showError("Gagal", "Terjadi kesalahan saat menghapus meja")
-            console.error(error)
-        }
-    }, [fetchTables]);
 
     if (isLoading) {
         return <TablesLoadingSkeleton />
@@ -160,14 +96,14 @@ export default function TablesPage() {
             <TableList
                 initialTables={tables}
                 onShowQR={handleShowQR}
-                onToggleStatus={handleToggleStatus}
-                onDelete={handleDelete}
+                onToggleStatus={toggleStatus}
+                onDelete={deleteTable}
             />
 
             <CreateTableDialog
                 open={showCreateDialog}
                 onOpenChange={setShowCreateDialog}
-                onSubmit={handleCreateTable}
+                onSubmit={(values) => createTable(values, () => setShowCreateDialog(false))}
                 existingTables={tables}
             />
 

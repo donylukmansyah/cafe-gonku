@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "@/lib/server-auth"
 import { createClient } from "@supabase/supabase-js"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 
 // Create a server-side supabase client with service role key for admin operations
 const supabaseAdmin = createClient(
@@ -14,9 +13,7 @@ export async function POST(request: NextRequest) {
         console.log("Starting upload process...")
 
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        })
+        const session = await getServerSession();
 
         if (!session) {
             console.error("Upload failed: Unauthorized")
@@ -97,10 +94,11 @@ export async function POST(request: NextRequest) {
             url: urlData.publicUrl,
             path: filePath,
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Upload error (catch):", error)
         return NextResponse.json(
-            { error: `Internal Server Error: ${error.message}` },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { error: `Internal Server Error: ${(error as any).message || String(error)}` },
             { status: 500 }
         )
     }

@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { PaymentStatus, OrderStatus } from "@prisma/client";
 import { snap } from "@/lib/midtrans";
 import { supabaseAdmin } from "@/lib/supabase";
 import { apiResponse, handleApiError } from "@/lib/api-utils";
 
 // POST /api/orders/sync-payment
 // Bulk check for all PENDING orders to update their status from Midtrans
-export async function POST(request: Request) {
+export async function POST() {
     try {
         // 1. Get all PENDING orders from the last 24 hours
         // We don't want to check very old orders that are likely abandoned
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
         // 2. Process in parallel
         const checkPromises = pendingOrders.map(async (order) => {
             try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const statusResponse = await (snap as any).transaction.status(order.orderCode);
                 const { transaction_status, fraud_status, payment_type } = statusResponse;
 
@@ -67,8 +69,8 @@ export async function POST(request: Request) {
                     await prisma.order.update({
                         where: { id: order.id },
                         data: {
-                            paymentStatus: paymentStatus as any,
-                            status: (paymentStatus === "PAID" ? "PAID" : orderStatus) as any,
+                            paymentStatus: paymentStatus as PaymentStatus,
+                            status: (paymentStatus === "PAID" ? "PAID" : orderStatus) as OrderStatus,
                             paidAt: paymentStatus === "PAID" ? new Date() : null,
                             paymentMethod: payment_type || order.paymentMethod
                         }
@@ -88,9 +90,10 @@ export async function POST(request: Request) {
 
                 return { orderId: order.orderCode, status: "PENDING", updated: false };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const midtransError = error as { httpStatusCode?: number | string; status_code?: string };
                 // Ignore 404s (transaction not created yet)
-                if (error.httpStatusCode == 404 || error.status_code == "404") {
+                if (midtransError.httpStatusCode == 404 || midtransError.status_code == "404") {
                     return { orderId: order.orderCode, error: "Not found in Midtrans" };
                 }
                 console.error(`Error checking order ${order.orderCode}:`, error);

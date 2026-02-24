@@ -20,7 +20,7 @@ import { OrderQueue } from "@/components/kitchen/order-queue";
 import { MenuAvailability } from "@/components/kitchen/menu-availability";
 
 export default function KitchenPage() {
-    const { data: session, isPending } = useSession();
+    const { data: session } = useSession();
     const router = useRouter();
 
     const [soundEnabled, setSoundEnabled] = useState(true);
@@ -62,7 +62,6 @@ export default function KitchenPage() {
     useEffect(() => {
         const cleanupOrders = startPolling();
         const cleanupMenus = initializeMenus();
-
 
         return () => {
             cleanupOrders();
@@ -112,26 +111,8 @@ export default function KitchenPage() {
         }
     }, []);
 
-    // Loading state
-    if (isPending) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-black">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center shadow-2xl">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    </div>
-                    <p className="text-zinc-500 font-medium">Memuat Database...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Auth check
+    // Session is guaranteed by the layout protecting this page
     const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
-    if (!session || (user?.role !== "KITCHEN" && user?.role !== "ADMIN")) {
-        router.push("/login");
-        return null;
-    }
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-primary/30">

@@ -19,6 +19,13 @@ export type AnalyticsData = {
     totalOrders: number;
 };
 
+const defaultData: AnalyticsData = {
+    chartData: [],
+    topMenus: [],
+    totalRevenue: 0,
+    totalOrders: 0,
+};
+
 export function useAdminAnalytics() {
     const [days, setDays] = useState("7");
 
@@ -29,7 +36,7 @@ export function useAdminAnalytics() {
     );
 
     return {
-        data: data || null,
+        data: data || defaultData,
         isLoading,
         days,
         setDays,

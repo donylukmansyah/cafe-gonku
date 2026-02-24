@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/use-cart";
+import { apiFetch } from "@/lib/api-client";
 
 export interface OrderDetails {
     id: string;
@@ -46,28 +47,22 @@ export function useRealtimeOrder() {
         if (showLoading) setIsLoading(true);
 
         try {
-            const res = await fetch(`/api/orders/${activeOrderCode}`);
+            const orderData = await apiFetch<OrderDetails>(`/api/orders/${activeOrderCode}`, { silent: true });
 
-            if (!res.ok) {
-                if (res.status === 404) {
-                    setActiveOrderCode(null);
-                    setOrder(null);
-                    return;
-                }
-                // Don't throw for other errors in polling to avoid noise
-                console.error("Failed to fetch order");
-                return;
-            }
-
-            const json = await res.json();
             if (isMounted.current) {
-                setOrder(json.data || json); // Fallback to json if data prop missing (legacy)
+                setOrder(orderData);
 
                 // If order is completed/cancelled, we might want to stop polling?
                 // But for now let's keep it simple.
             }
-        } catch (error) {
-            console.error("Error fetching order:", error);
+        } catch (error: any) {
+            const msg = error.message?.toLowerCase() || "";
+            if (msg.includes("not found")) {
+                setActiveOrderCode(null);
+                setOrder(null);
+            } else {
+                console.error("Error fetching order:", error);
+            }
         } finally {
             if (isMounted.current && showLoading) setIsLoading(false);
         }
@@ -128,7 +123,7 @@ export function useRealtimeOrder() {
 
         // --- Payment Check Loop (If Pending) ---
         // Checks more frequently (5s) if payment is pending
-        let paymentCheckInterval: NodeJS.Timeout | null = null;
+        const paymentCheckInterval: NodeJS.Timeout | null = null;
 
         // We need to check payment status from the *current* order state or fetch result
         // Since we can't easily access the latest 'order' state inside this effect without adding it to dependency (causing loop),
@@ -149,8 +144,7 @@ export function useRealtimeOrder() {
         console.log("[Payment] Starting payment check loop...");
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`/api/orders/${activeOrderCode}/check-payment`, { method: "POST" });
-                const data = await res.json();
+                const data = await apiFetch<any>(`/api/orders/${activeOrderCode}/check-payment`, { method: "POST", silent: true });
                 if (data.updated && isMounted.current) {
                     toast.success("Pembayaran terkonfirmasi! ✨");
                     fetchOrder(); // This will update order state -> triggers cleanup -> stops this loop

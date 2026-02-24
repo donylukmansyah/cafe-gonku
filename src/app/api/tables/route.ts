@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { getServerSession } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 
@@ -15,17 +14,6 @@ export async function GET() {
     try {
         const tables = await prisma.table.findMany({
             orderBy: { tableNumber: "asc" },
-            include: {
-                _count: {
-                    select: {
-                        orders: {
-                            where: {
-                                status: { in: ["PENDING", "PAID", "PREPARING"] },
-                            },
-                        },
-                    },
-                },
-            },
         });
 
         return apiResponse(tables);
@@ -38,9 +26,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);

@@ -1,15 +1,12 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, LayoutGrid, List, Filter } from "lucide-react"
-import { toast } from "sonner"
-import { showConfirm, showSuccess, showError } from "@/lib/sweetalert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MenuList } from "@/components/admin/menus/menu-list"
-import { useAdminMenus, type Menu } from "@/hooks/use-admin-menus"
+import { useAdminMenus } from "@/hooks/use-admin-menus"
 import {
     Input
 } from "@/components/ui/input"
@@ -21,82 +18,21 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 
-// Menu type is now imported from useAdminMenus hook
-
 export default function MenusPage() {
-    const router = useRouter()
     const [view, setView] = useState<"grid" | "table">("table")
-    const [searchQuery, setSearchQuery] = useState("")
-    const [categoryFilter, setCategoryFilter] = useState("ALL")
-    const [statusFilter, setStatusFilter] = useState("ALL")
 
     const {
         menus,
         isLoading,
-        fetchMenus,
+        searchQuery,
+        setSearchQuery,
+        categoryFilter,
+        setCategoryFilter,
+        statusFilter,
+        setStatusFilter,
+        deleteMenu,
+        toggleAvailability,
     } = useAdminMenus();
-
-    const filteredMenus = useMemo(() => {
-        return menus.filter(menu => {
-            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesCategory = categoryFilter === "ALL" || menu.category === categoryFilter
-            const matchesStatus = statusFilter === "ALL" ||
-                (statusFilter === "ACTIVE" && menu.isActive) ||
-                (statusFilter === "INACTIVE" && !menu.isActive) ||
-                (statusFilter === "AVAILABLE" && menu.isAvailable) ||
-                (statusFilter === "OUT_OF_STOCK" && !menu.isAvailable)
-
-            return matchesSearch && matchesCategory && matchesStatus
-        })
-    }, [menus, searchQuery, categoryFilter, statusFilter]);
-
-    const handleDelete = useCallback(async (id: string) => {
-        const result = await showConfirm(
-            "Hapus Menu?",
-            "Menu akan dihapus secara permanen!",
-            "Ya, Hapus!",
-            "warning"
-        )
-
-        if (result.isConfirmed) {
-            try {
-                const res = await fetch(`/api/menus/${id}`, { method: "DELETE" })
-                if (!res.ok) throw new Error("Gagal menghapus")
-                showSuccess("Menu berhasil dihapus")
-                fetchMenus()
-            } catch (error) {
-                showError("Gagal menghapus menu")
-            }
-        }
-    }, [fetchMenus]);
-
-    const handleToggleAvailability = useCallback(async (id: string, current: boolean) => {
-        // Optimistic Update
-        const updatedMenus = menus.map(m =>
-            m.id === id ? { ...m, isAvailable: !current } : m
-        );
-
-        try {
-            // Apply local change immediately
-            await fetchMenus({ menus: updatedMenus }, false);
-
-            const res = await fetch(`/api/menus/${id}/availability`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isAvailable: !current }),
-            })
-
-            if (!res.ok) throw new Error("Gagal update")
-
-            toast.success("Status ketersediaan diupdate")
-            // Revalidate to ensure server state
-            fetchMenus()
-        } catch (error) {
-            // Rollback on error
-            fetchMenus()
-            toast.error("Gagal update status")
-        }
-    }, [menus, fetchMenus]);
 
     if (isLoading) {
         return <MenusLoadingSkeleton />
@@ -182,10 +118,10 @@ export default function MenusPage() {
             </div>
 
             <MenuList
-                menus={filteredMenus}
+                menus={menus}
                 view={view}
-                onDelete={handleDelete}
-                onToggleAvailability={handleToggleAvailability}
+                onDelete={deleteMenu}
+                onToggleAvailability={toggleAvailability}
             />
         </div>
     )

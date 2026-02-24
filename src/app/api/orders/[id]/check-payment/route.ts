@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PaymentStatus, OrderStatus } from "@prisma/client";
 import { snap } from "@/lib/midtrans";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -37,6 +38,7 @@ export async function POST(
 
         // 2. Query Midtrans Status
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const statusResponse = await (snap as any).transaction.status(order.orderCode);
             const { transaction_status, fraud_status, payment_type } = statusResponse;
 
@@ -73,11 +75,11 @@ export async function POST(
 
             // 3. Update Database if status changed
             if (paymentStatus !== order.paymentStatus) {
-                const updatedOrder = await prisma.order.update({
+                await prisma.order.update({
                     where: { id: order.id },
                     data: {
-                        paymentStatus: paymentStatus as any,
-                        status: (paymentStatus === "PAID" ? "PAID" : orderStatus) as any,
+                        paymentStatus: paymentStatus as PaymentStatus,
+                        status: (paymentStatus === "PAID" ? "PAID" : orderStatus) as OrderStatus,
                         paidAt: paymentStatus === "PAID" ? new Date() : order.paidAt,
                         paymentMethod: payment_type || order.paymentMethod
                     }
@@ -106,7 +108,8 @@ export async function POST(
                 message: "Status same as database"
             });
 
-        } catch (midtransError: any) {
+        } catch (error: unknown) {
+            const midtransError = error as { httpStatusCode?: number | string; status_code?: string };
             // If Midtrans returns 404, it might be that the transaction hasn't been created in their side yet
             // Handle both string and number status codes
             if (midtransError.httpStatusCode == 404 || midtransError.status_code == "404") {
@@ -117,7 +120,7 @@ export async function POST(
                 });
             }
             console.error("[Midtrans Status Error]:", midtransError);
-            throw midtransError;
+            throw error;
         }
 
     } catch (error) {

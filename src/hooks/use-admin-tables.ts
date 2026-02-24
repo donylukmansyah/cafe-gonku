@@ -1,7 +1,10 @@
 "use client";
 
 import useSWR from "swr";
+import { useCallback } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { toast } from "sonner";
+import { showConfirm, showSuccess, showError } from "@/lib/sweetalert";
 
 export type TableData = {
     id: string;
@@ -9,9 +12,6 @@ export type TableData = {
     qrCode: string;
     capacity: number;
     isActive: boolean;
-    _count: {
-        orders: number;
-    };
 };
 
 export function useAdminTables() {
@@ -20,12 +20,76 @@ export function useAdminTables() {
         apiFetch
     );
 
+    const tables = data || [];
+
+    const createTable = useCallback(async (values: { tableNumber: number, capacity: number }, onSuccess?: () => void) => {
+        try {
+            await apiFetch("/api/tables", {
+                method: "POST",
+                body: JSON.stringify(values),
+            });
+
+            toast.success(`Meja #${values.tableNumber} berhasil dibuat`);
+            mutate();
+            if (onSuccess) onSuccess();
+        } catch (error: any) {
+            // apiFetch handles toast natively
+            console.error(error);
+        }
+    }, [mutate]);
+
+    const toggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
+        // Optimistic update
+        const updatedTables = tables.map(t => t.id === id ? { ...t, isActive: !currentStatus } : t);
+
+        try {
+            await mutate(updatedTables, false);
+
+            await apiFetch(`/api/tables/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ isActive: !currentStatus }),
+            });
+
+            mutate(); // Revalidate with server after success
+        } catch (error) {
+            // Revert on error
+            mutate(updatedTables);
+            // toast.error is handled natively by apiFetch
+        }
+    }, [tables, mutate]);
+
+    const deleteTable = useCallback(async (id: string) => {
+        const result = await showConfirm(
+            "Hapus Meja?",
+            "Meja yang dihapus tidak dapat dikembalikan.",
+            "Ya, Hapus",
+            "warning"
+        );
+
+        if (!result.isConfirmed) return;
+
+        try {
+            await apiFetch(`/api/tables/${id}`, {
+                method: "DELETE",
+            });
+
+            showSuccess("Berhasil", "Meja berhasil dihapus");
+            mutate();
+        } catch (error) {
+            // showError("Gagal", "Terjadi kesalahan saat menghapus meja"); // Already handled by apiFetch toast
+            console.error(error);
+        }
+    }, [mutate]);
+
+
     return {
-        tables: data || [],
-        setTables: mutate, // For optimistic updates: mutate(newData, false)
+        tables,
         isLoading,
         isRefreshing: isValidating,
+        error,
+        createTable,
+        toggleStatus,
+        deleteTable,
         fetchTables: mutate,
-        error
     };
 }

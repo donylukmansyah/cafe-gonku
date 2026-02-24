@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
+import { getServerSession } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { createMenuSchema } from "@/validations/menu";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { unstable_cache, revalidateTag } from "next/cache";
 
@@ -10,6 +9,7 @@ const getMenus = unstable_cache(
     async (category: string | null, includeInactive: boolean, onlyAvailable: boolean) => {
         return await prisma.menu.findMany({
             where: {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ...(category && { category: category as any }),
                 ...(!includeInactive && { isActive: true }),
                 ...(onlyAvailable && { isAvailable: true }),
@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         if (skipCache) {
             const menus = await prisma.menu.findMany({
                 where: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     ...(category && { category: category as any }),
                     ...(!includeInactive && { isActive: true }),
                     ...(onlyAvailable && { isAvailable: true }),
@@ -103,9 +104,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         // Check auth
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);
@@ -151,7 +150,8 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        revalidateTag('public-menus', 'max');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        revalidateTag('public-menus', 'max' as any);
 
         return apiResponse(menu, 201);
     } catch (error) {

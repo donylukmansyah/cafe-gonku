@@ -27,8 +27,6 @@ export default function AnalyticsPage() {
         return <AnalyticsLoadingSkeleton />
     }
 
-    if (!data) return null
-
     return (
         <div className="space-y-6 animate-in fade-in duration-700 pb-6">
             {/* Header */}

@@ -1,39 +1,44 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
-async function getStats() {
-    const [menuCount, tableCount, todayOrders, totalRevenue] = await Promise.all([
-        prisma.menu.count({ where: { isActive: true } }),
-        prisma.table.count({ where: { isActive: true } }),
-        prisma.order.count({
-            where: {
-                createdAt: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
+const getStats = unstable_cache(
+    async () => {
+        const [menuCount, tableCount, todayOrders, totalRevenue] = await Promise.all([
+            prisma.menu.count({ where: { isActive: true } }),
+            prisma.table.count({ where: { isActive: true } }),
+            prisma.order.count({
+                where: {
+                    createdAt: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                    },
+                    paymentStatus: "PAID",
                 },
-                paymentStatus: "PAID",
-            },
-        }),
-        prisma.order.aggregate({
-            _sum: { totalAmount: true },
-            where: {
-                paymentStatus: "PAID",
-                createdAt: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            }),
+            prisma.order.aggregate({
+                _sum: { totalAmount: true },
+                where: {
+                    paymentStatus: "PAID",
+                    createdAt: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                    },
                 },
-            },
-        }),
-    ])
+            }),
+        ])
 
-    return {
-        menuCount,
-        tableCount,
-        todayOrders,
-        totalRevenue: totalRevenue._sum.totalAmount || 0,
-    }
-}
+        return {
+            menuCount,
+            tableCount,
+            todayOrders,
+            totalRevenue: totalRevenue._sum.totalAmount || 0,
+        }
+    },
+    ['admin-dashboard-stats'],
+    { revalidate: 60, tags: ['admin-stats'] } // Revalidate every 60s or on explicit tag
+)
 
 export default async function AdminDashboardPage() {
     const stats = await getStats()

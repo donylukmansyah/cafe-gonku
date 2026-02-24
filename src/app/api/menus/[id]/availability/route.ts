@@ -1,7 +1,6 @@
 import { type NextRequest } from "next/server";
+import { getServerSession } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
@@ -20,9 +19,7 @@ export async function PATCH(
         const { id } = await props.params;
 
         // Authenticate user
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const session = await getServerSession();
 
         if (!session) {
             return apiError("Unauthorized", 401);
