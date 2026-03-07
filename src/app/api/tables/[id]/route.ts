@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server"
 import { getServerSession } from "@/lib/server-auth"
-import { prisma } from "@/lib/prisma"
 import { updateTableSchema } from "@/validations/table"
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils"
+import { TableService } from "@/lib/services/table.service"
 
 export async function PATCH(
     request: NextRequest,
@@ -12,26 +12,14 @@ export async function PATCH(
         const { id } = await props.params
         const body = await request.json()
 
-        // Check auth
         const session = await getServerSession();
-
-        if (!session) {
-            return apiError("Unauthorized", 401)
-        }
+        if (!session) return apiError("Unauthorized", 401)
 
         const user = session.user as { role?: string }
-        if (user.role !== "ADMIN") {
-            return apiError("Forbidden", 403)
-        }
+        if (user.role !== "ADMIN") return apiError("Forbidden", 403)
 
-        // Validate body
         const validatedData = updateTableSchema.parse(body)
-
-        // Update table
-        const table = await prisma.table.update({
-            where: { id },
-            data: validatedData,
-        })
+        const table = await TableService.updateTable(id, validatedData)
 
         return apiResponse(table)
     } catch (error) {
@@ -46,37 +34,13 @@ export async function DELETE(
     try {
         const { id } = await props.params
 
-        // Check auth
         const session = await getServerSession();
-
-        if (!session) {
-            return apiError("Unauthorized", 401)
-        }
+        if (!session) return apiError("Unauthorized", 401)
 
         const user = session.user as { role?: string }
-        if (user.role !== "ADMIN") {
-            return apiError("Forbidden", 403)
-        }
+        if (user.role !== "ADMIN") return apiError("Forbidden", 403)
 
-        // Check if table exists
-        const table = await prisma.table.findUnique({
-            where: { id },
-            select: { id: true }
-        })
-
-        if (!table) {
-            return apiError("Table not found", 404)
-        }
-
-        // Force delete related orders first to avoid foreign key constraint errors
-        await prisma.order.deleteMany({
-            where: { tableId: id }
-        })
-
-        // Delete table
-        await prisma.table.delete({
-            where: { id },
-        })
+        await TableService.deleteTable(id)
 
         return apiResponse({ message: "Table deleted successfully" })
     } catch (error) {

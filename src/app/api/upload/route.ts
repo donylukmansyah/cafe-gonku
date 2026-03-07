@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/server-auth"
-import { createClient } from "@supabase/supabase-js"
-
-// Create a server-side supabase client with service role key for admin operations
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
     try {
@@ -64,6 +58,11 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = new Uint8Array(arrayBuffer)
 
+        if (!supabaseAdmin) {
+            console.error("Upload failed: Supabase Admin client not initialized")
+            return NextResponse.json({ error: "Supabase configuration error on server" }, { status: 500 })
+        }
+
         // Upload to Supabase Storage using Admin Client
         const { data, error } = await supabaseAdmin.storage
             .from("menu-images")
@@ -83,8 +82,8 @@ export async function POST(request: NextRequest) {
 
         console.log("Upload successful:", data)
 
-        // Get public URL
-        const { data: urlData } = supabaseAdmin.storage
+        // Get public URL (we already checked if supabaseAdmin is not null above)
+        const { data: urlData } = supabaseAdmin!.storage
             .from("menu-images")
             .getPublicUrl(filePath)
 

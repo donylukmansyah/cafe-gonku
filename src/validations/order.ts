@@ -1,9 +1,5 @@
 import { z } from "zod"
 
-const sanitizedString = z.string().trim().transform((val) => {
-    return val.replace(/<[^>]*>?/gm, "").trim();
-});
-
 // Order status enum matching Prisma schema
 export const orderStatusSchema = z.enum([
     "PENDING",

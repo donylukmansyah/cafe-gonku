@@ -1,8 +1,8 @@
 import { type NextRequest } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
-import { prisma } from "@/lib/prisma";
 import { updateOrderStatusSchema } from "@/validations/order";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { OrderService } from "@/lib/services/order.service";
 
 // PATCH /api/orders/[id]/status - Update order status
 export async function PATCH(
@@ -12,19 +12,12 @@ export async function PATCH(
     try {
         const { id } = await props.params;
 
-        // Authenticate user
         const session = await getServerSession();
-
-        if (!session) {
-            return apiError("Unauthorized", 401);
-        }
+        if (!session) return apiError("Unauthorized", 401);
 
         const userRole = (session.user as { role?: string }).role;
-        if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
-            return apiError("Forbidden", 403);
-        }
+        if (userRole !== "KITCHEN" && userRole !== "ADMIN") return apiError("Forbidden", 403);
 
-        // Validate request body
         const body = await request.json();
         const parseResult = updateOrderStatusSchema.safeParse(body);
 
@@ -34,60 +27,7 @@ export async function PATCH(
 
         const { status } = parseResult.data;
 
-        // Check if order exists
-        const existingOrder = await prisma.order.findUnique({
-            where: { id },
-            select: { id: true, status: true, orderCode: true },
-        });
-
-        if (!existingOrder) {
-            return apiError("Order not found", 404);
-        }
-
-        // Update order status
-        const updatedOrder = await prisma.order.update({
-            where: { id },
-            data: { status },
-            include: {
-                table: {
-                    select: {
-                        id: true,
-                        tableNumber: true,
-                    },
-                },
-                orderItems: {
-                    include: {
-                        menu: {
-                            select: {
-                                id: true,
-                                name: true,
-                                category: true,
-                            },
-                        },
-                        selectedOptions: true,
-                    },
-                },
-            },
-        });
-
-        // Create audit log
-        await prisma.orderLog.create({
-            data: {
-                orderId: id,
-                status,
-                message: `Order status updated to ${status}`,
-                createdBy: session.user.id,
-            },
-        });
-
-        // Emit Supabase broadcast for real-time update
-        const payload = { orderId: existingOrder.orderCode, status };
-
-        const { sendBroadcast } = await import("@/lib/supabase");
-        await Promise.all([
-            sendBroadcast("refresh-orders", payload, "kitchen-updates"),
-            sendBroadcast("refresh-orders", payload, `order-${existingOrder.orderCode}`)
-        ]);
+        const updatedOrder = await OrderService.updateOrderStatus(id, status, session.user.id);
 
         return apiResponse({
             message: "Order status updated successfully",

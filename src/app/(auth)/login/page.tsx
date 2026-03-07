@@ -9,15 +9,18 @@ interface LoginPageProps {
     }>
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-    // Await the searchParams as required in Next.js 15
-    const resolvedSearchParams = await searchParams
+async function LoginContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ callbackUrl?: string }> }) {
+    const resolvedSearchParams = await searchParamsPromise
     const callbackUrl = resolvedSearchParams?.callbackUrl || "/admin"
 
     // Server-side check: if logged in, redirect to appropriate dashboard automatically
     // This prevents the login screen from ever rendering for authenticated users
     await requireGuest()
 
+    return <LoginForm callbackUrl={callbackUrl} />
+}
+
+export default function LoginPage({ searchParams }: LoginPageProps) {
     return (
         <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-[#050505] selection:bg-primary/30">
             {/* Left Side - Visual (Desktop Only) */}
@@ -73,7 +76,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                         <Loader2 className="w-10 h-10 text-primary animate-spin" />
                     </div>
                 }>
-                    <LoginForm callbackUrl={callbackUrl} />
+                    <LoginContent searchParamsPromise={searchParams} />
                 </Suspense>
             </div>
         </div>

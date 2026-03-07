@@ -1,49 +1,9 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
-import { prisma } from "@/lib/prisma";
 import { createMenuSchema } from "@/validations/menu";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { unstable_cache, revalidateTag } from "next/cache";
-
-const getMenus = unstable_cache(
-    async (category: string | null, includeInactive: boolean, onlyAvailable: boolean) => {
-        return await prisma.menu.findMany({
-            where: {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                ...(category && { category: category as any }),
-                ...(!includeInactive && { isActive: true }),
-                ...(onlyAvailable && { isAvailable: true }),
-            },
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                price: true,
-                imageUrl: true,
-                category: true,
-                isAvailable: true,
-                isActive: true,
-                menuOptions: {
-                    select: {
-                        id: true,
-                        name: true,
-                        isRequired: true,
-                        values: {
-                            select: {
-                                id: true,
-                                label: true,
-                                priceAdjust: true,
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: { createdAt: "desc" },
-        });
-    },
-    ['public-menus-list-v2'],
-    { tags: ['public-menus'] }
-);
+import { revalidateTag } from "next/cache";
+import { MenuService } from "@/lib/services/menu.service";
 
 // GET /api/menus - List all menus
 export async function GET(request: NextRequest) {
@@ -54,47 +14,9 @@ export async function GET(request: NextRequest) {
         const onlyAvailable = searchParams.get("onlyAvailable") === "true";
         const skipCache = searchParams.get("skipCache") === "true" || includeInactive;
 
-        // For Admin/Kitchen (includeInactive or skipCache), we pull fresh data
-        if (skipCache) {
-            const menus = await prisma.menu.findMany({
-                where: {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ...(category && { category: category as any }),
-                    ...(!includeInactive && { isActive: true }),
-                    ...(onlyAvailable && { isAvailable: true }),
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    price: true,
-                    imageUrl: true,
-                    category: true,
-                    isAvailable: true,
-                    isActive: true,
-                    menuOptions: {
-                        select: {
-                            id: true,
-                            name: true,
-                            isRequired: true,
-                            values: {
-                                select: {
-                                    id: true,
-                                    label: true,
-                                    priceAdjust: true,
-                                }
-                            }
-                        }
-                    }
-                },
-                orderBy: { createdAt: "desc" },
-            });
-            return apiResponse({ menus }, 200, "no-store");
-        }
+        const menus = await MenuService.getMenus({ category, includeInactive, onlyAvailable, skipCache });
 
-        const menus = await getMenus(category, includeInactive, onlyAvailable);
-
-        return apiResponse({ menus }, 200);
+        return apiResponse({ menus }, 200, skipCache ? "no-store" : undefined);
     } catch (error) {
         return handleApiError(error, "GET /api/menus");
     }
@@ -103,53 +25,18 @@ export async function GET(request: NextRequest) {
 // POST /api/menus - Create menu
 export async function POST(request: NextRequest) {
     try {
-        // Check auth
         const session = await getServerSession();
-
-        if (!session) {
-            return apiError("Unauthorized", 401);
-        }
+        if (!session) return apiError("Unauthorized", 401);
 
         const user = session.user as { role?: string };
-        if (user.role !== "ADMIN") {
-            return apiError("Forbidden", 403);
-        }
+        if (user.role !== "ADMIN") return apiError("Forbidden", 403);
 
-        // Validate body
         const body = await request.json();
         const validatedData = createMenuSchema.parse(body);
 
-        // Extract options for nested create
-        const { menuOptions, ...menuData } = validatedData;
+        const menu = await MenuService.createMenu(validatedData);
 
-        // Create menu with options
-        const menu = await prisma.menu.create({
-            data: {
-                ...menuData,
-                ...(menuOptions && {
-                    menuOptions: {
-                        create: menuOptions.map((option) => ({
-                            name: option.name,
-                            isRequired: option.isRequired,
-                            values: {
-                                create: option.values.map((value) => ({
-                                    label: value.label,
-                                    priceAdjust: value.priceAdjust,
-                                })),
-                            },
-                        })),
-                    },
-                }),
-            },
-            include: {
-                menuOptions: {
-                    include: {
-                        values: true,
-                    },
-                },
-            },
-        });
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         revalidateTag('public-menus', 'max' as any);
 

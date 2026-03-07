@@ -1,61 +1,44 @@
-import { Suspense, cache } from "react";
-import { prisma } from "@/lib/prisma";
+import { Suspense } from "react";
+import { TableService } from "@/lib/services/table.service";
+import { MenuService } from "@/lib/services/menu.service";
 import { OrderClient } from "./order-client";
 import { Button } from "@/components/ui/button";
 import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";
 import { Menu } from "@/types/menu";
 
-// 1. Fetch Data on Server with Deduplication
-const getTableAndMenus = cache(async (qrCode: string | undefined) => {
+// We only use the cache directive for menus as table lookups are fast and need to be real-time
+import { unstable_cache } from "next/cache";
+
+// 1. Fetch menues using unstable_cache to deduplicate and cache menus
+// Wait, Next 15 "use cache" requires next.config.mjs experimental.useCache = true. I will stick to unstable_cache for safety since I don't know if useCache is enabled.
+export const getMenusCached = unstable_cache(
+    async () => {
+        return await MenuService.getMenus();
+    },
+    ['menus-customer'],
+    { revalidate: 3600, tags: ['menus'] } // Revalidate every hour, or when 'menus' tag is invalidated
+);
+
+// 1. Fetch Data on Server
+const getTableAndMenus = async (qrCode: string | undefined) => {
     if (!qrCode) return { table: null, menus: [] };
 
-    // Optimize: Check table first to short-circuit
-    const table = await prisma.table.findFirst({
-        where: { qrCode: qrCode, isActive: true },
-        select: { id: true, tableNumber: true, qrCode: true }
-    });
+    const table = await TableService.getTableByQrCode(qrCode);
 
     if (!table) return { table: null, menus: [] };
 
-    // Only fetch menus if table is valid
-    const menus = await prisma.menu.findMany({
-        where: { isActive: true },
-        select: {
-            id: true,
-            name: true,
-            description: true,
-            price: true,
-            imageUrl: true,
-            category: true,
-            isAvailable: true,
-            menuOptions: {
-                select: {
-                    id: true,
-                    name: true,
-                    isRequired: true,
-                    values: {
-                        select: {
-                            id: true,
-                            label: true,
-                            priceAdjust: true,
-                        }
-                    }
-                }
-            }
-        },
-        orderBy: { createdAt: "desc" },
-    });
+    const menus = await getMenusCached();
 
     return { table, menus };
-});
+};
 
 interface PageProps {
     searchParams: Promise<{ table?: string }>;
 }
 
-export default async function OrderPage(props: PageProps) {
-    const searchParams = await props.searchParams;
+async function OrderContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ table?: string }> }) {
+    const searchParams = await searchParamsPromise;
     const tableQr = searchParams.table;
 
     // 2. Resolve Data
@@ -88,7 +71,11 @@ export default async function OrderPage(props: PageProps) {
         );
     }
 
-    // 4. Render Client Component with Data
+    return <OrderClient initialMenus={menus || []} table={table} />;
+}
+
+export default function OrderPage(props: PageProps) {
+    // 4. Render Client Component with Data within Suspense boundary
     return (
         <Suspense fallback={
             <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
@@ -99,7 +86,7 @@ export default async function OrderPage(props: PageProps) {
                 <p className="text-zinc-500 font-bold text-sm animate-pulse">Menyiapkan Menu...</p>
             </div>
         }>
-            <OrderClient initialMenus={menus || []} table={table} />
+            <OrderContent searchParamsPromise={props.searchParams} />
         </Suspense>
     );
 }

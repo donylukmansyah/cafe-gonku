@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { OrderService } from "@/lib/services/order.service";
 
 export async function GET(
     request: Request,
@@ -12,87 +12,7 @@ export async function GET(
             return apiError("Order ID or Code required", 400);
         }
 
-        // Try to find by ID first (CUID format), then by Order Code
-        let order = await prisma.order.findUnique({
-            where: { id },
-            select: {
-                id: true,
-                orderCode: true,
-                status: true,
-                paymentStatus: true,
-                midtransToken: true,
-                totalAmount: true,
-                createdAt: true,
-                customerName: true,
-                table: {
-                    select: {
-                        tableNumber: true,
-                    }
-                },
-                orderItems: {
-                    select: {
-                        id: true,
-                        quantity: true,
-                        price: true,
-                        notes: true,
-                        menu: {
-                            select: {
-                                name: true,
-                            },
-                        },
-                        selectedOptions: {
-                            select: {
-                                optionName: true,
-                                optionValue: true,
-                                priceAdjust: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!order) {
-            // Try matching by Order Code if not found by ID
-            order = await prisma.order.findUnique({
-                where: { orderCode: id },
-                select: {
-                    id: true,
-                    orderCode: true,
-                    status: true,
-                    paymentStatus: true,
-                    midtransToken: true,
-                    totalAmount: true,
-                    createdAt: true,
-                    customerName: true,
-                    table: {
-                        select: {
-                            tableNumber: true,
-                        }
-                    },
-                    orderItems: {
-                        select: {
-                            id: true,
-                            quantity: true,
-                            price: true,
-                            notes: true,
-                            menu: {
-                                select: {
-                                    name: true,
-                                },
-                            },
-                            selectedOptions: {
-                                select: {
-                                    optionName: true,
-                                    optionValue: true,
-                                    priceAdjust: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-        }
+        const order = await OrderService.getOrderByIdOrCode(id);
 
         if (!order) {
             return apiError("Order not found", 404);

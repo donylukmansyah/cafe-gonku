@@ -3,11 +3,18 @@
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
-import QRCode from "qrcode"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TableList } from "@/components/admin/tables/table-list"
-import { CreateTableDialog } from "@/components/admin/tables/create-table-dialog"
-import { QRDialog } from "@/components/admin/tables/qr-dialog"
+import dynamic from "next/dynamic"
+
+const CreateTableDialog = dynamic(
+    () => import("@/components/admin/tables/create-table-dialog").then(mod => mod.CreateTableDialog),
+    { ssr: false }
+)
+const QRDialog = dynamic(
+    () => import("@/components/admin/tables/qr-dialog").then(mod => mod.QRDialog),
+    { ssr: false }
+)
 import { useState, useCallback, useMemo } from "react"
 import { useAdminTables, type TableData } from "@/hooks/use-admin-tables"
 
@@ -34,9 +41,10 @@ export default function TablesPage() {
         setQrDataUrl(null)
         setShowQRDialog(true)
 
-        // Generate QR code
+        // Generate QR code dynamically to save bundle size
         const orderUrl = `${appUrl}/order?table=${table.qrCode}`
         try {
+            const QRCode = (await import("qrcode")).default;
             const dataUrl = await QRCode.toDataURL(orderUrl, {
                 width: 300,
                 margin: 2,

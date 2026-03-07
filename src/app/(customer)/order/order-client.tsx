@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/use-cart";
 import { useSnap } from "@/hooks/use-snap";
 import { MenuGrid } from "@/components/customer/menu-grid";
-import { ItemModal } from "@/components/customer/item-modal";
-import { CartSheet } from "@/components/customer/cart-sheet";
-import { TrackingSheet } from "@/components/customer/tracking-sheet";
+import dynamic from "next/dynamic";
+
+const ItemModal = dynamic(() => import("@/components/customer/item-modal").then(mod => mod.ItemModal), { ssr: false });
+const CartSheet = dynamic(() => import("@/components/customer/cart-sheet").then(mod => mod.CartSheet), { ssr: false });
+const TrackingSheet = dynamic(() => import("@/components/customer/tracking-sheet").then(mod => mod.TrackingSheet), { ssr: false });
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -175,6 +177,16 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                 snapPay(order.midtransToken, {
                     onSuccess: async () => {
                         toast.success("Pembayaran Berhasil! 💸");
+
+                        // ZERO-LATENCY OPTIMIZATION:
+                        // Instead of waiting 8-18s for the Midtrans Sandbox Webhook, 
+                        // proactively command the server to fetch status and broadcast to kitchen INSTANTLY.
+                        try {
+                            await apiFetch(`/api/orders/${order.orderCode}/check-payment`, { method: "POST" });
+                        } catch (e) {
+                            console.error("Proactive check-payment failed:", e);
+                        }
+
                         setActiveOrderCode(order.orderCode);
                         clearCart();
                     },

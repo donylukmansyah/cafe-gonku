@@ -98,16 +98,16 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 // On initial load (when soundedOrdersRef is empty), mark existing orders as sounded
                 // to prevent notification splash on login/refresh
                 if (soundedOrdersRef.current.size === 0 && newOrders.length > 0) {
-                    newOrders.forEach(o => soundedOrdersRef.current.add(o.id));
+                    newOrders.forEach(o => soundedOrdersRef.current.add(o.orderCode));
                 }
 
                 // Check for NEW Paid orders that haven't played sound yet (for polling fallback)
                 if (soundEnabled && audioRef?.current) {
                     newOrders.forEach(order => {
-                        if (order.status === "PAID" && !soundedOrdersRef.current.has(order.id)) {
+                        if (order.status === "PAID" && !soundedOrdersRef.current.has(order.orderCode)) {
                             console.log(`[Polling] Triggering sound for NEW order: ${order.orderCode}`);
                             playNotification();
-                            soundedOrdersRef.current.add(order.id);
+                            soundedOrdersRef.current.add(order.orderCode);
                         }
                     });
                 }
@@ -185,6 +185,10 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 const orderId = data?.orderId;
                 const isPayment = status === "PAID";
                 const isNewPaidOrder = isPayment && !soundedOrdersRef.current.has(orderId);
+                const fullOrder = data?.fullOrder;
+
+                console.log(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderId}: ${status}`);
+                console.log("[KitchenOrders] Receive Broadcast details:", event, data);
 
                 if (isNewPaidOrder) {
                     if (soundEnabled) {
@@ -199,19 +203,37 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
                 if (data?.orderId && data?.status) {
                     if (data.status === "PENDING") return;
-                    setOrders(prev => {
-                        const existing = prev.find(o => o.orderCode === data.orderId);
-                        if (!existing) {
-                            fetchOrders(true);
-                            return prev;
-                        }
-                        return prev.map(o =>
-                            o.orderCode === data.orderId
-                                ? { ...o, status: data.status }
-                                : o
-                        );
-                    });
+
+                    if (fullOrder && isPayment) {
+                        // Instant State Injection for new Paid Orders
+                        setOrders(prev => {
+                            const exists = prev.some(o => o.orderCode === data.orderId);
+                            if (exists) {
+                                // If it exists, just update the status (idempotent)
+                                return prev.map(o => o.orderCode === data.orderId ? { ...o, status: data.status, ...fullOrder } : o);
+                            }
+                            // Inject brand new order from broadcast payload!
+                            return [...prev, fullOrder].sort((a, b) => new Date(a.paidAt || a.createdAt).getTime() - new Date(b.paidAt || b.createdAt).getTime());
+                        });
+                    } else {
+                        // Fallback for status updates (PREPARING, READY, etc) 
+                        setOrders((prev) => {
+                            const existing = prev.find(o => o.orderCode === data.orderId);
+                            if (!existing) {
+                                // Important: We ONLY initiate a fetch request for missing non-paid orders.
+                                // If we don't have it, we must fetch it. However, we schedule this OUTSIDE of the setOrders callback using setTimeout to avoid React warnings.
+                                setTimeout(() => fetchOrders(true), 0);
+                                return prev;
+                            }
+                            return prev.map(o =>
+                                o.orderCode === data.orderId
+                                    ? { ...o, status: data.status }
+                                    : o
+                            );
+                        });
+                    }
                 } else {
+                    // Fallback for empty payload
                     fetchOrders(true);
                 }
             })

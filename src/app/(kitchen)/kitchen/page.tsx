@@ -6,8 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChefHat, UtensilsCrossed } from "lucide-react";
+import { ChefHat, UtensilsCrossed, MonitorPlay } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { Button } from "@/components/ui/button";
 
 // Hooks
 import { useKitchenOrders } from "@/hooks/use-kitchen-orders";
@@ -24,6 +25,7 @@ export default function KitchenPage() {
     const router = useRouter();
 
     const [soundEnabled, setSoundEnabled] = useState(true);
+    const [audioUnlocked, setAudioUnlocked] = useState(false);
     const [activeTab, setActiveTab] = useState("queue");
     const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -111,6 +113,18 @@ export default function KitchenPage() {
         }
     }, []);
 
+    // Interaction required for audio unlock
+    const handleAudioUnlock = useCallback(() => {
+        if (audioRef.current) {
+            // Play and immediately pause to register initial user interaction with the media element
+            audioRef.current.play().then(() => {
+                audioRef.current?.pause();
+                if (audioRef.current) audioRef.current.currentTime = 0;
+            }).catch(e => console.error("Unlock failed silently:", e));
+        }
+        setAudioUnlocked(true);
+    }, []);
+
     // Session is guaranteed by the layout protecting this page
     const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
 
@@ -120,6 +134,27 @@ export default function KitchenPage() {
 
             {/* Hidden audio element */}
             <audio ref={audioRef} src="/notif/new-order.wav" preload="auto" />
+
+            {!audioUnlocked && (
+                <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center space-y-8 animate-in fade-in duration-300">
+                    <div className="text-center space-y-4">
+                        <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                            <MonitorPlay className="w-12 h-12 text-primary" />
+                        </div>
+                        <h1 className="text-3xl font-black uppercase tracking-widest text-white">Mulai Sesi Dapur</h1>
+                        <p className="text-zinc-400 max-w-md mx-auto text-sm leading-relaxed">
+                            Browser membutuhkan interaksi sebelum mengizinkan notifikasi suara berbunyi otomatis. Klik tombol di bawah untuk memulai.
+                        </p>
+                    </div>
+                    <Button
+                        size="lg"
+                        onClick={handleAudioUnlock}
+                        className="bg-primary text-black font-black uppercase tracking-widest px-12 py-8 rounded-full text-lg hover:scale-105 transition-all shadow-[0_0_40px_rgba(46,254,60,0.3)] hover:shadow-[0_0_60px_rgba(46,254,60,0.5)]"
+                    >
+                        Aktifkan Dashboard
+                    </Button>
+                </div>
+            )}
 
             {/* UI Shell */}
             <KitchenNavbar

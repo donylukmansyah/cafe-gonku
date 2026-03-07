@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,14 +19,17 @@ export const MenuCard = memo(function MenuCard({
     onDelete,
     onToggleAvailability,
 }: MenuCardProps) {
+    const [imageError, setImageError] = useState(false);
+
     return (
         <Card className="bg-zinc-900/50 border-white/5 overflow-hidden group hover:border-primary/20 transition-all backdrop-blur-sm">
             <div className="aspect-square relative overflow-hidden bg-zinc-800">
-                {menu.imageUrl ? (
+                {menu.imageUrl && !imageError ? (
                     <img
                         src={menu.imageUrl}
                         alt={menu.name}
                         className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                        onError={() => setImageError(true)}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-700">

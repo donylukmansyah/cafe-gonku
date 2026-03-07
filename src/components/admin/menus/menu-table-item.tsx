@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -20,13 +20,20 @@ export const MenuTableItem = memo(function MenuTableItem({
     onDelete,
     onToggleAvailability,
 }: MenuTableItemProps) {
+    const [imageError, setImageError] = useState(false);
+
     return (
         <TableRow className="border-white/5 hover:bg-white/[0.02] transition-colors group">
             <TableCell className="py-4">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/5 overflow-hidden flex items-center justify-center relative">
-                        {menu.imageUrl ? (
-                            <img src={menu.imageUrl} alt={menu.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        {menu.imageUrl && !imageError ? (
+                            <img
+                                src={menu.imageUrl}
+                                alt={menu.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                onError={() => setImageError(true)}
+                            />
                         ) : (
                             <CameraOff className="w-5 h-5 text-zinc-600" />
                         )}

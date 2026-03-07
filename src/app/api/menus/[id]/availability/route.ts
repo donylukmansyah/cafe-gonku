@@ -1,11 +1,10 @@
 import { type NextRequest } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
+import { MenuService } from "@/lib/services/menu.service";
 
-// Schema for updating menu availability
 const updateAvailabilitySchema = z.object({
     isAvailable: z.boolean(),
 });
@@ -18,20 +17,12 @@ export async function PATCH(
     try {
         const { id } = await props.params;
 
-        // Authenticate user
         const session = await getServerSession();
-
-        if (!session) {
-            return apiError("Unauthorized", 401);
-        }
+        if (!session) return apiError("Unauthorized", 401);
 
         const userRole = (session.user as { role?: string }).role;
-        // Both Kitchen and Admin can toggle availability
-        if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
-            return apiError("Forbidden", 403);
-        }
+        if (userRole !== "KITCHEN" && userRole !== "ADMIN") return apiError("Forbidden", 403);
 
-        // Validate request body
         const body = await request.json();
         const parseResult = updateAvailabilitySchema.safeParse(body);
 
@@ -41,38 +32,16 @@ export async function PATCH(
 
         const { isAvailable } = parseResult.data;
 
-        // Check if menu exists
-        const existingMenu = await prisma.menu.findUnique({
-            where: { id },
-            select: { id: true, name: true, isAvailable: true },
-        });
+        const updatedMenu = await MenuService.updateMenuAvailability(id, isAvailable);
 
-        if (!existingMenu) {
-            return apiError("Menu not found", 404);
-        }
-
-        // Update menu availability
-        const updatedMenu = await prisma.menu.update({
-            where: { id },
-            data: { isAvailable },
-            select: {
-                id: true,
-                name: true,
-                category: true,
-                price: true,
-                imageUrl: true,
-                isAvailable: true,
-            },
-        });
-
-        // Emit Supabase broadcast for real-time update
         const lib = await import("@/lib/supabase");
         await lib.sendBroadcast("menu-update", {
             menuId: updatedMenu.id,
             isAvailable: updatedMenu.isAvailable
         }, "kitchen-updates");
 
-        revalidateTag('public-menus', 'max');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        revalidateTag('public-menus', 'max' as any);
 
         return apiResponse({
             message: `Menu "${updatedMenu.name}" is now ${isAvailable ? "available" : "unavailable"}`,
@@ -91,20 +60,11 @@ export async function GET(
     try {
         const { id } = await props.params;
 
-        const menu = await prisma.menu.findUnique({
-            where: { id },
-            select: {
-                id: true,
-                name: true,
-                isAvailable: true,
-            },
-        });
+        const menu = await MenuService.getMenuById(id);
 
-        if (!menu) {
-            return apiError("Menu not found", 404);
-        }
+        if (!menu) return apiError("Menu not found", 404);
 
-        return apiResponse({ menu }, 200);
+        return apiResponse({ menu: { id: menu.id, name: menu.name, isAvailable: menu.isAvailable } }, 200);
     } catch (error) {
         return handleApiError(error, "GET /api/menus/[id]/availability");
     }

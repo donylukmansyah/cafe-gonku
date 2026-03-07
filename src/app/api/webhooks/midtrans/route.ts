@@ -10,6 +10,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        console.log(`[Payment Pipeline] ${new Date().toISOString()} - Webhook received HTTP request`);
         const body = await request.json();
 
         // 1. Extract Variables
@@ -49,23 +50,70 @@ export async function POST(request: Request) {
 
         console.log(`[Webhook] Order: ${order_id} | Status: ${transaction_status} | Final: ${paymentStatus}/${orderStatus}`);
 
+        console.log(`[Payment Pipeline] ${new Date().toISOString()} - Webhook starting DB update for ${order_id}`);
         // 4. Update Database (Idempotent update)
-        await prisma.order.update({
+        const updatedOrder = await prisma.order.update({
             where: { orderCode: order_id },
             data: {
                 paymentStatus: paymentStatus,
                 status: (paymentStatus === "PAID" ? "PAID" : orderStatus),
                 paidAt: paymentStatus === "PAID" ? new Date() : null,
                 paymentMethod: payment_type
+            },
+            // Include related data so we can broadcast the full order
+            include: {
+                table: {
+                    select: {
+                        id: true,
+                        tableNumber: true,
+                    },
+                },
+                orderItems: {
+                    select: {
+                        id: true,
+                        quantity: true,
+                        price: true,
+                        notes: true,
+                        menu: {
+                            select: {
+                                id: true,
+                                name: true,
+                                category: true,
+                            },
+                        },
+                        selectedOptions: {
+                            select: {
+                                id: true,
+                                optionName: true,
+                                optionValue: true,
+                                priceAdjust: true,
+                            },
+                        },
+                    },
+                },
             }
         });
 
         // 5. Notify Real-time
         const { sendBroadcast } = await import("@/lib/supabase");
+
+        // Prepare broadcast payload. If it's PAID, we send the full order object for instant kitchen update.
+        const broadcastPayload = {
+            orderId: order_id,
+            status: paymentStatus,
+            fullOrder: paymentStatus === "PAID" ? updatedOrder : undefined
+        };
+
+        console.log(`[Webhook] Prepared Broadcast Payload:`, JSON.stringify(broadcastPayload, null, 2));
+
+        console.log(`[Payment Pipeline] ${new Date().toISOString()} - Webhook starting Broadcast for ${order_id}`);
         await Promise.all([
-            sendBroadcast("refresh-orders", { orderId: order_id, status: paymentStatus }, "kitchen-updates"),
+            sendBroadcast("refresh-orders", broadcastPayload, "kitchen-updates"),
+            // Customer channel only needs the status change
             sendBroadcast("refresh-orders", { orderId: order_id, status: paymentStatus }, `order-${order_id}`)
         ]);
+
+        console.log(`[Payment Pipeline] ${new Date().toISOString()} - Webhook Broadcast complete for ${order_id}`);
 
         return apiResponse({ message: "OK" });
     } catch (error) {

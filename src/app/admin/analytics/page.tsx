@@ -11,9 +11,17 @@ import { useAdminAnalytics } from "@/hooks/use-admin-analytics"
 
 // Components (All memoized)
 import { StatsCards } from "@/components/admin/analytics/stats-cards"
-import { RevenueChart } from "@/components/admin/analytics/revenue-chart"
-import { TopMenus } from "@/components/admin/analytics/top-menus"
+import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
+
+const RevenueChart = dynamic(
+    () => import("@/components/admin/analytics/revenue-chart").then(mod => mod.RevenueChart),
+    {
+        ssr: false,
+        loading: () => <Skeleton className="w-full h-[500px] rounded-3xl bg-zinc-900/40 border border-white/5" />
+    }
+)
+import { TopMenus } from "@/components/admin/analytics/top-menus"
 
 export default function AnalyticsPage() {
     const {

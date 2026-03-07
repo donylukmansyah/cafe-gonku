@@ -137,22 +137,25 @@ export function useRealtimeOrder() {
         };
     }, [activeOrderCode, fetchOrder]);
 
-    // Separate Effect for Payment Polling (Depends on order.paymentStatus)
+    // Fallback Effect for Payment Polling (Very relaxed, only if strictly necessary)
+    // We only need a safety net if the user closed the window before `onSuccess` fired 
+    // and the webhook is taking an extremely long time.
     useEffect(() => {
         if (!activeOrderCode || order?.paymentStatus !== "PENDING") return;
 
-        console.log("[Payment] Starting payment check loop...");
+        console.log("[Payment] Starting relaxed safety net check loop...");
         const interval = setInterval(async () => {
             try {
+                // Relaxed interval (15s) since proactive check handles the Happy Path instantly
                 const data = await apiFetch<any>(`/api/orders/${activeOrderCode}/check-payment`, { method: "POST", silent: true });
                 if (data.updated && isMounted.current) {
                     toast.success("Pembayaran terkonfirmasi! ✨");
-                    fetchOrder(); // This will update order state -> triggers cleanup -> stops this loop
+                    fetchOrder(); // This will update order state -> triggers cleanup
                 }
             } catch (e) {
-                console.error("Check payment error:", e);
+                console.error("Safety check error:", e);
             }
-        }, 5000); // Check every 5s
+        }, 15000);
 
         return () => clearInterval(interval);
     }, [activeOrderCode, order?.paymentStatus, fetchOrder]);

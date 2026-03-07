@@ -4,7 +4,10 @@ import { SidebarLogoutButton } from "@/components/admin/sidebar-logout-button"
 import { SidebarMenuButton } from "@/components/admin/sidebar-menu-button"
 import { SidebarDesktopNav } from "@/components/admin/sidebar-desktop-nav"
 
-export default async function AdminLayout({
+import { Suspense } from "react"
+import { Loader2 } from "lucide-react"
+
+async function AdminLayoutContent({
     children,
 }: {
     children: React.ReactNode
@@ -69,5 +72,23 @@ export default async function AdminLayout({
                 </div>
             </main>
         </div>
+    )
+}
+
+export default function AdminLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    // Wrap the dynamic content in a Suspense boundary for PPR compatibility
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+                <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+                <p className="text-zinc-500 font-bold text-sm">Masuk Sistem Admin...</p>
+            </div>
+        }>
+            <AdminLayoutContent>{children}</AdminLayoutContent>
+        </Suspense>
     )
 }

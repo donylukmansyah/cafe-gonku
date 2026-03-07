@@ -1,22 +1,24 @@
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { redirect, unstable_rethrow } from "next/navigation"
 import { auth, Session } from "@/lib/auth"
+import { cache } from "react"
 
 /**
  * Retrieves the current session from the server using Next.js headers.
  * This is safe to use in Server Components, Layouts, and Server Actions.
  */
-export async function getServerSession(): Promise<Session | null> {
+export const getServerSession = cache(async (): Promise<Session | null> => {
     try {
         const session = await auth.api.getSession({
             headers: await headers(),
         })
         return session
     } catch (error) {
+        unstable_rethrow(error)
         console.error("Error retrieving server session:", error)
         return null
     }
-}
+});
 
 /**
  * Ensures the user is authenticated and has the required role.

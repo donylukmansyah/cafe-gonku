@@ -16,7 +16,7 @@ export async function proxy(request: NextRequest) {
         form-action 'self';
         frame-ancestors 'none';
         frame-src 'self' https://app.sandbox.midtrans.com https://app.midtrans.com;
-        connect-src 'self' https://*.supabase.co https://app.sandbox.midtrans.com https://app.midtrans.com;
+        connect-src 'self' https://*.supabase.co wss://*.supabase.co https://app.sandbox.midtrans.com https://app.midtrans.com;
         upgrade-insecure-requests;
     `.replace(/\s{2,}/g, " ").trim();
 
