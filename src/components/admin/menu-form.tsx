@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import { OptionField } from "./menus/menu-option-field"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray, Controller, type Control, type UseFormRegister } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { createMenuSchema, type CreateMenuInput } from "@/validations/menu"
+import { createMenuSchema, type CreateMenuFormInput } from "@/validations/menu"
+import { MENU_HIGHLIGHT_OPTIONS } from "@/lib/menu-highlight"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,13 +20,13 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Loader2, Plus, Trash2, Upload, X } from "lucide-react"
+import { Loader2, Plus, Trash2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import Image from "next/image"
 import { formatNumber } from "@/lib/utils"
 
 type MenuFormProps = {
-    initialData?: CreateMenuInput & { id?: string }
+    initialData?: CreateMenuFormInput & { id?: string }
     isEdit?: boolean
 }
 
@@ -52,9 +53,8 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
         handleSubmit,
         control,
         setValue,
-        watch,
         formState: { errors },
-    } = useForm({
+    } = useForm<CreateMenuFormInput>({
         resolver: zodResolver(createMenuSchema),
         defaultValues: initialData || {
             name: "",
@@ -62,6 +62,8 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
             price: 0,
             category: "FOOD",
             isAvailable: true,
+            isActive: true,
+            highlightType: "NONE",
             menuOptions: [],
         },
     })
@@ -121,7 +123,7 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
         }
     }
 
-    const onSubmit = async (data: CreateMenuInput) => {
+    const onSubmit = async (data: CreateMenuFormInput) => {
         setIsLoading(true)
         try {
             const url = isEdit ? `/api/menus/${initialData?.id}` : "/api/menus"
@@ -220,23 +222,69 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Tersedia</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Menu ditampilkan ke customer
-                                </p>
-                            </div>
+                        <div className="space-y-2">
+                            <Label>Highlight Customer</Label>
                             <Controller
                                 control={control}
-                                name="isAvailable"
+                                name="highlightType"
                                 render={({ field }) => (
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
+                                    <Select
+                                        value={field.value}
+                                        onValueChange={field.onChange}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {MENU_HIGHLIGHT_OPTIONS.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 )}
                             />
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label>Tersedia</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Menu masih bisa dipesan customer
+                                    </p>
+                                </div>
+                                <Controller
+                                    control={control}
+                                    name="isAvailable"
+                                    render={({ field }) => (
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    )}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label>Aktif</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Arsipkan menu tanpa menghapus riwayat order
+                                    </p>
+                                </div>
+                                <Controller
+                                    control={control}
+                                    name="isActive"
+                                    render={({ field }) => (
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    )}
+                                />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -326,7 +374,7 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                 <CardContent>
                     {optionFields.length === 0 ? (
                         <p className="text-center py-8 text-muted-foreground">
-                            Belum ada opsi. Tambahkan opsi seperti "Level Pedas" atau "Ukuran".
+                            Belum ada opsi. Tambahkan opsi seperti &quot;Level Pedas&quot; atau &quot;Ukuran&quot;.
                         </p>
                     ) : (
                         <div className="space-y-6">

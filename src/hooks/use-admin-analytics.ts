@@ -7,7 +7,9 @@ import { apiFetch } from "@/lib/api-client";
 export type AnalyticsData = {
     chartData: {
         date: string;
-        revenue: number;
+        onlineRevenue: number;
+        cashRevenue: number;
+        totalRevenue: number;
         orders: number;
     }[];
     topMenus: {
@@ -16,6 +18,9 @@ export type AnalyticsData = {
         category: string;
     }[];
     totalRevenue: number;
+    onlineRevenue: number;
+    cashRevenue: number;
+    netIncome: number;
     totalOrders: number;
 };
 
@@ -23,6 +28,9 @@ const defaultData: AnalyticsData = {
     chartData: [],
     topMenus: [],
     totalRevenue: 0,
+    onlineRevenue: 0,
+    cashRevenue: 0,
+    netIncome: 0,
     totalOrders: 0,
 };
 

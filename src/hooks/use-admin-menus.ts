@@ -1,30 +1,17 @@
 "use client";
 
 import useSWR from "swr";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
 import { showConfirm, showSuccess, showError } from "@/lib/sweetalert";
-
-export interface Menu {
-    id: string;
-    name: string;
-    category: string;
-    price: number;
-    isAvailable: boolean;
-    isActive: boolean;
-    imageUrl?: string | null;
-    menuOptions: {
-        id: string;
-        name: string;
-        values: { id: string; label: string; priceAdjust: number }[];
-    }[];
-}
+import type { Menu } from "@/types/menu";
 
 export function useAdminMenus() {
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
     const { data, error, isLoading, mutate } = useSWR<{ menus: Menu[] }>(
         "/api/menus?includeInactive=true&skipCache=true",
@@ -35,11 +22,13 @@ export function useAdminMenus() {
         }
     );
 
-    const menus = data?.menus || [];
+    const menus = useMemo(() => data?.menus ?? [], [data?.menus]);
 
     const filteredMenus = useMemo(() => {
+        const normalizedSearch = deferredSearchQuery.trim().toLowerCase();
+
         return menus.filter(menu => {
-            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = menu.name.toLowerCase().includes(normalizedSearch);
             const matchesCategory = categoryFilter === "ALL" || menu.category === categoryFilter;
             const matchesStatus = statusFilter === "ALL" ||
                 (statusFilter === "ACTIVE" && menu.isActive) ||
@@ -49,13 +38,13 @@ export function useAdminMenus() {
 
             return matchesSearch && matchesCategory && matchesStatus;
         });
-    }, [menus, searchQuery, categoryFilter, statusFilter]);
+    }, [menus, deferredSearchQuery, categoryFilter, statusFilter]);
 
     const deleteMenu = useCallback(async (id: string) => {
         const result = await showConfirm(
             "Hapus Menu?",
-            "Menu akan dihapus secara permanen!",
-            "Ya, Hapus!",
+            "Menu akan diarsipkan dari halaman customer, tapi riwayat order tetap aman.",
+            "Ya, Arsipkan!",
             "warning"
         );
 
@@ -63,15 +52,16 @@ export function useAdminMenus() {
             try {
                 await apiFetch(`/api/menus/${id}`, { method: "DELETE" });
 
-                showSuccess("Menu berhasil dihapus");
+                showSuccess("Menu berhasil diarsipkan");
                 mutate(); // Refresh the data
-            } catch (error) {
-                showError("Gagal menghapus menu");
+            } catch {
+                showError("Gagal mengarsipkan menu");
             }
         }
     }, [mutate]);
 
     const toggleAvailability = useCallback(async (id: string, currentStatus: boolean) => {
+        const previousMenus = menus;
         // Optimistic Update
         const updatedMenus = menus.map(m =>
             m.id === id ? { ...m, isAvailable: !currentStatus } : m
@@ -88,9 +78,9 @@ export function useAdminMenus() {
 
             toast.success("Status ketersediaan diupdate");
             mutate(); // Revalidate server state
-        } catch (error) {
+        } catch {
             // Rollback on error
-            mutate({ menus: updatedMenus }, false); // Fallback rollback
+            mutate({ menus: previousMenus }, false);
             // Toast error is handled by apiFetch unless options.silent is true.
         }
     }, [menus, mutate]);

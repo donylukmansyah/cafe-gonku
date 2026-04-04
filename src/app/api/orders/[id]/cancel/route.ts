@@ -16,9 +16,16 @@ export async function POST(
             order: updatedOrder
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("[POST /api/orders/[id]/cancel] Error:", error);
-        if (error.status === 400) {
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "status" in error &&
+            error.status === 400 &&
+            "message" in error &&
+            typeof error.message === "string"
+        ) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

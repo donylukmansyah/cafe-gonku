@@ -61,7 +61,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
     // Helper to generate a simple hash of the orders to detect changes
     const getOrdersHash = (orders: Order[], history: boolean) => {
-        return `${history}-${orders.map(o => `${o.id}-${o.status}`).join("|")}`;
+        return `${history}-${orders.map(o => `${o.id}-${o.status}-${o.paidAt ?? ""}`).join("|")}`;
     };
 
     const playNotification = useCallback(() => {
@@ -188,7 +188,6 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 const fullOrder = data?.fullOrder;
 
                 console.log(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderId}: ${status}`);
-                console.log("[KitchenOrders] Receive Broadcast details:", event, data);
 
                 if (isNewPaidOrder) {
                     if (soundEnabled) {

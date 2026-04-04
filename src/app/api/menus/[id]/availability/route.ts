@@ -3,6 +3,8 @@ import { getServerSession } from "@/lib/server-auth";
 import { z } from "zod";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
+import { MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
+import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { MenuService } from "@/lib/services/menu.service";
 
 const updateAvailabilitySchema = z.object({
@@ -38,10 +40,9 @@ export async function PATCH(
         await lib.sendBroadcast("menu-update", {
             menuId: updatedMenu.id,
             isAvailable: updatedMenu.isAvailable
-        }, "kitchen-updates");
+        }, REALTIME_CHANNELS.menuUpdates);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        revalidateTag('public-menus', 'max' as any);
+        revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
 
         return apiResponse({
             message: `Menu "${updatedMenu.name}" is now ${isAvailable ? "available" : "unavailable"}`,

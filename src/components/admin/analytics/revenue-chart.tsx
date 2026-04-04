@@ -4,12 +4,16 @@ import { memo } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+type RevenueChartDatum = {
+    date: string;
+    onlineRevenue: number;
+    cashRevenue: number;
+    totalRevenue: number;
+    orders: number;
+};
+
 interface RevenueChartProps {
-    data: {
-        date: string;
-        revenue: number;
-        orders: number;
-    }[];
+    data: RevenueChartDatum[];
 }
 
 export const RevenueChart = memo(function RevenueChart({ data }: RevenueChartProps) {
@@ -53,11 +57,29 @@ export const RevenueChart = memo(function RevenueChart({ data }: RevenueChartPro
                                 borderRadius: "12px",
                                 color: "#fff"
                             }}
-                            formatter={(value: any) => [`Rp ${value.toLocaleString()}`, "Revenue"]}
+                            formatter={(_, __, item: { payload?: RevenueChartDatum }) => {
+                                if (!item?.payload) return [];
+
+                                return [
+                                    `Rp ${item.payload.totalRevenue.toLocaleString("id-ID")}`,
+                                    "Total Income",
+                                ];
+                            }}
+                            labelFormatter={(label, payload) => {
+                                const point = payload?.[0]?.payload as RevenueChartDatum | undefined;
+                                const labelText =
+                                    typeof label === "string" || typeof label === "number"
+                                        ? String(label)
+                                        : "";
+
+                                if (!point) return labelText || label;
+
+                                return `${labelText} • QR Rp ${point.onlineRevenue.toLocaleString("id-ID")} • Cash Rp ${point.cashRevenue.toLocaleString("id-ID")} • ${point.orders} order`;
+                            }}
                         />
                         <Area
                             type="monotone"
-                            dataKey="revenue"
+                            dataKey="totalRevenue"
                             stroke="oklch(0.4 0 0)"
                             strokeWidth={3}
                             fillOpacity={1}

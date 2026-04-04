@@ -5,7 +5,7 @@ import { OrderClient } from "./order-client";
 import { Button } from "@/components/ui/button";
 import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";
-import { Menu } from "@/types/menu";
+import { MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
 
 // We only use the cache directive for menus as table lookups are fast and need to be real-time
 import { unstable_cache } from "next/cache";
@@ -17,7 +17,7 @@ export const getMenusCached = unstable_cache(
         return await MenuService.getMenus();
     },
     ['menus-customer'],
-    { revalidate: 3600, tags: ['menus'] } // Revalidate every hour, or when 'menus' tag is invalidated
+    { revalidate: 3600, tags: [MENU_PUBLIC_CACHE_TAG] } // Revalidate every hour, or when menu cache is invalidated
 );
 
 // 1. Fetch Data on Server

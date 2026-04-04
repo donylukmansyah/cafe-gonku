@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChefHat, UtensilsCrossed, MonitorPlay } from "lucide-react";
+import { ChefHat, UtensilsCrossed, MonitorPlay, ShoppingCart } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +17,7 @@ import { KitchenNavbar } from "@/components/kitchen/kitchen-navbar";
 import { KitchenStatsBar } from "@/components/kitchen/kitchen-stats-bar";
 import { OrderQueue } from "@/components/kitchen/order-queue";
 import { MenuAvailability } from "@/components/kitchen/menu-availability";
+import { DailyCashPanel } from "@/components/kitchen/daily-cash-panel";
 
 export default function KitchenPage() {
     const { data: session } = useSession();
@@ -72,7 +71,7 @@ export default function KitchenPage() {
     }, [startPolling, initializeMenus, soundEnabled]);
 
     // Stable event handlers
-    const handleStatusChange = useCallback(async (orderId: string, newStatus: string) => {
+    const handleStatusChange = useCallback(async (orderId: string | string[], newStatus: string) => {
         try {
             return await updateOrderStatus(orderId, newStatus);
         } catch {
@@ -120,7 +119,7 @@ export default function KitchenPage() {
             audioRef.current.play().then(() => {
                 audioRef.current?.pause();
                 if (audioRef.current) audioRef.current.currentTime = 0;
-            }).catch(e => console.error("Unlock failed silently:", e));
+            }).catch((error) => console.error("Unlock failed silently:", error));
         }
         setAudioUnlocked(true);
     }, []);
@@ -191,6 +190,13 @@ export default function KitchenPage() {
                                 <UtensilsCrossed className="w-4 h-4 mr-2" />
                                 Status Menu
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="cash"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                            >
+                                <ShoppingCart className="w-4 h-4 mr-2" />
+                                Kas Harian
+                            </TabsTrigger>
                         </TabsList>
 
                         {activeTab === "queue" && (
@@ -223,6 +229,10 @@ export default function KitchenPage() {
                             onToggle={handleMenuToggle}
                             isLoading={isLoadingMenus}
                         />
+                    </TabsContent>
+
+                    <TabsContent value="cash" className="mt-0 outline-none">
+                        <DailyCashPanel />
                     </TabsContent>
                 </Tabs>
             </main>

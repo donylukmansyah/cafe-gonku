@@ -6,11 +6,9 @@ import {
     SheetContent,
     SheetHeader,
     SheetTitle,
-    SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 interface CartSheetProps {
     isOpen: boolean;
@@ -19,7 +17,7 @@ interface CartSheetProps {
 }
 
 export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
-    const { items, updateQuantity, removeItem, getTotal, getItemCount, hasHydrated } = useCart();
+    const { items, updateQuantity, removeItem } = useCart();
 
     // Safety check for hydration to avoid count desync
     // Calculate locally to ensure sync with items
@@ -76,7 +74,7 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                                             {item.selectedOptions.map(o => o.optionValue).join(", ")}
                                         </p>
                                         {item.notes && (
-                                            <p className="text-[10px] text-zinc-400 italic mt-1 truncate bg-zinc-900/50 px-2 py-0.5 rounded-lg border border-white/5 w-fit font-medium">"{item.notes}"</p>
+                                            <p className="text-[10px] text-zinc-400 italic mt-1 truncate bg-zinc-900/50 px-2 py-0.5 rounded-lg border border-white/5 w-fit font-medium">&quot;{item.notes}&quot;</p>
                                         )}
 
                                         <div className="mt-auto flex items-center justify-between pt-2">

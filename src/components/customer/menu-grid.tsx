@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, Loader2, Utensils, Coffee, Cookie, IceCream, LayoutGrid, Flame, Sparkles, XCircle, Info } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
+import { Plus, Flame, Sparkles, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { Menu } from "@/types/menu";
+import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
+import { MENU_HIGHLIGHT_META, isHighlightedMenu } from "@/lib/menu-highlight";
 
 interface MenuGridProps {
     menus: Menu[]; // Filtered menus
@@ -24,17 +22,17 @@ interface MenuGridProps {
 }
 
 export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoading = false, onSelectItem }: MenuGridProps) {
-    // FIX: Stabilize recommendations to prevent hydration mismatch (Server vs Client)
-    const [recommendedMenus, setRecommendedMenus] = useState<Menu[]>([]);
+    const highlightedMenus = allMenus
+        .filter((menu) => menu.isAvailable && isHighlightedMenu(menu.highlightType))
+        .sort((a, b) => {
+            const orderDiff = MENU_HIGHLIGHT_META[a.highlightType].order - MENU_HIGHLIGHT_META[b.highlightType].order;
+            if (orderDiff !== 0) return orderDiff;
+            return a.name.localeCompare(b.name);
+        });
 
-    useEffect(() => {
-        // Only run on client side after mount
-        const shuffled = allMenus
-            .filter(m => m.isAvailable)
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 3);
-        setRecommendedMenus(shuffled);
-    }, [allMenus]);
+    const recommendedMenus = highlightedMenus.length > 0
+        ? highlightedMenus.slice(0, 3)
+        : allMenus.filter((menu) => menu.isAvailable).slice(0, 3);
 
     if (isLoading) {
         return (
@@ -80,9 +78,18 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0 z-10">
-                                        <div className="flex items-center gap-1.5 mb-2">
+                                        <div className="flex items-center gap-2 mb-2">
                                             <Sparkles className="w-3 h-3 text-amber-500" />
-                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">Best Seller</span>
+                                            {isHighlightedMenu(menu.highlightType) ? (
+                                                <MenuHighlightBadge
+                                                    highlightType={menu.highlightType}
+                                                    className="h-4 px-2 py-0 border-none"
+                                                />
+                                            ) : (
+                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                    Pilihan Gonku
+                                                </span>
+                                            )}
                                         </div>
                                         <h3 className="font-black text-white text-[17px] truncate tracking-tight mb-1 group-hover:text-primary transition-colors">{menu.name}</h3>
                                         <div className="flex items-center justify-between">
@@ -108,7 +115,7 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                             <span className="capitalize">{activeCategory === "ALL" ? "Semua" : activeCategory.toLowerCase()} Menu</span>
                         )}
                         {searchQuery && (
-                            <span className="text-zinc-500 font-bold text-sm tracking-normal">"{searchQuery}"</span>
+                            <span className="text-zinc-500 font-bold text-sm tracking-normal">&quot;{searchQuery}&quot;</span>
                         )}
                     </h2>
                     <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">{menus.length} items</span>
@@ -126,7 +133,7 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                         <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-700 border border-white/5 font-black italic">
                             ?
                         </div>
-                        <p className="text-zinc-500 text-sm">Yah, menu yang kamu cari nggak ada...</p>
+                        <p className="text-zinc-500 text-sm">Yah, menu yang kamu cari tidak ada...</p>
                     </div>
                 )}
             </div>
@@ -166,6 +173,10 @@ function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
 
                 {/* Modern Gradient Overlay */}
                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+
+                <div className="absolute top-3 left-3 z-20">
+                    <MenuHighlightBadge highlightType={menu.highlightType} className="px-2 py-1 border-none" />
+                </div>
 
                 <div className={cn(
                     "absolute bottom-4 right-4 w-10 h-10 backdrop-blur-2xl border border-white/10 rounded-xl flex items-center justify-center text-white shadow-2xl transition-all duration-300 ease-out z-20 overflow-hidden",

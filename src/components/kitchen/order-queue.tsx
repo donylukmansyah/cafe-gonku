@@ -3,17 +3,16 @@
 import { memo } from "react";
 import { Order } from "@/hooks/use-kitchen-orders";
 import { OrderCard } from "./order-card";
-import { ChefHat, Loader2, ListChecks, Play, CheckCircle2, Truck } from "lucide-react";
+import { ChefHat, Loader2, Play, CheckCircle2, Truck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import { toast } from "sonner";
 
 interface OrderQueueProps {
     orders: Order[];
     isLoading: boolean;
     isUpdating: boolean;
-    onStatusChange: (orderId: string, newStatus: string) => Promise<boolean>;
+    onStatusChange: (orderId: string | string[], newStatus: string) => Promise<boolean>;
 }
 
 // Memoized OrderQueue
@@ -62,10 +61,10 @@ export const OrderQueue = memo(function OrderQueue({
         if (selectedIds.length === 0 || !currentBulkAction || !isSameStatus) return;
 
         try {
-            await (onStatusChange as any)(selectedIds, currentBulkAction.nextStatus);
+            await onStatusChange(selectedIds, currentBulkAction.nextStatus);
             setSelectedIds([]);
             toast.success(`${selectedIds.length} ${currentBulkAction.successMsg}`);
-        } catch (err) {
+        } catch {
             toast.error("Gagal memperbarui pesanan masal");
         }
     };

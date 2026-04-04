@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/server-auth";
 import { createMenuSchema } from "@/validations/menu";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
+import { ADMIN_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
 import { MenuService } from "@/lib/services/menu.service";
 
 // GET /api/menus - List all menus
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest) {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        revalidateTag('public-menus', 'max' as any);
+        revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
+        revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 
         return apiResponse(menu, 201);
     } catch (error) {

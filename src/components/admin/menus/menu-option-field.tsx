@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Plus, Trash2, X } from "lucide-react"
 import { formatNumber } from "@/lib/utils"
+import type { CreateMenuFormInput } from "@/validations/menu"
 
 export function OptionField({
     index,
@@ -13,8 +14,8 @@ export function OptionField({
     onRemove,
 }: {
     index: number
-    control: Control<any>
-    register: UseFormRegister<any>
+    control: Control<CreateMenuFormInput>
+    register: UseFormRegister<CreateMenuFormInput>
     onRemove: () => void
 }) {
     const {

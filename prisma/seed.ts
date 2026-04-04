@@ -1,5 +1,4 @@
-import { PrismaClient, UserRole, MenuCategory } from '@prisma/client'
-// @ts-ignore
+import { PrismaClient, UserRole, MenuCategory, MenuHighlightType } from '@prisma/client'
 import { hashPassword } from 'better-auth/crypto'
 
 const prisma = new PrismaClient()
@@ -89,18 +88,31 @@ async function main() {
 
     // 4. Create Sample Menus
     const menuData = [
-        { name: 'Nasi Goreng Spesial', description: 'Nasi goreng dengan telur, ayam, dan sayuran', price: 25000, category: MenuCategory.FOOD },
-        { name: 'Mie Goreng', description: 'Mie goreng dengan sayuran dan telur', price: 20000, category: MenuCategory.FOOD },
-        { name: 'Ayam Geprek', description: 'Ayam goreng crispy dengan sambal', price: 22000, category: MenuCategory.FOOD },
-        { name: 'Es Teh Manis', description: 'Es teh manis segar', price: 5000, category: MenuCategory.DRINK },
-        { name: 'Jus Jeruk', description: 'Jus jeruk segar tanpa gula', price: 12000, category: MenuCategory.DRINK },
-        { name: 'Kopi Susu', description: 'Kopi robusta dengan susu', price: 15000, category: MenuCategory.DRINK },
-        { name: 'Pisang Goreng', description: 'Pisang goreng crispy dengan keju', price: 10000, category: MenuCategory.SNACK },
-        { name: 'French Fries', description: 'Kentang goreng dengan saus', price: 15000, category: MenuCategory.SNACK },
+        { name: 'Nasi Goreng Spesial', description: 'Nasi goreng dengan telur, ayam, dan sayuran', price: 25000, category: MenuCategory.FOOD, highlightType: MenuHighlightType.BEST_SELLER },
+        { name: 'Mie Goreng', description: 'Mie goreng dengan sayuran dan telur', price: 20000, category: MenuCategory.FOOD, highlightType: MenuHighlightType.NONE },
+        { name: 'Ayam Geprek', description: 'Ayam goreng crispy dengan sambal', price: 22000, category: MenuCategory.FOOD, highlightType: MenuHighlightType.RECOMMENDED },
+        { name: 'Es Teh Manis', description: 'Es teh manis segar', price: 5000, category: MenuCategory.DRINK, highlightType: MenuHighlightType.NONE },
+        { name: 'Jus Jeruk', description: 'Jus jeruk segar tanpa gula', price: 12000, category: MenuCategory.DRINK, highlightType: MenuHighlightType.NONE },
+        { name: 'Kopi Susu', description: 'Kopi robusta dengan susu', price: 15000, category: MenuCategory.DRINK, highlightType: MenuHighlightType.DELICIOUS },
+        { name: 'Pisang Goreng', description: 'Pisang goreng crispy dengan keju', price: 10000, category: MenuCategory.SNACK, highlightType: MenuHighlightType.NONE },
+        { name: 'French Fries', description: 'Kentang goreng dengan saus', price: 15000, category: MenuCategory.SNACK, highlightType: MenuHighlightType.NONE },
     ]
 
     for (const menu of menuData) {
-        await prisma.menu.create({ data: menu }).catch(() => { })
+        const existingMenu = await prisma.menu.findFirst({
+            where: { name: menu.name },
+            select: { id: true }
+        })
+
+        if (existingMenu) {
+            await prisma.menu.update({
+                where: { id: existingMenu.id },
+                data: menu
+            })
+            continue
+        }
+
+        await prisma.menu.create({ data: menu })
     }
     console.log(`✅ Created ${menuData.length} menus`)
 
@@ -113,6 +125,7 @@ async function main() {
                 description: 'Mie instan dengan bumbu spesial',
                 price: 15000,
                 category: MenuCategory.FOOD,
+                highlightType: MenuHighlightType.BEST_SELLER,
                 menuOptions: {
                     create: [
                         {

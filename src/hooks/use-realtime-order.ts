@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/use-cart";
 import { apiFetch } from "@/lib/api-client";
+import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 
 export interface OrderDetails {
     id: string;
@@ -22,11 +23,14 @@ export interface OrderDetails {
         id: string;
         quantity: number;
         price: number;
+        notes?: string | null;
         menu: {
             name: string;
         };
         selectedOptions: {
+            optionName?: string;
             optionValue: string;
+            priceAdjust: number;
         }[];
     }[];
 }
@@ -37,7 +41,6 @@ export function useRealtimeOrder() {
 
     const [order, setOrder] = useState<OrderDetails | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [isPolling, setIsPolling] = useState(false);
 
     const isMounted = useRef(true);
 
@@ -55,8 +58,8 @@ export function useRealtimeOrder() {
                 // If order is completed/cancelled, we might want to stop polling?
                 // But for now let's keep it simple.
             }
-        } catch (error: any) {
-            const msg = error.message?.toLowerCase() || "";
+        } catch (error) {
+            const msg = error instanceof Error ? error.message.toLowerCase() : "";
             if (msg.includes("not found")) {
                 setActiveOrderCode(null);
                 setOrder(null);
@@ -79,11 +82,11 @@ export function useRealtimeOrder() {
         // Initial fetch
         fetchOrder(true);
 
-        console.log(`[Supabase] Subscribing to order-${activeOrderCode}`);
+        console.log(`[Supabase] Subscribing to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
 
         // --- Supabase Realtime Subscription ---
         const channel = supabase
-            .channel(`order-${activeOrderCode}`)
+            .channel(REALTIME_CHANNELS.order(activeOrderCode))
             .on("broadcast", { event: "refresh-orders" }, (payload) => {
                 console.log("[Supabase] Order update received:", payload);
                 const data = payload.payload;
@@ -112,7 +115,7 @@ export function useRealtimeOrder() {
             })
             .subscribe((status) => {
                 if (status === "SUBSCRIBED") {
-                    console.log(`[Supabase] Connected to order-${activeOrderCode}`);
+                    console.log(`[Supabase] Connected to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
                 }
             });
 
@@ -120,16 +123,6 @@ export function useRealtimeOrder() {
         const pollInterval = setInterval(() => {
             fetchOrder();
         }, 30000);
-
-        // --- Payment Check Loop (If Pending) ---
-        // Checks more frequently (5s) if payment is pending
-        const paymentCheckInterval: NodeJS.Timeout | null = null;
-
-        // We need to check payment status from the *current* order state or fetch result
-        // Since we can't easily access the latest 'order' state inside this effect without adding it to dependency (causing loop),
-        // we'll set up a separate effect for payment checking or just always run it if activeOrderCode exists?
-        // Better: Separate effect for payment.
-
         return () => {
             isMounted.current = false;
             clearInterval(pollInterval);
@@ -147,7 +140,10 @@ export function useRealtimeOrder() {
         const interval = setInterval(async () => {
             try {
                 // Relaxed interval (15s) since proactive check handles the Happy Path instantly
-                const data = await apiFetch<any>(`/api/orders/${activeOrderCode}/check-payment`, { method: "POST", silent: true });
+                const data = await apiFetch<{ updated?: boolean }>(`/api/orders/${activeOrderCode}/check-payment`, {
+                    method: "POST",
+                    silent: true,
+                });
                 if (data.updated && isMounted.current) {
                     toast.success("Pembayaran terkonfirmasi! ✨");
                     fetchOrder(); // This will update order state -> triggers cleanup

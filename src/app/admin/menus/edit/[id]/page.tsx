@@ -1,20 +1,9 @@
 import { notFound } from "next/navigation"
-import { prisma } from "@/lib/prisma"
 import { MenuForm } from "@/components/admin/menu-form"
+import { MenuService } from "@/lib/services/menu.service"
 
 async function getMenu(id: string) {
-    const menu = await prisma.menu.findUnique({
-        where: { id },
-        include: {
-            menuOptions: {
-                include: {
-                    values: true,
-                },
-            },
-        },
-    })
-
-    return menu
+    return MenuService.getMenuById(id)
 }
 
 export default async function EditMenuPage({
@@ -38,6 +27,8 @@ export default async function EditMenuPage({
         category: menu.category as "FOOD" | "DRINK" | "SNACK" | "DESSERT",
         imageUrl: menu.imageUrl || undefined,
         isAvailable: menu.isAvailable,
+        isActive: menu.isActive,
+        highlightType: menu.highlightType,
         menuOptions: menu.menuOptions.map((opt) => ({
             id: opt.id,
             name: opt.name,
@@ -55,7 +46,7 @@ export default async function EditMenuPage({
             <div>
                 <h1 className="text-2xl font-bold">Edit Menu</h1>
                 <p className="text-muted-foreground">
-                    Edit informasi menu "{menu.name}"
+                    Edit informasi menu <span className="font-medium text-foreground">{menu.name}</span>
                 </p>
             </div>
 

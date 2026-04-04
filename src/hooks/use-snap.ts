@@ -1,30 +1,33 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import type { SnapResult, SnapWindow } from "@/types/midtrans-client";
 
 declare global {
     interface Window {
-        snap: any;
+        snap?: SnapWindow["snap"];
     }
 }
 
+interface SnapCallbacks {
+    onSuccess?: (result: SnapResult) => void;
+    onPending?: (result: SnapResult) => void;
+    onError?: (result: SnapResult) => void;
+    onClose?: () => void;
+}
+
 export const useSnap = () => {
-    const [snapLoaded, setSnapLoaded] = useState(false);
+    const [snapLoaded, setSnapLoaded] = useState(
+        () => typeof window !== "undefined" && typeof window.snap?.pay === "function"
+    );
 
     useEffect(() => {
         const myMidtransClientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
-        const isProduction = false; // TODO: Check via env var if needed, or rely on the script URL choice
-        // Ideally we pass this config from specific env var
-        // But since this is client side, we can just use the sandbox/prod URL based on NEXT_PUBLIC_... if we had one for mode
-        // Or just hardcode for now based on the .env we saw (IS_PRODUCTION=false)
-
-        // Better: use the one from .env (we need to make sure MIDTRANS_IS_PRODUCTION is available to client if we use it here, 
-        // OR just use a NEXT_PUBLIC var for the script URL)
-        // For now, I'll assume Sandbox because .env said false.
         const scriptUrl = "https://app.sandbox.midtrans.com/snap/snap.js";
 
         const scriptId = "midtrans-script";
         let script = document.getElementById(scriptId) as HTMLScriptElement;
+        const handleLoad = () => setSnapLoaded(true);
 
         if (!script) {
             script = document.createElement("script");
@@ -32,33 +35,28 @@ export const useSnap = () => {
             script.id = scriptId;
             script.setAttribute("data-client-key", myMidtransClientKey || "");
             script.async = true;
-            script.onload = () => setSnapLoaded(true);
+            script.onload = handleLoad;
             document.body.appendChild(script);
-        } else {
-            setSnapLoaded(true);
+        } else if (!window.snap) {
+            script.addEventListener("load", handleLoad);
         }
 
         return () => {
-            // interactions with snap usually don't require cleanup of the script tag itself 
-            // as it creates a global `snap` object.
+            script.onload = null;
+            script.removeEventListener("load", handleLoad);
         };
     }, []);
 
-    const snapPay = useCallback((token: string, callbacks: {
-        onSuccess?: (result: any) => void;
-        onPending?: (result: any) => void;
-        onError?: (result: any) => void;
-        onClose?: () => void;
-    }) => {
+    const snapPay = useCallback((token: string, callbacks: SnapCallbacks) => {
         if (window.snap && snapLoaded) {
             window.snap.pay(token, {
-                onSuccess: (result: any) => {
+                onSuccess: (result) => {
                     callbacks.onSuccess?.(result);
                 },
-                onPending: (result: any) => {
+                onPending: (result) => {
                     callbacks.onPending?.(result);
                 },
-                onError: (result: any) => {
+                onError: (result) => {
                     callbacks.onError?.(result);
                 },
                 onClose: () => {

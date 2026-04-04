@@ -117,6 +117,13 @@ enum MenuCategory {
   DESSERT // Dessert
 }
 
+enum MenuHighlightType {
+  NONE
+  BEST_SELLER
+  RECOMMENDED
+  DELICIOUS
+}
+
 model Menu {
   id          String       @id @default(cuid())
   name        String       // Nama menu: "Mie Nyemek", "Es Teh Manis"
@@ -126,6 +133,7 @@ model Menu {
   imageUrl    String?      // URL gambar di Supabase Storage
   isAvailable Boolean      @default(true) // Kitchen bisa set false kalau habis
   isActive    Boolean      @default(true) // Soft delete untuk admin
+  highlightType MenuHighlightType @default(NONE) // Badge khusus untuk customer: best seller / recommended / delicious
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -136,6 +144,7 @@ model Menu {
   @@index([category])
   @@index([isAvailable])
   @@index([isActive])
+  @@index([highlightType])
   @@index([createdAt])
   @@map("menus")
 }
@@ -257,7 +266,7 @@ model OrderItem {
   menu     Menu   @relation(fields: [menuId], references: [id])
   
   quantity Int // Jumlah item yang dipesan
-  price    Int // Total harga item ini (basePrice + option adjustments) × quantity
+  price    Int // Snapshot harga dasar per item sebelum option adjustments
   
   // Notes TAMBAHAN dari customer (OPTIONAL)
   // Untuk request di luar option yang disediakan
@@ -313,6 +322,19 @@ model DailySales {
 
   @@index([date])
   @@map("daily_sales")
+}
+
+model DailyCashRecord {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date @unique // Tanggal laporan kas harian (YYYY-MM-DD)
+  amount     Int      @default(0) // Total kas tunai yang diterima pada hari tersebut
+  notes      String?  @db.Text
+  recordedBy String? // Nama/email petugas yang terakhir mengubah angka kas
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([date])
+  @@map("daily_cash_records")
 }
 
 // ============================================

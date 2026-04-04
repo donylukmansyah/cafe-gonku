@@ -224,7 +224,7 @@ export const OrderCard = memo(function OrderCard({
                                     <div className="flex items-start gap-2 mt-3 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-lg group-hover/item:bg-amber-500/10 transition-colors">
                                         <MessageSquare className="w-3.5 h-3.5 text-amber-500/60 mt-0.5 shrink-0" />
                                         <p className="text-xs text-amber-500/80 font-medium italic italic-leading-tight">
-                                            "{item.notes}"
+                                            &quot;{item.notes}&quot;
                                         </p>
                                     </div>
                                 )}

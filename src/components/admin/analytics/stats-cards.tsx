@@ -6,40 +6,50 @@ import { TrendingUp, ShoppingBag, CalendarRange } from "lucide-react";
 
 interface StatsCardsProps {
     totalRevenue: number;
+    onlineRevenue: number;
+    cashRevenue: number;
     totalOrders: number;
     days: string;
 }
 
-export const StatsCards = memo(function StatsCards({ totalRevenue, totalOrders, days }: StatsCardsProps) {
+export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue, cashRevenue, totalOrders, days }: StatsCardsProps) {
     const cards = [
         {
-            title: "Gross Revenue",
+            title: "Net Income",
             value: `Rp ${totalRevenue.toLocaleString("id-ID")}`,
-            description: `Total pendapatan kotor (${days} hari)`,
+            description: `Total pemasukan QR + cash (${days} hari)`,
             icon: TrendingUp,
             color: "text-emerald-400",
             bgColor: "bg-emerald-500/10",
         },
         {
-            title: "Total Orders",
-            value: totalOrders,
-            description: `Jumlah pesanan lunas (${days} hari)`,
+            title: "QR Revenue",
+            value: `Rp ${onlineRevenue.toLocaleString("id-ID")}`,
+            description: "Pendapatan dari pembayaran aplikasi",
             icon: ShoppingBag,
             color: "text-primary",
             bgColor: "bg-primary/10",
         },
         {
-            title: "Average Check",
-            value: `Rp ${totalOrders > 0 ? (totalRevenue / totalOrders).toLocaleString("id-ID", { maximumFractionDigits: 0 }) : 0}`,
-            description: "Rata-rata pengeluaran per order",
+            title: "Cash Revenue",
+            value: `Rp ${cashRevenue.toLocaleString("id-ID")}`,
+            description: "Input kas harian dari cashier/kitchen",
             icon: CalendarRange,
             color: "text-blue-400",
             bgColor: "bg-blue-500/10",
         },
+        {
+            title: "Paid Orders",
+            value: totalOrders,
+            description: `Jumlah order QR yang lunas (${days} hari)`,
+            icon: ShoppingBag,
+            color: "text-amber-400",
+            bgColor: "bg-amber-500/10",
+        },
     ];
 
     return (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
                 <div key={card.title} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group backdrop-blur-sm hover:border-white/10 transition-all">
                     <div className={`absolute -right-6 -top-6 p-8 opacity-[0.03] group-hover:opacity-10 transition-opacity duration-500 transform group-hover:rotate-12`}>
@@ -51,7 +61,7 @@ export const StatsCards = memo(function StatsCards({ totalRevenue, totalOrders, 
                             <div className={`p-3 rounded-2xl ${card.bgColor} ${card.color}`}>
                                 <card.icon className="w-6 h-6" />
                             </div>
-                            {card.title === "Total Orders" && (
+                            {card.title === "Paid Orders" && (
                                 <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-zinc-400 px-2 py-1 rounded-lg border border-white/5">
                                     {days} Hari
                                 </span>

@@ -63,6 +63,8 @@ export default function AnalyticsPage() {
 
             <StatsCards
                 totalRevenue={data.totalRevenue}
+                onlineRevenue={data.onlineRevenue}
+                cashRevenue={data.cashRevenue}
                 totalOrders={data.totalOrders}
                 days={days}
             />

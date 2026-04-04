@@ -4,9 +4,10 @@ import { memo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Edit, Trash2, ExternalLink } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Menu } from "@/hooks/use-admin-menus";
+import type { Menu } from "@/types/menu";
+import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
 
 interface MenuCardProps {
     menu: Menu;
@@ -65,9 +66,12 @@ export const MenuCard = memo(function MenuCard({
 
             <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                    <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase font-black">
-                        {menu.category}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase font-black">
+                            {menu.category}
+                        </Badge>
+                        <MenuHighlightBadge highlightType={menu.highlightType} />
+                    </div>
                     <span className="text-primary font-black">
                         Rp {menu.price.toLocaleString("id-ID")}
                     </span>

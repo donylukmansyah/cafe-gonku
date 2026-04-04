@@ -1,43 +1,17 @@
 import { cacheLife, cacheTag } from "next/cache"
-import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { AnalyticsService } from "@/lib/services/analytics.service"
+import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags"
 
 async function getStats() {
     'use cache';
     cacheLife({ revalidate: 60 });
-    cacheTag('admin-stats');
+    cacheTag(ADMIN_DASHBOARD_CACHE_TAG);
 
-    const [menuCount, tableCount, todayOrders, totalRevenue] = await Promise.all([
-        prisma.menu.count({ where: { isActive: true } }),
-        prisma.table.count({ where: { isActive: true } }),
-        prisma.order.count({
-            where: {
-                createdAt: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                },
-                paymentStatus: "PAID",
-            },
-        }),
-        prisma.order.aggregate({
-            _sum: { totalAmount: true },
-            where: {
-                paymentStatus: "PAID",
-                createdAt: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                },
-            },
-        }),
-    ])
-
-    return {
-        menuCount,
-        tableCount,
-        todayOrders,
-        totalRevenue: totalRevenue._sum.totalAmount || 0,
-    }
+    return AnalyticsService.getAdminOverview();
 }
 
 export default async function AdminDashboardPage() {
@@ -74,7 +48,7 @@ export default async function AdminDashboardPage() {
         {
             title: "Revenue Hari Ini",
             value: `Rp ${stats.totalRevenue.toLocaleString("id-ID")}`,
-            description: "Total pendapatan kotor",
+            description: "Gabungan QR payment + kas tunai",
             icon: TrendingUp,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",

@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, ChevronDown, Receipt } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSnap } from "@/hooks/use-snap";
@@ -25,7 +24,7 @@ const STEPS = [
 
 export function TrackingSheet() {
     const [isOpen, setIsOpen] = useState(false);
-    const { order, isLoading, refresh, activeOrderCode } = useRealtimeOrder();
+    const { order, refresh, activeOrderCode } = useRealtimeOrder();
     const { snapPay } = useSnap();
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
     const hasHydrated = useCart((state) => state.hasHydrated);
@@ -75,8 +74,8 @@ export function TrackingSheet() {
             toast.success("Pesanan berhasil dibatalkan 👋");
             setActiveOrderCode(null);
             setIsOpen(false);
-        } catch (error: any) {
-            toast.error(error.message);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal membatalkan pesanan");
         } finally {
             setIsCancelling(false);
         }
@@ -230,7 +229,10 @@ export function TrackingSheet() {
                                             </div>
                                         </div>
                                         <span className="text-zinc-400 text-sm font-semibold whitespace-nowrap">
-                                            Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                                            Rp {(
+                                                (item.price + item.selectedOptions.reduce((sum, option) => sum + option.priceAdjust, 0)) *
+                                                item.quantity
+                                            ).toLocaleString("id-ID")}
                                         </span>
                                     </div>
                                 ))}

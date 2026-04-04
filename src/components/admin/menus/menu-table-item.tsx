@@ -7,7 +7,8 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Edit, Trash2, CameraOff } from "lucide-react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
-import { Menu } from "@/hooks/use-admin-menus";
+import type { Menu } from "@/types/menu";
+import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
 
 interface MenuTableItemProps {
     menu: Menu;
@@ -44,6 +45,7 @@ export const MenuTableItem = memo(function MenuTableItem({
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-white group-hover:text-primary transition-colors">{menu.name}</span>
+                            <MenuHighlightBadge highlightType={menu.highlightType} className="h-4 px-1.5" />
                             {typeof menu.isActive !== 'undefined' && !menu.isActive && (
                                 <Badge variant="destructive" className="text-[8px] h-4 px-1 uppercase tracking-tighter">Archived</Badge>
                             )}

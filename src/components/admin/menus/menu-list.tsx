@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Menu } from "@/hooks/use-admin-menus";
+import type { Menu } from "@/types/menu";
 import { MenuCard } from "./menu-card";
 import { MenuTableItem } from "./menu-table-item";
 import {

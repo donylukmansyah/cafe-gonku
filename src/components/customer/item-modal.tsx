@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Menu } from "@/types/menu";
 import { useCart, CartItem } from "@/hooks/use-cart";
 import {
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
+import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
 
 interface ItemModalProps {
     menu: Menu | null;
@@ -27,16 +28,6 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
     const [quantity, setQuantity] = useState(1);
     const [notes, setNotes] = useState("");
     const [selectedOptions, setSelectedOptions] = useState<CartItem["selectedOptions"]>([]);
-
-    // Reset state when menu changes
-    // Removed auto-select for "Required" options to force user choice (Better UX)
-    useEffect(() => {
-        if (menu) {
-            setQuantity(1);
-            setNotes("");
-            setSelectedOptions([]);
-        }
-    }, [menu]);
 
     if (!menu) return null;
 
@@ -105,6 +96,9 @@ export function ItemModal({ menu, isOpen, onClose }: ItemModalProps) {
                                 {menu.name}
                             </DialogTitle>
                         </DialogHeader>
+                        <div className="mt-2">
+                            <MenuHighlightBadge highlightType={menu.highlightType} className="border-none px-2 py-1" />
+                        </div>
                         <p className="text-zinc-400 text-xs font-medium leading-relaxed line-clamp-2 max-w-[95%]">
                             {menu.description || "Rasakan cita rasa otentik khas Cafe Gonku."}
                         </p>

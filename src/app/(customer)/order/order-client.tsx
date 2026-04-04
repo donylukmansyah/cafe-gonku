@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { useCart } from "@/hooks/use-cart";
 import { useSnap } from "@/hooks/use-snap";
 import { MenuGrid } from "@/components/customer/menu-grid";
@@ -15,9 +14,10 @@ import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Menu } from "@/types/menu";
 import { CustomerHeader } from "@/components/customer/customer-header";
-import { Utensils, Coffee, Cookie, IceCream, LayoutGrid, Search } from "lucide-react";
+import { Utensils, Coffee, Cookie, IceCream, LayoutGrid } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
 import { OrderResponse } from "@/types/order";
+import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 
 interface OrderClientProps {
     initialMenus?: Menu[];
@@ -29,12 +29,11 @@ interface OrderClientProps {
 }
 
 export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
-    const router = useRouter();
-
     // 0. Local state for menus (for real-time availability updates)
-    const [menus, setMenus] = useState<Menu[]>(initialMenus || []);
+    const [menus, setMenus] = useState<Menu[]>(initialMenus);
     const [activeCategory, setActiveCategory] = useState("ALL");
     const [searchQuery, setSearchQuery] = useState("");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
     // Dynamic Categories based on available menus
     const categories = useMemo(() => {
@@ -60,10 +59,10 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     const filteredMenus = useMemo(() => {
         return menus.filter((menu) => {
             const matchesCategory = activeCategory === "ALL" || menu.category === activeCategory;
-            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = menu.name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         });
-    }, [menus, activeCategory, searchQuery]);
+    }, [menus, activeCategory, deferredSearchQuery]);
 
     // Optimization: Select only what is needed to reduce re-renders
     const items = useCart((state) => state.items);
@@ -79,7 +78,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     useEffect(() => {
         const channel = import("@/lib/supabase").then(({ supabase }) => {
             return supabase
-                .channel("menu-updates")
+                .channel(REALTIME_CHANNELS.menuUpdates)
                 .on("broadcast", { event: "menu-update" }, (payload) => {
                     const { menuId, isAvailable } = payload.payload;
                     if (menuId) {
@@ -133,7 +132,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
         return items.reduce((count, item) => count + item.quantity, 0);
     }, [items, hasHydrated]);
 
-    const { snapPay, snapLoaded } = useSnap();
+    const { snapPay } = useSnap();
 
     const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -183,8 +182,8 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                         // proactively command the server to fetch status and broadcast to kitchen INSTANTLY.
                         try {
                             await apiFetch(`/api/orders/${order.orderCode}/check-payment`, { method: "POST" });
-                        } catch (e) {
-                            console.error("Proactive check-payment failed:", e);
+                        } catch (error) {
+                            console.error("Proactive check-payment failed:", error);
                         }
 
                         setActiveOrderCode(order.orderCode);
@@ -213,7 +212,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                 setIsCartOpen(false);
             }
 
-        } catch (error) {
+        } catch {
             // Error already handled by apiFetch (toast)
         } finally {
             setIsSubmitting(false);
@@ -276,6 +275,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
             }
 
             <ItemModal
+                key={selectedMenu?.id ?? "empty-menu"}
                 menu={selectedMenu}
                 isOpen={isItemModalOpen}
                 onClose={() => setIsItemModalOpen(false)}

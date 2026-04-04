@@ -4,7 +4,7 @@ export interface ApiResponse<T> {
     success: boolean;
     data: T;
     error?: string;
-    details?: any;
+    details?: unknown;
 }
 
 export interface ApiOptions extends RequestInit {
@@ -31,7 +31,7 @@ export async function apiFetch<T>(
             // console.error(`[API Error] ${url}:`, result);
 
             // Only show toast for non-silent requests (default is to show)
-            if (!(options as any)?.silent) {
+            if (!options?.silent) {
                 toast.error(errorMessage);
             }
 

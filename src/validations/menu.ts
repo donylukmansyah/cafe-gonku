@@ -1,5 +1,8 @@
 import { z } from "zod"
 
+const menuCategorySchema = z.enum(["FOOD", "DRINK", "SNACK", "DESSERT"])
+const menuHighlightTypeSchema = z.enum(["NONE", "BEST_SELLER", "RECOMMENDED", "DELICIOUS"])
+
 // Menu Option Value schema
 export const menuOptionValueSchema = z.object({
     id: z.string().optional(),
@@ -20,9 +23,11 @@ export const createMenuSchema = z.object({
     name: z.string().trim().min(1, "Nama menu wajib diisi").transform(val => val.replace(/<[^>]*>?/gm, "")),
     description: z.string().trim().optional().transform(val => val ? val.replace(/<[^>]*>?/gm, "") : val),
     price: z.number().min(0, "Harga tidak boleh negatif"),
-    category: z.enum(["FOOD", "DRINK", "SNACK", "DESSERT"]),
-    imageUrl: z.string().url().optional().or(z.literal("")),
+    category: menuCategorySchema,
+    imageUrl: z.string().url().optional().or(z.literal("")).transform(val => val || undefined),
     isAvailable: z.boolean(),
+    isActive: z.boolean(),
+    highlightType: menuHighlightTypeSchema,
     menuOptions: z.array(menuOptionSchema).optional(),
 })
 
@@ -30,6 +35,7 @@ export const createMenuSchema = z.object({
 export const updateMenuSchema = createMenuSchema.partial()
 
 // Types
+export type CreateMenuFormInput = z.input<typeof createMenuSchema>
 export type MenuOptionValueInput = z.infer<typeof menuOptionValueSchema>
 export type MenuOptionInput = z.infer<typeof menuOptionSchema>
 export type CreateMenuInput = z.infer<typeof createMenuSchema>

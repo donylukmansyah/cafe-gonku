@@ -34,6 +34,9 @@ export async function PATCH(
             order: updatedOrder,
         });
     } catch (error) {
+        if (error instanceof Error && error.message.startsWith("Invalid status transition")) {
+            return apiError(error.message, 400);
+        }
         return handleApiError(error, "PATCH /api/orders/[id]/status");
     }
 }

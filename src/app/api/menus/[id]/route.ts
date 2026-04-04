@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/server-auth";
 import { updateMenuSchema } from "@/validations/menu";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
+import { ADMIN_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
 import { MenuService } from "@/lib/services/menu.service";
 
 // GET /api/menus/[id] - Get single menu
@@ -43,7 +44,8 @@ export async function PATCH(
         const finalMenu = await MenuService.updateMenu(id, validatedData);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        revalidateTag('public-menus', 'max' as any);
+        revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
+        revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 
         return apiResponse(finalMenu, 200);
     } catch (error) {
@@ -68,9 +70,10 @@ export async function DELETE(
         await MenuService.deleteMenu(id);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        revalidateTag('public-menus', 'max' as any);
+        revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
+        revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 
-        return apiResponse({ message: "Menu permanently deleted" }, 200);
+        return apiResponse({ message: "Menu archived successfully" }, 200);
     } catch (error) {
         return handleApiError(error, "DELETE /api/menus/[id]");
     }

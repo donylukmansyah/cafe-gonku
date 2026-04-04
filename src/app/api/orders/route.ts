@@ -40,8 +40,8 @@ export async function POST(request: Request) {
 
         return apiResponse(result, 201);
 
-    } catch (error: any) {
-        if (error.message === "Sudah ada pesanan yang sedang diproses untuk meja ini. Tunggu sebentar.") {
+    } catch (error) {
+        if (error instanceof Error && error.message === "Sudah ada pesanan yang sedang diproses untuk meja ini. Tunggu sebentar.") {
             return apiError(error.message, 429);
         }
         return handleApiError(error, "POST /api/orders");
