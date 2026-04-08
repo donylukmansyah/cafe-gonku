@@ -9,15 +9,15 @@ interface StatsCardsProps {
     onlineRevenue: number;
     cashRevenue: number;
     totalOrders: number;
-    days: string;
+    periodLabel: string;
 }
 
-export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue, cashRevenue, totalOrders, days }: StatsCardsProps) {
+export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue, cashRevenue, totalOrders, periodLabel }: StatsCardsProps) {
     const cards = [
         {
             title: "Net Income",
             value: `Rp ${totalRevenue.toLocaleString("id-ID")}`,
-            description: `Total pemasukan QR + cash (${days} hari)`,
+            description: `Total pemasukan QR + cash (${periodLabel})`,
             icon: TrendingUp,
             color: "text-emerald-400",
             bgColor: "bg-emerald-500/10",
@@ -41,7 +41,7 @@ export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue
         {
             title: "Paid Orders",
             value: totalOrders,
-            description: `Jumlah order QR yang lunas (${days} hari)`,
+            description: `Jumlah order QR yang lunas (${periodLabel})`,
             icon: ShoppingBag,
             color: "text-amber-400",
             bgColor: "bg-amber-500/10",
@@ -51,19 +51,19 @@ export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue
     return (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-                <div key={card.title} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group backdrop-blur-sm hover:border-white/10 transition-all">
-                    <div className={`absolute -right-6 -top-6 p-8 opacity-[0.03] group-hover:opacity-10 transition-opacity duration-500 transform group-hover:rotate-12`}>
+                <div key={card.title} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group backdrop-blur-sm hover:border-white/10 transition-all print:border-black print:text-black">
+                    <div className={`absolute -right-6 -top-6 p-8 opacity-[0.03] group-hover:opacity-10 transition-opacity duration-500 transform group-hover:rotate-12 hide-on-print`}>
                         <card.icon className={`w-32 h-32 ${card.color.replace('text-', 'stroke-')}`} />
                     </div>
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
                         <div className="flex items-start justify-between mb-4">
-                            <div className={`p-3 rounded-2xl ${card.bgColor} ${card.color}`}>
-                                <card.icon className="w-6 h-6" />
+                            <div className={`p-3 rounded-2xl ${card.bgColor} ${card.color} print:bg-white`}>
+                                <card.icon className="w-6 h-6 print:stroke-black" />
                             </div>
                             {card.title === "Paid Orders" && (
-                                <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-zinc-400 px-2 py-1 rounded-lg border border-white/5">
-                                    {days} Hari
+                                <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-zinc-400 px-2 py-1 rounded-lg border border-white/5 whitespace-nowrap">
+                                    {periodLabel}
                                 </span>
                             )}
                         </div>

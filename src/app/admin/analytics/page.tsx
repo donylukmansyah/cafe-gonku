@@ -1,18 +1,14 @@
 "use client"
 
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { useAdminAnalytics } from "@/hooks/use-admin-analytics"
+import "@/components/admin/analytics/print-styles.css"
 
 // Components (All memoized)
 import { StatsCards } from "@/components/admin/analytics/stats-cards"
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DateFilter } from "@/components/admin/analytics/date-filter"
+import { PdfExportButton } from "@/components/admin/analytics/pdf-export-button"
 
 const RevenueChart = dynamic(
     () => import("@/components/admin/analytics/revenue-chart").then(mod => mod.RevenueChart),
@@ -22,13 +18,21 @@ const RevenueChart = dynamic(
     }
 )
 import { TopMenus } from "@/components/admin/analytics/top-menus"
+import { DetailedReport } from "@/components/admin/analytics/detailed-report"
 
 export default function AnalyticsPage() {
     const {
         data,
         isLoading,
+        mode,
+        setMode,
         days,
         setDays,
+        startDate,
+        setStartDate,
+        endDate,
+        setEndDate,
+        periodLabel
     } = useAdminAnalytics();
 
     if (isLoading) {
@@ -36,40 +40,80 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700 pb-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6 border-b border-white/5 pb-4 relative">
-                <div className="text-center sm:text-left">
-                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
-                        Performance Analytics
-                    </h1>
-                    <p className="text-zinc-400 max-w-md mx-auto sm:mx-0">
-                        Monitoring laporan pendapatan dan tren menu paling populer di Cafe Gonku secara real-time.
-                    </p>
+        <div className="space-y-6 animate-in fade-in duration-700 pb-6 print-container">
+            {/* ===== PRINT REPORT (Only visible when printing) ===== */}
+            <div className="print-header">
+                {/* Report Title Bar */}
+                <div className="print-title-bar">
+                    <div>
+                        <h1 className="print-title">Cafe Gonku</h1>
+                        <p className="print-subtitle">Laporan Pendapatan</p>
+                    </div>
+                    <div className="print-meta">
+                        <span className="print-period-badge">{periodLabel}</span>
+                        <p className="print-timestamp">Dicetak: {new Date().toLocaleString('id-ID')}</p>
+                    </div>
                 </div>
-                <div className="w-full sm:w-auto">
-                    <Select value={days} onValueChange={setDays}>
-                        <SelectTrigger className="h-10 w-full sm:w-40 bg-zinc-900/50 border-white/10 rounded-xl focus:ring-primary/20 hover:bg-zinc-800/80 transition-all font-bold text-zinc-300 text-xs cursor-pointer">
-                            <SelectValue placeholder="Pilih periode" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-white/10 rounded-xl">
-                            <SelectItem value="7" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">7 Hari Terakhir</SelectItem>
-                            <SelectItem value="14" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">14 Hari Terakhir</SelectItem>
-                            <SelectItem value="30" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary">30 Hari Terakhir</SelectItem>
-                        </SelectContent>
-                    </Select>
+
+                {/* KPI Cards Row */}
+                <div className="print-kpi-row">
+                    <div className="print-kpi-card print-kpi-highlight">
+                        <span className="print-kpi-label">Total Pendapatan</span>
+                        <span className="print-kpi-value">Rp {data.totalRevenue.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="print-kpi-card">
+                        <span className="print-kpi-label">QR / Online</span>
+                        <span className="print-kpi-value">Rp {data.onlineRevenue.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="print-kpi-card">
+                        <span className="print-kpi-label">Cash / Tunai</span>
+                        <span className="print-kpi-value">Rp {data.cashRevenue.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="print-kpi-card">
+                        <span className="print-kpi-label">Order Lunas</span>
+                        <span className="print-kpi-value">{data.totalOrders}</span>
+                    </div>
                 </div>
             </div>
 
-            <StatsCards
-                totalRevenue={data.totalRevenue}
-                onlineRevenue={data.onlineRevenue}
-                cashRevenue={data.cashRevenue}
-                totalOrders={data.totalOrders}
-                days={days}
-            />
+            {/* ===== SCREEN HEADER (hidden in print) ===== */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-white/5 pb-4 relative hide-on-print">
+                <div className="text-left">
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
+                        Performance Analytics
+                    </h1>
+                    <p className="text-zinc-400 max-w-md">
+                        Monitoring laporan pendapatan dan tren menu paling populer.
+                    </p>
+                </div>
+                <div className="flex flex-col items-end gap-3 w-full sm:w-auto">
+                    <DateFilter
+                        mode={mode}
+                        setMode={setMode}
+                        days={days}
+                        setDays={setDays}
+                        startDate={startDate}
+                        setStartDate={setStartDate}
+                        endDate={endDate}
+                        setEndDate={setEndDate}
+                    />
+                    <PdfExportButton />
+                </div>
+            </div>
 
-            <div className="grid gap-6 lg:grid-cols-5">
+            {/* Stats Cards – screen only */}
+            <div className="hide-on-print">
+                <StatsCards
+                    totalRevenue={data.totalRevenue}
+                    onlineRevenue={data.onlineRevenue}
+                    cashRevenue={data.cashRevenue}
+                    totalOrders={data.totalOrders}
+                    periodLabel={periodLabel}
+                />
+            </div>
+
+            {/* Charts grid */}
+            <div className="grid gap-6 lg:grid-cols-5 print-charts-grid">
                 <div className="lg:col-span-3">
                     <RevenueChart data={data.chartData} />
                 </div>
@@ -77,6 +121,9 @@ export default function AnalyticsPage() {
                     <TopMenus menus={data.topMenus} />
                 </div>
             </div>
+
+            {/* Print-only Detailed Report */}
+            <DetailedReport allMenuSales={data.allMenuSales} />
         </div>
     )
 }

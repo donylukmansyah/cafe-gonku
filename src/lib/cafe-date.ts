@@ -69,3 +69,29 @@ export function getCafeDateTimeRange(days: number, endDate = new Date()) {
     end: parseCafeDateTime(dateKeys[dateKeys.length - 1], "23:59:59.999"),
   };
 }
+
+export function getCafeDateTimeRangeFromDates(startDateStr: string, endDateStr: string) {
+  const startObj = new Date(`${startDateStr}T12:00:00.000Z`); // use 12:00 UTC to avoid local timezone boundary issues
+  const endObj = new Date(`${endDateStr}T12:00:00.000Z`);
+
+  if (startObj > endObj) {
+    throw new Error("Start date must be before end date");
+  }
+
+  const dateKeys: string[] = [];
+  const current = new Date(startObj);
+
+  // max 366 days loop to prevent infinite loop memory bloat
+  let counter = 0;
+  while (current <= endObj && counter < 366) {
+    dateKeys.push(getCafeDateKey(current));
+    current.setDate(current.getDate() + 1);
+    counter++;
+  }
+
+  return {
+    dateKeys,
+    start: parseCafeDateTime(dateKeys[0], "00:00:00.000"),
+    end: parseCafeDateTime(dateKeys[dateKeys.length - 1], "23:59:59.999"),
+  };
+}

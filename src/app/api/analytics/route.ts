@@ -12,9 +12,21 @@ export async function GET(request: NextRequest) {
         if (user.role !== "ADMIN") return apiError("Forbidden", 403);
 
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get("days") || "7");
-
-        const dashboardMetrics = await AnalyticsService.getDashboardMetrics(days);
+        const daysParam = searchParams.get("days");
+        const startDate = searchParams.get("startDate");
+        const endDate = searchParams.get("endDate");
+        
+        let dashboardMetrics;
+        
+        if (startDate && endDate) {
+            dashboardMetrics = await AnalyticsService.getDashboardMetrics({
+                startDate,
+                endDate
+            });
+        } else {
+            const days = parseInt(daysParam || "7");
+            dashboardMetrics = await AnalyticsService.getDashboardMetrics({ days });
+        }
 
         return apiResponse(dashboardMetrics);
 

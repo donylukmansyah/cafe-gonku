@@ -3,6 +3,7 @@ import {
   getCafeDateKey,
   getCafeDateLabel,
   getCafeDateTimeRange,
+  getCafeDateTimeRangeFromDates,
   getCafeDayRange,
   parseDateOnly,
 } from "@/lib/cafe-date";
@@ -15,14 +16,36 @@ type DashboardChartPoint = {
   orders: number;
 };
 
+type MetricsOptions = {
+  days?: number;
+  startDate?: string;
+  endDate?: string;
+};
+
 export class AnalyticsService {
-  static async getDashboardMetrics(days = 7) {
-    const safeDays = Number.isFinite(days) ? Math.min(Math.max(days, 1), 30) : 7;
-    const { dateKeys, start, end } = getCafeDateTimeRange(safeDays);
+  static async getDashboardMetrics(options: MetricsOptions = { days: 7 }) {
+    let dateKeys: string[];
+    let start: Date;
+    let end: Date;
+
+    if (options.startDate && options.endDate) {
+      const range = getCafeDateTimeRangeFromDates(options.startDate, options.endDate);
+      dateKeys = range.dateKeys;
+      start = range.start;
+      end = range.end;
+    } else {
+      const days = options.days || 7;
+      const safeDays = Number.isFinite(days) ? Math.max(days, 1) : 7; // Removed the 30 days cap
+      const range = getCafeDateTimeRange(safeDays);
+      dateKeys = range.dateKeys;
+      start = range.start;
+      end = range.end;
+    }
+
     const dateOnlyStart = parseDateOnly(dateKeys[0]);
     const dateOnlyEnd = parseDateOnly(dateKeys[dateKeys.length - 1]);
 
-    const [paidOrders, topOrderItems, cashRecords] = await Promise.all([
+    const [paidOrders, allOrderItems, cashRecords] = await Promise.all([
       prisma.order.findMany({
         where: {
           paymentStatus: "PAID",
@@ -55,7 +78,6 @@ export class AnalyticsService {
             quantity: "desc",
           },
         },
-        take: 5,
       }),
       prisma.dailyCashRecord.findMany({
         where: {
@@ -71,11 +93,11 @@ export class AnalyticsService {
       }),
     ]);
 
-    const menuDetails = topOrderItems.length
+    const menuDetails = allOrderItems.length
       ? await prisma.menu.findMany({
           where: {
             id: {
-              in: topOrderItems.map((item) => item.menuId),
+              in: allOrderItems.map((item) => item.menuId),
             },
           },
           select: {
@@ -139,7 +161,7 @@ export class AnalyticsService {
 
     const chartData = dateKeys.map((dateKey) => chartMap.get(dateKey)!);
 
-    const topMenus = topOrderItems.map((item) => {
+    const allMenuSales = allOrderItems.map((item) => {
       const detail = menuDetails.find((menu) => menu.id === item.menuId);
 
       return {
@@ -149,9 +171,12 @@ export class AnalyticsService {
       };
     });
 
+    const topMenus = allMenuSales.slice(0, 5);
+
     return {
       chartData,
       topMenus,
+      allMenuSales,
       totalRevenue: onlineRevenue + cashRevenue,
       netIncome: onlineRevenue + cashRevenue,
       onlineRevenue,

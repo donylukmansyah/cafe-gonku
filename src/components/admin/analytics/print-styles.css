@@ -1,0 +1,237 @@
+/* ========================================
+   PRINT STYLES — Cafe Gonku Revenue Report
+   ======================================== */
+
+@media print {
+    /* ===== HIDE SCREEN-ONLY ELEMENTS ===== */
+    .hide-on-print,
+    header,
+    aside,
+    nav,
+    button {
+        display: none !important;
+    }
+
+    /* ===== GLOBAL RESET ===== */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body, main, div, p, span, h1, h2, h3, h4, h5, h6, td, th {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .print-container {
+        padding: 0.6cm 0.8cm !important;
+        width: 100% !important;
+    }
+
+    /* Tighter inter-section spacing */
+    .print-container > * + * {
+        margin-top: 0.5rem !important;
+    }
+
+    /* ===== PRINT TITLE BAR ===== */
+    .print-header {
+        display: block !important;
+        margin-bottom: 0 !important;
+    }
+
+    .print-title-bar {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
+        border-bottom: 3px solid black;
+    }
+
+    .print-title {
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        margin: 0 !important;
+    }
+
+    .print-subtitle {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        color: #555 !important;
+        margin-top: 2px !important;
+    }
+
+    .print-meta {
+        text-align: right;
+    }
+
+    .print-period-badge {
+        display: inline-block;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        padding: 3px 10px;
+        border: 1.5px solid black;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .print-timestamp {
+        font-size: 9px !important;
+        color: #888 !important;
+        margin-top: 3px !important;
+    }
+
+    /* ===== KPI CARDS ROW ===== */
+    .print-kpi-row {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 12px !important;
+    }
+
+    .print-kpi-card {
+        display: flex !important;
+        flex-direction: column;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+    }
+
+    .print-kpi-highlight {
+        border: 2px solid black !important;
+        background-color: #f9f9f9 !important;
+    }
+
+    .print-kpi-label {
+        font-size: 9px !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #666 !important;
+        margin-bottom: 2px;
+    }
+
+    .print-kpi-value {
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.02em;
+    }
+
+    .print-kpi-highlight .print-kpi-value {
+        font-size: 18px !important;
+    }
+
+    /* ===== CHARTS SECTION ===== */
+    .print-charts-grid {
+        display: block !important;
+    }
+
+    .print-charts-grid > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 8px;
+        page-break-inside: avoid;
+    }
+
+    /* Card styling in print — compact */
+    .bg-zinc-900 {
+        background: white !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        padding: 8px !important;
+    }
+
+    /* Reduce chart Card internal padding */
+    .bg-zinc-900 > div {
+        padding: 4px 8px !important;
+    }
+
+    /* Keep borders light */
+    .border-white\/5,
+    .border-zinc-800,
+    .border-white\/10 {
+        border-color: #e5e5e5 !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+    }
+
+    /* ===== RECHARTS ===== */
+    svg {
+        stroke: black !important;
+    }
+
+    .recharts-wrapper * {
+        color: black !important;
+        fill: black !important;
+    }
+    
+    .recharts-cartesian-grid-horizontal line, 
+    .recharts-cartesian-grid-vertical line {
+        stroke: #e5e5e5 !important;
+    }
+
+    /* ===== BADGES ===== */
+    .bg-primary {
+        background-color: #f3f4f6 !important;
+        color: black !important;
+    }
+
+    /* ===== TABLE (Detailed Report) ===== */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: auto;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    thead {
+        display: table-header-group;
+    }
+    
+    tfoot {
+        display: table-footer-group;
+    }
+    
+    th, td {
+        padding: 6px 10px;
+        border-bottom: 1px solid #ddd;
+        font-size: 11px;
+    }
+
+    /* ===== TOP MENUS PROGRESS BARS ===== */
+    .bg-zinc-800 {
+        background-color: #e5e7eb !important;
+    }
+
+    /* ===== PRINT-ONLY SECTIONS ===== */
+    .print-detailed-report {
+        display: block !important;
+        page-break-before: always;
+        margin-top: 0 !important;
+        padding-top: 0.5cm;
+    }
+}
+
+/* ===== SCREEN: Hide print-only elements ===== */
+@media screen {
+    .print-header {
+        display: none !important;
+    }
+
+    .print-detailed-report {
+        display: none !important;
+    }
+}
