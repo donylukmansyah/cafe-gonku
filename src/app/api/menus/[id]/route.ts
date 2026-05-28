@@ -4,6 +4,7 @@ import { updateMenuSchema } from "@/validations/menu";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
 import { ADMIN_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
+import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { MenuService } from "@/lib/services/menu.service";
 
 // GET /api/menus/[id] - Get single menu
@@ -43,7 +44,23 @@ export async function PATCH(
 
         const finalMenu = await MenuService.updateMenu(id, validatedData);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lib = await import("@/lib/supabase");
+        await lib.sendBroadcast("menu-update", {
+            menuId: finalMenu!.id,
+            fullMenu: {
+                id: finalMenu!.id,
+                name: finalMenu!.name,
+                description: finalMenu!.description,
+                price: finalMenu!.price,
+                imageUrl: finalMenu!.imageUrl,
+                category: finalMenu!.category,
+                isAvailable: finalMenu!.isAvailable,
+                isActive: finalMenu!.isActive,
+                highlightType: finalMenu!.highlightType,
+                menuOptions: finalMenu!.menuOptions,
+            },
+        }, REALTIME_CHANNELS.menuUpdates);
+
         revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
         revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 
@@ -69,7 +86,6 @@ export async function DELETE(
 
         await MenuService.deleteMenu(id);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
         revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 

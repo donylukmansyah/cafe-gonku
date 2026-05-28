@@ -51,7 +51,11 @@ export async function deleteMenuImage(imageUrl: string) {
 }
 // Helper to send broadcast via REST API (Bypasses WebSocket connection overhead)
 // Documentation: https://supabase.com/docs/guides/realtime/broadcast#sending-broadcast-messages-via-rest-api
-export async function sendBroadcast(event: string, payload: any, channelName: string = "kitchen-updates") {
+export async function sendBroadcast(
+    event: string,
+    payload: Record<string, unknown>,
+    channelName: string = "kitchen-updates",
+) {
     try {
         const endpoint = `${supabaseUrl}/realtime/v1/api/broadcast`;
 

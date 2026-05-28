@@ -1,0 +1,58 @@
+import { Ratelimit } from "@upstash/ratelimit";
+import { redis } from "@/lib/redis";
+
+type RateLimitName = "orderCreate" | "paymentCheck" | "paymentSync" | "orderCancel";
+
+const limiters = redis
+  ? {
+      orderCreate: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(6, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:order-create",
+      }),
+      paymentCheck: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(30, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:payment-check",
+      }),
+      paymentSync: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:payment-sync",
+      }),
+      orderCancel: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:order-cancel",
+      }),
+    }
+  : null;
+
+export function getClientIp(request: Request) {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "anonymous"
+  );
+}
+
+export async function checkRateLimit(
+  name: RateLimitName,
+  identifier: string,
+) {
+  const limiter = limiters?.[name];
+  if (!limiter) {
+    return { success: true, remaining: null, reset: null };
+  }
+
+  try {
+    return await limiter.limit(identifier);
+  } catch (error) {
+    console.error("[RateLimit] check failed", { name, identifier, error });
+    return { success: true, remaining: null, reset: null };
+  }
+}

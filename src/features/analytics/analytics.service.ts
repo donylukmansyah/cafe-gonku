@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { cacheRemember } from "@/lib/redis";
 import {
   getCafeDateKey,
   getCafeDateLabel,
@@ -22,8 +23,41 @@ type MetricsOptions = {
   endDate?: string;
 };
 
+type DashboardMetrics = {
+  chartData: DashboardChartPoint[];
+  topMenus: {
+    name: string;
+    category: string;
+    quantity: number;
+  }[];
+  allMenuSales: {
+    name: string;
+    category: string;
+    quantity: number;
+  }[];
+  totalRevenue: number;
+  netIncome: number;
+  onlineRevenue: number;
+  cashRevenue: number;
+  totalOrders: number;
+};
+
+type AdminOverview = {
+  menuCount: number;
+  tableCount: number;
+  todayOrders: number;
+  onlineRevenue: number;
+  cashRevenue: number;
+  totalRevenue: number;
+};
+
 export class AnalyticsService {
   static async getDashboardMetrics(options: MetricsOptions = { days: 7 }) {
+    return cacheRemember<DashboardMetrics>({
+      scope: "analytics",
+      key: `metrics:${options.startDate ?? ""}:${options.endDate ?? ""}:${options.days ?? 7}`,
+      ttlSeconds: 60,
+      load: async () => {
     let dateKeys: string[];
     let start: Date;
     let end: Date;
@@ -173,7 +207,7 @@ export class AnalyticsService {
 
     const topMenus = allMenuSales.slice(0, 5);
 
-    return {
+    const result: DashboardMetrics = {
       chartData,
       topMenus,
       allMenuSales,
@@ -183,9 +217,18 @@ export class AnalyticsService {
       cashRevenue,
       totalOrders,
     };
+
+    return result;
+      },
+    });
   }
 
   static async getAdminOverview() {
+    return cacheRemember<AdminOverview>({
+      scope: "analytics",
+      key: "admin-overview",
+      ttlSeconds: 60,
+      load: async () => {
     const { start, end } = getCafeDayRange();
 
     const [menuCount, tableCount, todayOrders, todayOnlineRevenue, todayCashRecord] =
@@ -234,7 +277,7 @@ export class AnalyticsService {
     const onlineRevenue = todayOnlineRevenue._sum.totalAmount ?? 0;
     const cashRevenue = todayCashRecord?.amount ?? 0;
 
-    return {
+    const result: AdminOverview = {
       menuCount,
       tableCount,
       todayOrders,
@@ -242,5 +285,9 @@ export class AnalyticsService {
       cashRevenue,
       totalRevenue: onlineRevenue + cashRevenue,
     };
+
+    return result;
+      },
+    });
   }
 }

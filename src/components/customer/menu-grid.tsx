@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Plus, Flame, Sparkles, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Menu } from "@/types/menu";
 import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
 import { MENU_HIGHLIGHT_META, isHighlightedMenu } from "@/lib/menu-highlight";
+import { normalizeImageUrl } from "@/lib/image-url";
 
 interface MenuGridProps {
     menus: Menu[]; // Filtered menus
@@ -63,16 +65,22 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                                 Rekomendasi
                             </h2>
                         </div>
-                        <div className="flex gap-5 overflow-x-auto no-scrollbar pb-6 pt-2 snap-x -mx-5 px-5">
+                        <div className="flex gap-5 overflow-x-auto scrollbar-hidden pb-6 pt-2 snap-x -mx-5 px-5">
                             {recommendedMenus.map((menu) => (
                                 <div
                                     key={`rec-${menu.id}`}
-                                    className="min-w-[300px] bg-zinc-900 border border-white/5 rounded-3xl p-5 flex gap-5 items-center relative overflow-hidden group cursor-pointer snap-center hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 ease-out shadow-[0_12px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_20px_40px_rgba(46,254,60,0.08)] active:scale-95 translate-z-0"
+                                    className="min-w-[300px] bg-zinc-900 border border-white/5 rounded-3xl p-5 flex gap-5 items-center relative overflow-hidden group cursor-pointer snap-center hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 ease-out shadow-[0_12px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_20px_40px_rgba(53,183,24,0.08)] active:scale-95 translate-z-0"
                                     onClick={() => onSelectItem(menu)}
                                 >
                                     <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-zinc-950 shadow-inner relative border border-white/5">
-                                        {menu.imageUrl ? (
-                                            <img src={menu.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" alt={menu.name} />
+                                        {normalizeImageUrl(menu.imageUrl) ? (
+                                            <Image
+                                                src={normalizeImageUrl(menu.imageUrl)!}
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                                                alt={menu.name}
+                                                fill
+                                                sizes="96px"
+                                            />
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center font-black text-[9px] tracking-widest opacity-20 italic text-zinc-400">GONKU</div>
                                         )}
@@ -114,9 +122,6 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                         ) : (
                             <span className="capitalize">{activeCategory === "ALL" ? "Semua" : activeCategory.toLowerCase()} Menu</span>
                         )}
-                        {searchQuery && (
-                            <span className="text-zinc-500 font-bold text-sm tracking-normal">&quot;{searchQuery}&quot;</span>
-                        )}
                     </h2>
                     <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">{menus.length} items</span>
                 </div>
@@ -143,29 +148,32 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
 
 function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
     const [isImageLoading, setIsImageLoading] = useState(true);
+    const imageUrl = normalizeImageUrl(menu.imageUrl);
 
     return (
         <div
-            className="group relative bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden flex flex-col hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 ease-out shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_40px_rgba(46,254,60,0.08)] cursor-pointer animate-in fade-in zoom-in-95 translate-z-0"
+            className="group relative bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden flex flex-col hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 ease-out shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_40px_rgba(53,183,24,0.08)] cursor-pointer animate-in fade-in zoom-in-95 translate-z-0"
             onClick={onClick}
         >
             <div className="aspect-square relative bg-zinc-950 overflow-hidden">
-                {menu.imageUrl && (
+                {imageUrl && (
                     <>
                         {isImageLoading && <Skeleton className="absolute inset-0 w-full h-full bg-zinc-950 animate-pulse" />}
-                        <img
-                            src={menu.imageUrl}
+                        <Image
+                            src={imageUrl}
                             alt={menu.name}
                             className={cn(
-                                "w-full h-full object-cover transition-all duration-500 ease-out",
+                                "object-cover transition-all duration-500 ease-out",
                                 isImageLoading ? "opacity-0" : "opacity-100",
                                 menu.isAvailable ? "group-hover:scale-105" : "grayscale opacity-20 contrast-125"
                             )}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 33vw"
                             onLoad={() => setIsImageLoading(false)}
                         />
                     </>
                 )}
-                {!menu.imageUrl && (
+                {!imageUrl && (
                     <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 font-black bg-zinc-950 shadow-inner">
                         <span className="text-[10px] tracking-[0.3em] opacity-10">GONKU</span>
                     </div>
@@ -181,7 +189,7 @@ function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
                 <div className={cn(
                     "absolute bottom-4 right-4 w-10 h-10 backdrop-blur-2xl border border-white/10 rounded-xl flex items-center justify-center text-white shadow-2xl transition-all duration-300 ease-out z-20 overflow-hidden",
                     menu.isAvailable
-                        ? "bg-primary text-black hover:scale-105 active:scale-90 shadow-[0_8px_20px_rgba(46,254,60,0.15)] group-hover:bg-primary/90"
+                        ? "bg-primary text-black hover:scale-105 active:scale-90 shadow-[0_8px_20px_rgba(53,183,24,0.15)] group-hover:bg-primary/90"
                         : "bg-zinc-900/80 text-zinc-700 cursor-not-allowed border-none shadow-none"
                 )}>
                     {menu.isAvailable ? (

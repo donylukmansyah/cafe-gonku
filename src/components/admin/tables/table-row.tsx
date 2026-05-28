@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { QrCode, Trash2, Users } from "lucide-react";

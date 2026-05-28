@@ -1,7 +1,15 @@
-const { createClient } = require('@supabase/supabase-js');
+async function main() {
+const { createClient } = await import("@supabase/supabase-js");
+await import("dotenv/config");
 
-const NEXT_PUBLIC_SUPABASE_URL = "https://riyivttdajhznrqxuwbl.supabase.co";
-const NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_lGpeLaS5oDV9F756V_RNUg_Q2QB5zBc";
+const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!NEXT_PUBLIC_SUPABASE_URL || !NEXT_PUBLIC_SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("Missing Supabase environment variables for payment E2E test.");
+    process.exit(1);
+}
 
 const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
@@ -12,7 +20,7 @@ async function simulateCustomerPolling() {
     let paymentSuccessTimestamp = null;
 
     // Kitchen UI
-    supabase.channel("kitchen-updates").on("broadcast", { event: "refresh-orders" }, (payload) => {
+    supabase.channel("kitchen-updates").on("broadcast", { event: "refresh-orders" }, () => {
         receivedTimestamp = Date.now();
         console.log(`[${new Date().toISOString()}] Kitchen: 🟢 RECEIVED Broadcast!`);
         if (paymentSuccessTimestamp) {
@@ -38,7 +46,6 @@ async function simulateCustomerPolling() {
         // At this point, check-payment triggers the broadcast instantly
         // Wait, for this test I will just trigger the broadcast manually to simulate check-payment hitting DB
 
-        const SUPABASE_SERVICE_ROLE_KEY = "sb_secret_PDCyTg-phRYZt7JhFxnLDg_jozehC2R";
         await fetch(`${NEXT_PUBLIC_SUPABASE_URL}/realtime/v1/api/broadcast`, {
             method: "POST",
             headers: {
@@ -60,3 +67,6 @@ async function simulateCustomerPolling() {
 }
 
 simulateCustomerPolling();
+}
+
+main();

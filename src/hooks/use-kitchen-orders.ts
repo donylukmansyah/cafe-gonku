@@ -69,7 +69,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
             audioRef.current.currentTime = 0;
             audioRef.current.play().catch((err) => {
                 console.warn("[Audio] Playback failed/blocked:", err);
-                toast.error("Notifikasi suara terblokir browser. Klik layar dashboard untuk mengaktifkan! 🔊", {
+                toast.error("Notifikasi suara terblokir browser. Klik layar dashboard untuk mengaktifkan.", {
                     description: "Browser butuh interaksi user sebelum memutar suara.",
                     duration: 8000
                 });
@@ -118,7 +118,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
             }
 
             setError(null);
-        } catch (err) {
+        } catch {
             if (!isMountedRef.current) return;
             setError("Gagal memuat orders");
         } finally {
@@ -153,9 +153,9 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 await Promise.all(promises);
                 await fetchOrders(true);
                 return true;
-            } catch (err) {
+            } catch (error) {
                 await fetchOrders(true);
-                throw err;
+                throw error;
             } finally {
                 setIsUpdating(false);
             }
@@ -194,7 +194,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                         playNotification();
                     }
                     if (orderId) soundedOrdersRef.current.add(orderId);
-                    toast.success(`Pesanan Masuk: ${orderId} 🔔`, {
+                    toast.success(`Pesanan Masuk: ${orderId}`, {
                         description: "Sudah bayar! Segera cek daftar Pesanan Aktif.",
                         duration: 10000,
                     });

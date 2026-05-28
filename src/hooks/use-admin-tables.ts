@@ -1,10 +1,10 @@
 "use client";
 
 import useSWR from "swr";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
-import { showConfirm, showSuccess, showError } from "@/lib/sweetalert";
+import { showConfirm, showSuccess } from "@/lib/sweetalert";
 
 export type TableData = {
     id: string;
@@ -20,7 +20,7 @@ export function useAdminTables() {
         apiFetch
     );
 
-    const tables = data || [];
+    const tables = useMemo(() => data || [], [data]);
 
     const createTable = useCallback(async (values: { tableNumber: number, capacity: number }, onSuccess?: () => void) => {
         try {
@@ -32,7 +32,7 @@ export function useAdminTables() {
             toast.success(`Meja #${values.tableNumber} berhasil dibuat`);
             mutate();
             if (onSuccess) onSuccess();
-        } catch (error: any) {
+        } catch (error) {
             // apiFetch handles toast natively
             console.error(error);
         }
@@ -40,6 +40,7 @@ export function useAdminTables() {
 
     const toggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
         // Optimistic update
+        const previousTables = tables;
         const updatedTables = tables.map(t => t.id === id ? { ...t, isActive: !currentStatus } : t);
 
         try {
@@ -51,9 +52,9 @@ export function useAdminTables() {
             });
 
             mutate(); // Revalidate with server after success
-        } catch (error) {
+        } catch {
             // Revert on error
-            mutate(updatedTables);
+            mutate(previousTables, false);
             // toast.error is handled natively by apiFetch
         }
     }, [tables, mutate]);

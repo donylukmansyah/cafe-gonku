@@ -36,7 +36,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
                 <div className="relative z-10 text-center space-y-8 max-w-lg px-8">
                     <div className="mx-auto w-28 h-28 bg-zinc-900/50 backdrop-blur-xl rounded-[2rem] flex items-center justify-center border border-white/5 shadow-2xl relative group transition-all duration-500 hover:scale-105">
                         <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        <Coffee className="w-14 h-14 text-primary relative z-10 drop-shadow-[0_0_15px_rgba(46,254,60,0.5)]" />
+                        <Coffee className="w-14 h-14 text-primary relative z-10 drop-shadow-[0_0_15px_rgba(53,183,24,0.5)]" />
                     </div>
 
                     <div className="space-y-4">

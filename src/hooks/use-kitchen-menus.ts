@@ -44,7 +44,7 @@ export function useKitchenMenus() {
             }
 
             setError(null);
-        } catch (err) {
+        } catch {
             if (!isMountedRef.current) return;
             setError("Gagal memuat menu");
         } finally {
@@ -72,9 +72,9 @@ export function useKitchenMenus() {
 
                 await fetchMenus(true);
                 return true;
-            } catch (err) {
+            } catch (error) {
                 await fetchMenus(true);
-                throw err;
+                throw error;
             }
         },
         [fetchMenus]

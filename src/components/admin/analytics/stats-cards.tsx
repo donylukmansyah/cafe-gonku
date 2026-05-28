@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TrendingUp, ShoppingBag, CalendarRange } from "lucide-react";
 
 interface StatsCardsProps {

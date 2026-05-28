@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 
+type ApiErrorDetails = Record<string, unknown> | unknown[];
+
 export function apiResponse<T>(data: T, status = 200, cache?: string) {
     return NextResponse.json(
         {
@@ -16,7 +18,7 @@ export function apiResponse<T>(data: T, status = 200, cache?: string) {
     );
 }
 
-export function apiError(message: string, status = 400, details?: any) {
+export function apiError(message: string, status = 400, details?: ApiErrorDetails) {
     return NextResponse.json(
         {
             success: false,
@@ -29,8 +31,6 @@ export function apiError(message: string, status = 400, details?: any) {
 }
 
 export function handleApiError(error: unknown, context?: string) {
-    const errorPrefix = context ? `[${context}] ` : "";
-
     // Structured Logging for Production
     const logData = {
         context,

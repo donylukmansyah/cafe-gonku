@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/server-auth"
-import { supabaseAdmin } from "@/lib/supabase"
+import { uploadMenuImage } from "@/lib/image-storage"
 
 export async function POST(request: NextRequest) {
     try {
@@ -52,46 +52,21 @@ export async function POST(request: NextRequest) {
         // Generate unique filename
         const fileExt = file.name.split(".").pop()
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `menus/${fileName}`
 
         // Convert File to ArrayBuffer for upload
         const arrayBuffer = await file.arrayBuffer()
         const buffer = new Uint8Array(arrayBuffer)
 
-        if (!supabaseAdmin) {
-            console.error("Upload failed: Supabase Admin client not initialized")
-            return NextResponse.json({ error: "Supabase configuration error on server" }, { status: 500 })
-        }
-
-        // Upload to Supabase Storage using Admin Client
-        const { data, error } = await supabaseAdmin.storage
-            .from("menu-images")
-            .upload(filePath, buffer, {
-                contentType: file.type,
-                cacheControl: "3600",
-                upsert: false,
-            })
-
-        if (error) {
-            console.error("Supabase upload error:", error)
-            return NextResponse.json(
-                { error: `Failed to upload image: ${error.message}` },
-                { status: 500 }
-            )
-        }
-
-        console.log("Upload successful:", data)
-
-        // Get public URL (we already checked if supabaseAdmin is not null above)
-        const { data: urlData } = supabaseAdmin!.storage
-            .from("menu-images")
-            .getPublicUrl(filePath)
-
-        console.log("Public URL generated:", urlData.publicUrl)
+        const upload = await uploadMenuImage({
+            fileName,
+            mimeType: file.type,
+            bytes: buffer,
+        })
 
         return NextResponse.json({
-            url: urlData.publicUrl,
-            path: filePath,
+            url: upload.url,
+            path: upload.path,
+            provider: upload.provider,
         })
     } catch (error: unknown) {
         console.error("Upload error (catch):", error)

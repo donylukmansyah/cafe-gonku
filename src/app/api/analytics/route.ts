@@ -1,9 +1,11 @@
-import { NextRequest } from "next/server";
+import { connection, NextRequest } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { AnalyticsService } from "@/lib/services/analytics.service";
 
 export async function GET(request: NextRequest) {
+    await connection();
+
     try {
         const session = await getServerSession();
         if (!session) return apiError("Unauthorized", 401);

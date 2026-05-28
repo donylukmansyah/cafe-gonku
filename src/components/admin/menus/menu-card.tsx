@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { Menu } from "@/types/menu";
 import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
+import { normalizeImageUrl } from "@/lib/image-url";
 
 interface MenuCardProps {
     menu: Menu;
@@ -21,15 +23,18 @@ export const MenuCard = memo(function MenuCard({
     onToggleAvailability,
 }: MenuCardProps) {
     const [imageError, setImageError] = useState(false);
+    const imageUrl = normalizeImageUrl(menu.imageUrl);
 
     return (
         <Card className="bg-zinc-900/50 border-white/5 overflow-hidden group hover:border-primary/20 transition-all backdrop-blur-sm">
             <div className="aspect-square relative overflow-hidden bg-zinc-800">
-                {menu.imageUrl && !imageError ? (
-                    <img
-                        src={menu.imageUrl}
+                {imageUrl && !imageError ? (
+                    <Image
+                        src={imageUrl}
                         alt={menu.name}
-                        className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
                         onError={() => setImageError(true)}
                     />
                 ) : (

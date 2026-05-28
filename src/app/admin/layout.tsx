@@ -34,7 +34,7 @@ async function AdminLayoutContent({
                 <div className="flex flex-col h-full bg-zinc-900 border-r border-zinc-800">
                     {/* Logo */}
                     <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-800 h-16">
-                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(46,254,60,0.3)]">
+                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(53,183,24,0.3)]">
                             <Coffee className="w-5 h-5 text-black fill-black/20" />
                         </div>
                         <span className="font-bold text-lg text-white tracking-tight">Cafe Gonku</span>

@@ -24,8 +24,11 @@ interface CartStore {
     tableId: string | null;
     setTableId: (id: string | null) => void;
     addItem: (item: CartItem) => void;
+    editItem: (oldHash: string, newItem: CartItem) => void;
     removeItem: (itemId: string, optionsHash: string) => void;
     updateQuantity: (itemId: string, optionsHash: string, delta: number) => void;
+    updateItemPrices: (updates: { menuId: string; newPrice: number; optionChanges?: { valueId: string; newAdjust: number }[] }[]) => void;
+    removeItemsByMenuId: (menuId: string) => void;
     clearCart: () => void;
     getTotal: () => number;
     getItemCount: () => number;
@@ -33,6 +36,8 @@ interface CartStore {
     setActiveOrderCode: (code: string | null) => void;
     hasHydrated: boolean;
     setHasHydrated: (state: boolean) => void;
+    diningType: "DINE_IN" | "TAKEAWAY";
+    setDiningType: (type: "DINE_IN" | "TAKEAWAY") => void;
 }
 
 // Helper to generate a unique key for items with the same menuId but different options
@@ -73,6 +78,16 @@ export const useCart = create<CartStore>()(
                     set({ items: [...items, newItem] });
                 }
             },
+            editItem: (oldHash, newItem) => {
+                const items = get().items;
+                const newItems = items.map(item => {
+                    if (item.id === newItem.id && getOptionsHash(item.selectedOptions) === oldHash) {
+                        return newItem;
+                    }
+                    return item;
+                });
+                set({ items: newItems });
+            },
             removeItem: (itemId, optionsHash) => {
                 set({
                     items: get().items.filter(
@@ -104,6 +119,30 @@ export const useCart = create<CartStore>()(
                 }
             },
             clearCart: () => set({ items: [] }),
+            updateItemPrices: (updates) => {
+                const items = get().items;
+                const updateMap = new Map(updates.map(u => [u.menuId, u]));
+                set({
+                    items: items.map(item => {
+                        const update = updateMap.get(item.id);
+                        if (!update) return item;
+                        const optChangeMap = new Map(
+                            (update.optionChanges ?? []).map(o => [o.valueId, o.newAdjust])
+                        );
+                        return {
+                            ...item,
+                            price: update.newPrice,
+                            selectedOptions: item.selectedOptions.map(opt => {
+                                const newAdjust = optChangeMap.get(opt.valueId);
+                                return newAdjust !== undefined ? { ...opt, priceAdjust: newAdjust } : opt;
+                            }),
+                        };
+                    }),
+                });
+            },
+            removeItemsByMenuId: (menuId) => {
+                set({ items: get().items.filter(item => item.id !== menuId) });
+            },
             getTotal: () => {
                 return get().items.reduce((total, item) => {
                     const optionsPrice = item.selectedOptions.reduce((acc, opt) => acc + opt.priceAdjust, 0);
@@ -117,6 +156,8 @@ export const useCart = create<CartStore>()(
             setActiveOrderCode: (code) => set({ activeOrderCode: code }),
             hasHydrated: false,
             setHasHydrated: (state) => set({ hasHydrated: state }),
+            diningType: "DINE_IN",
+            setDiningType: (type) => set({ diningType: type }),
         }),
         {
             name: "cafe-gonku-cart",

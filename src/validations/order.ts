@@ -42,6 +42,8 @@ export const createOrderSchema = z.object({
             ).optional(),
         })
     ).min(1),
+    serviceFee: z.number().int().min(0).optional(),
+    rounding: z.number().int().optional(),
 });
 
 // Types

@@ -1,30 +1,24 @@
 declare module "midtrans-client" {
-    class Snap {
-        constructor(options: {
-            isProduction: boolean;
-            serverKey: string | undefined;
-            clientKey: string | undefined;
-        });
+    type MidtransOptions = {
+        isProduction: boolean;
+        serverKey: string | undefined;
+        clientKey: string | undefined;
+    };
 
+    interface SnapClient {
         createTransaction(parameter: Record<string, unknown>): Promise<{
             token: string;
             redirect_url: string;
         }>;
     }
 
-    class CoreApi {
-        constructor(options: {
-            isProduction: boolean;
-            serverKey: string | undefined;
-            clientKey: string | undefined;
-        });
-
+    interface CoreApiClient {
         charge(parameter: Record<string, unknown>): Promise<Record<string, unknown>>;
     }
 
     const midtransClient: {
-        Snap: typeof Snap;
-        CoreApi: typeof CoreApi;
+        Snap: new (options: MidtransOptions) => SnapClient;
+        CoreApi: new (options: MidtransOptions) => CoreApiClient;
     };
 
     export default midtransClient;

@@ -106,7 +106,7 @@ export function useRealtimeOrder() {
                                 paymentStatus: data.status === "PAID" ? "PAID" : prev.paymentStatus
                             };
                         });
-                        toast.info(`Status pesanan: ${data.status} ✨`);
+                        toast.info(`Status pesanan: ${data.status}`);
                     } else {
                         // Fallback to fetch if payload is incomplete
                         fetchOrder();
@@ -130,28 +130,28 @@ export function useRealtimeOrder() {
         };
     }, [activeOrderCode, fetchOrder]);
 
-    // Fallback Effect for Payment Polling (Very relaxed, only if strictly necessary)
-    // We only need a safety net if the user closed the window before `onSuccess` fired 
-    // and the webhook is taking an extremely long time.
+    // Aggressive Polling for Payment Status (Zero-Latency Workaround)
+    // Sometimes Midtrans webhooks are delayed by ngrok or queue, and Midtrans QRIS popups
+    // don't always trigger `onSuccess` automatically until closed.
+    // By polling every 3 seconds, we ensure the kitchen gets the order instantly after payment.
     useEffect(() => {
         if (!activeOrderCode || order?.paymentStatus !== "PENDING") return;
 
-        console.log("[Payment] Starting relaxed safety net check loop...");
+        console.log("[Payment] Starting aggressive realtime check loop...");
         const interval = setInterval(async () => {
             try {
-                // Relaxed interval (15s) since proactive check handles the Happy Path instantly
                 const data = await apiFetch<{ updated?: boolean }>(`/api/orders/${activeOrderCode}/check-payment`, {
                     method: "POST",
                     silent: true,
                 });
                 if (data.updated && isMounted.current) {
-                    toast.success("Pembayaran terkonfirmasi! ✨");
+                    toast.success("Pembayaran terkonfirmasi");
                     fetchOrder(); // This will update order state -> triggers cleanup
                 }
             } catch (e) {
-                console.error("Safety check error:", e);
+                console.error("Payment check error:", e);
             }
-        }, 15000);
+        }, 3000); // 3 seconds interval for near-instant confirmation
 
         return () => clearInterval(interval);
     }, [activeOrderCode, order?.paymentStatus, fetchOrder]);

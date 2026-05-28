@@ -15,6 +15,14 @@ export async function GET(request: NextRequest) {
         const onlyAvailable = searchParams.get("onlyAvailable") === "true";
         const skipCache = searchParams.get("skipCache") === "true" || includeInactive;
 
+        if (includeInactive) {
+            const session = await getServerSession();
+            if (!session) return apiError("Unauthorized", 401);
+
+            const user = session.user as { role?: string };
+            if (user.role !== "ADMIN") return apiError("Forbidden", 403);
+        }
+
         const menus = await MenuService.getMenus({ category, includeInactive, onlyAvailable, skipCache });
 
         return apiResponse({ menus }, 200, skipCache ? "no-store" : undefined);
@@ -37,8 +45,6 @@ export async function POST(request: NextRequest) {
 
         const menu = await MenuService.createMenu(validatedData);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
         revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
 

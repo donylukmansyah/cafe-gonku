@@ -3,8 +3,7 @@ import withReactContent from 'sweetalert2-react-content'
 
 const MySwal = withReactContent(Swal)
 
-const brandColor = '#2EFE3C' // Neon Green
-const brandColorHover = '#25CC30'
+const brandColor = '#35B718'
 const redColor = '#ef4444'
 const darkBg = '#18181b' // zinc-950
 const darkText = '#f4f4f5' // zinc-100
@@ -28,7 +27,7 @@ export const showConfirm = async (
         cancelButtonText: 'Batal',
         customClass: {
             popup: 'border border-zinc-800 shadow-xl rounded-xl bg-zinc-950',
-            confirmButton: 'text-black font-bold shadow-[0_0_15px_rgba(46,254,60,0.4)]',
+            confirmButton: 'text-black font-bold shadow-[0_0_15px_rgba(53,183,24,0.4)]',
             cancelButton: 'text-zinc-400 hover:text-white',
             title: 'text-zinc-100', // Keep white for dark mode title
             htmlContainer: 'text-zinc-400' // Keep gray for dark mode text

@@ -92,7 +92,7 @@ export default function TablesPage() {
                         <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                     </Button>
                     <Button
-                        className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_20px_rgba(46,254,60,0.15)] hover:shadow-[0_0_30px_rgba(46,254,60,0.25)] transition-all rounded-full px-8 h-12 flex-[2] sm:flex-none cursor-pointer"
+                        className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_20px_rgba(53,183,24,0.15)] hover:shadow-[0_0_30px_rgba(53,183,24,0.25)] transition-all rounded-full px-8 h-12 flex-[2] sm:flex-none cursor-pointer"
                         onClick={() => setShowCreateDialog(true)}
                     >
                         <Plus className="w-5 h-5 mr-1" />

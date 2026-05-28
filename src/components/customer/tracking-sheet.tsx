@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,7 @@ export function TrackingSheet() {
 
         snapPay(order.midtransToken, {
             onSuccess: () => {
-                toast.success("Pembayaran berhasil! ✨");
+                toast.success("Pembayaran berhasil");
                 refresh();
             },
             onPending: () => {
@@ -71,7 +71,7 @@ export function TrackingSheet() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Gagal membatalkan");
-            toast.success("Pesanan berhasil dibatalkan 👋");
+            toast.success("Pesanan berhasil dibatalkan");
             setActiveOrderCode(null);
             setIsOpen(false);
         } catch (error) {
@@ -117,6 +117,9 @@ export function TrackingSheet() {
                 </div>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[85vh] rounded-t-[2rem] border-t border-white/5 bg-zinc-950 p-0 flex flex-col shadow-2xl">
+                <SheetDescription className="sr-only">
+                    Status pembayaran dan progress pesanan aktif.
+                </SheetDescription>
                 {/* Drag Handle */}
                 <div className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
                     <div className="w-10 h-1 bg-zinc-800 rounded-full" />
@@ -156,7 +159,7 @@ export function TrackingSheet() {
                             {/* Progress Track */}
                             <div className="absolute top-3.5 left-[22px] right-[22px] h-[2px] -z-10 bg-zinc-900">
                                 <div
-                                    className="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(46,254,60,0.4)]"
+                                    className="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(53,183,24,0.4)]"
                                     style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
                                 />
                             </div>
@@ -173,7 +176,7 @@ export function TrackingSheet() {
                                             isActive
                                                 ? "border-primary text-primary bg-zinc-900 md:bg-zinc-950"
                                                 : "border-zinc-800 text-zinc-700",
-                                            isCurrent && "ring-4 ring-primary/10 scale-110 shadow-[0_0_15px_rgba(46,254,60,0.2)]"
+                                            isCurrent && "ring-4 ring-primary/10 scale-110 shadow-[0_0_15px_rgba(53,183,24,0.2)]"
                                         )}>
                                             <Icon className="w-3.5 h-3.5" />
                                         </div>
@@ -204,7 +207,7 @@ export function TrackingSheet() {
                 <Separator className="bg-zinc-900 border-zinc-900" />
 
                 {/* SCROLLABLE CONTENT */}
-                <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hidden">
                     {order ? (
                         <div className="space-y-6 pb-24"> {/* Added padding bottom for safe scroll */}
                             <div className="space-y-4">
@@ -238,13 +241,41 @@ export function TrackingSheet() {
                                 ))}
                             </div>
 
-                            <div className="border-t border-dashed border-zinc-800 pt-4 mt-4">
-                                <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
-                                    <span className="text-zinc-400 font-bold text-xs uppercase">Total Tagihan</span>
-                                    <span className="text-xl font-black text-primary">
-                                        Rp {order.totalAmount.toLocaleString("id-ID")}
-                                    </span>
-                                </div>
+                            <div className="border-t border-dashed border-zinc-800 pt-4 mt-4 space-y-2">
+                                {(() => {
+                                    const subtotal = order.orderItems?.reduce((acc, item) => {
+                                        const optTotal = item.selectedOptions.reduce((s, o) => s + o.priceAdjust, 0);
+                                        return acc + (item.price + optTotal) * item.quantity;
+                                    }, 0) ?? 0;
+                                    const serviceFee = Math.round(subtotal * 0.1);
+                                    const rounding = order.totalAmount - subtotal - serviceFee;
+                                    return (
+                                        <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-zinc-500 text-xs">Subtotal</span>
+                                                <span className="text-zinc-400 text-xs font-bold tabular-nums">Rp {subtotal.toLocaleString("id-ID")}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-zinc-500 text-xs">Biaya Layanan & Aplikasi</span>
+                                                <span className="text-zinc-400 text-xs font-bold tabular-nums">Rp {serviceFee.toLocaleString("id-ID")}</span>
+                                            </div>
+                                            {rounding !== 0 && (
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-zinc-500 text-xs">Pembulatan</span>
+                                                    <span className="text-zinc-400 text-xs font-bold tabular-nums">
+                                                        {rounding > 0 ? "+" : "-"}Rp {Math.abs(rounding).toLocaleString("id-ID")}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="border-t border-zinc-800 pt-2 flex justify-between items-center">
+                                                <span className="text-zinc-400 font-bold text-xs uppercase">Total Tagihan</span>
+                                                <span className="text-xl font-black text-primary">
+                                                    Rp {order.totalAmount.toLocaleString("id-ID")}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     ) : (
@@ -285,7 +316,7 @@ export function TrackingSheet() {
                                 onClick={() => {
                                     setActiveOrderCode(null);
                                     setIsOpen(false);
-                                    toast.success("Silakan pesan lagi! 🍽️");
+                                    toast.success("Silakan pesan lagi");
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                             >

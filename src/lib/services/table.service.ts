@@ -1,10 +1,24 @@
 import { prisma } from "@/lib/prisma";
+import { bumpCacheVersion, cacheRemember } from "@/lib/redis";
 import { UpdateTableValues } from "@/validations/table";
+
+type TableListItem = Awaited<ReturnType<typeof prisma.table.findMany>>[number];
+type TableLookupItem = {
+    id: string;
+    tableNumber: number;
+    qrCode: string;
+};
 
 export class TableService {
     static async getTables() {
-        return await prisma.table.findMany({
-            orderBy: { tableNumber: "asc" },
+        return cacheRemember<TableListItem[]>({
+            scope: "tables",
+            key: "list",
+            ttlSeconds: 300,
+            load: () =>
+                prisma.table.findMany({
+                    orderBy: { tableNumber: "asc" },
+                }),
         });
     }
 
@@ -13,9 +27,15 @@ export class TableService {
     }
 
     static async getTableByQrCode(qrCode: string) {
-        return await prisma.table.findFirst({
-            where: { qrCode, isActive: true },
-            select: { id: true, tableNumber: true, qrCode: true }
+        return cacheRemember<TableLookupItem | null>({
+            scope: "tables",
+            key: `qr:${qrCode}`,
+            ttlSeconds: 600,
+            load: () =>
+                prisma.table.findFirst({
+                    where: { qrCode, isActive: true },
+                    select: { id: true, tableNumber: true, qrCode: true }
+                }),
         });
     }
 
@@ -35,20 +55,30 @@ export class TableService {
             .substring(2, 8)
             .toUpperCase()}`;
 
-        return await prisma.table.create({
+        const table = await prisma.table.create({
             data: {
                 tableNumber,
                 capacity,
                 qrCode,
             },
         });
+
+        await bumpCacheVersion("tables");
+        await bumpCacheVersion("analytics");
+
+        return table;
     }
 
     static async updateTable(id: string, data: UpdateTableValues) {
-        return await prisma.table.update({
+        const table = await prisma.table.update({
             where: { id },
             data,
         });
+
+        await bumpCacheVersion("tables");
+        await bumpCacheVersion("analytics");
+
+        return table;
     }
 
     static async deleteTable(id: string) {
@@ -63,6 +93,8 @@ export class TableService {
 
         await prisma.order.deleteMany({ where: { tableId: id } });
         await prisma.table.delete({ where: { id } });
+        await bumpCacheVersion("tables");
+        await bumpCacheVersion("analytics");
 
         return true;
     }

@@ -33,7 +33,7 @@ export function KitchenNavbar({
             <div className="flex items-center justify-between max-w-[1800px] mx-auto">
                 {/* Logo & Title */}
                 <div className="flex items-center gap-3 group">
-                    <div className="w-11 h-11 bg-primary rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(46,254,60,0.3)] group-hover:scale-105 transition-transform duration-300">
+                    <div className="w-11 h-11 bg-primary rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(53,183,24,0.3)] group-hover:scale-105 transition-transform duration-300">
                         <UtensilsCrossed className="w-6 h-6 text-black" />
                     </div>
                     <div>

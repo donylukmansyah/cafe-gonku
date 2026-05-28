@@ -1,6 +1,6 @@
 import { Outfit } from "next/font/google";
 import "@/app/globals.css";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/ui/app-toaster";
 
 const outfit = Outfit({
     subsets: ["latin"],
@@ -14,7 +14,7 @@ export default function CustomerLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className={`${outfit.variable} font-sans min-h-screen bg-black text-white selection:bg-primary selection:text-black overflow-x-hidden`}>
+        <div className={`${outfit.variable} font-sans min-h-screen bg-black text-white selection:bg-primary selection:text-black`}>
             {/* Background Glows */}
             <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-screen -z-10 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-20%] w-[80%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
@@ -24,7 +24,7 @@ export default function CustomerLayout({
             <div className="max-w-md mx-auto min-h-screen bg-zinc-950/80 shadow-[0_0_100px_rgba(0,0,0,0.8)] border-x border-white/5 relative">
                 {children}
             </div>
-            <Toaster position="top-center" richColors />
+            <AppToaster position="top-center" />
         </div>
     );
 }

@@ -1,6 +1,44 @@
+import { MenuCategory, Prisma } from "@prisma/client";
+import { deleteMenuImage } from "@/lib/image-storage";
+import { normalizeImageUrl } from "@/lib/image-url";
 import { prisma } from "@/lib/prisma";
-import { deleteMenuImage } from "@/lib/supabase";
+import { bumpCacheVersion, cacheRemember } from "@/lib/redis";
 import type { CreateMenuInput, UpdateMenuInput } from "@/validations/menu";
+
+const menuListSelect = {
+  id: true,
+  name: true,
+  description: true,
+  price: true,
+  imageUrl: true,
+  category: true,
+  isAvailable: true,
+  isActive: true,
+  highlightType: true,
+  menuOptions: {
+    select: {
+      id: true,
+      name: true,
+      isRequired: true,
+      values: {
+        select: {
+          id: true,
+          label: true,
+          priceAdjust: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.MenuSelect;
+
+type MenuListItem = Prisma.MenuGetPayload<{ select: typeof menuListSelect }>;
+
+function normalizeMenuListImages<T extends { imageUrl: string | null }>(menus: T[]) {
+  return menus.map((menu) => ({
+    ...menu,
+    imageUrl: normalizeImageUrl(menu.imageUrl),
+  }));
+}
 
 export class MenuService {
   static async getMenus(options: {
@@ -9,47 +47,31 @@ export class MenuService {
     onlyAvailable?: boolean;
     skipCache?: boolean;
   } = {}) {
-    const { category, includeInactive, onlyAvailable } = options;
+    const { category, includeInactive, onlyAvailable, skipCache } = options;
+    const canUseCache = !skipCache && !includeInactive;
 
-    return prisma.menu.findMany({
-      where: {
-        ...(category ? { category: category as never } : {}),
-        ...(includeInactive ? {} : { isActive: true }),
-        ...(onlyAvailable ? { isAvailable: true } : {}),
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        imageUrl: true,
-        category: true,
-        isAvailable: true,
-        isActive: true,
-        highlightType: true,
-        menuOptions: {
-          select: {
-            id: true,
-            name: true,
-            isRequired: true,
-            values: {
-              select: {
-                id: true,
-                label: true,
-                priceAdjust: true,
-              },
-            },
+    return cacheRemember<MenuListItem[]>({
+      scope: "menus",
+      key: `list:${category ?? "all"}:${onlyAvailable ? "available" : "all"}`,
+      ttlSeconds: 300,
+      enabled: canUseCache,
+      load: () =>
+        prisma.menu.findMany({
+          where: {
+            ...(category ? { category: category as MenuCategory } : {}),
+            ...(includeInactive ? {} : { isActive: true }),
+            ...(onlyAvailable ? { isAvailable: true } : {}),
           },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+          select: menuListSelect,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }).then(normalizeMenuListImages),
     });
   }
 
   static async getMenuById(id: string) {
-    return prisma.menu.findUnique({
+    const menu = await prisma.menu.findUnique({
       where: { id },
       include: {
         menuOptions: {
@@ -59,12 +81,14 @@ export class MenuService {
         },
       },
     });
+
+    return menu ? { ...menu, imageUrl: normalizeImageUrl(menu.imageUrl) } : null;
   }
 
   static async createMenu(data: CreateMenuInput) {
     const { menuOptions, ...menuData } = data;
 
-    return prisma.menu.create({
+    const menu = await prisma.menu.create({
       data: {
         ...menuData,
         ...(menuOptions?.length
@@ -92,6 +116,11 @@ export class MenuService {
         },
       },
     });
+
+    await bumpCacheVersion("menus");
+    await bumpCacheVersion("analytics");
+
+    return menu;
   }
 
   static async updateMenu(id: string, data: UpdateMenuInput) {
@@ -230,6 +259,9 @@ export class MenuService {
       }
     });
 
+    await bumpCacheVersion("menus");
+    await bumpCacheVersion("analytics");
+
     return this.getMenuById(id);
   }
 
@@ -243,7 +275,7 @@ export class MenuService {
       throw new Error("Menu not found");
     }
 
-    return prisma.menu.update({
+    const menu = await prisma.menu.update({
       where: { id },
       data: { isAvailable },
       select: {
@@ -257,6 +289,10 @@ export class MenuService {
         highlightType: true,
       },
     });
+
+    await bumpCacheVersion("menus");
+
+    return menu;
   }
 
   static async deleteMenu(id: string) {
@@ -271,7 +307,7 @@ export class MenuService {
       throw new Error("Menu not found");
     }
 
-    return prisma.menu.update({
+    const archivedMenu = await prisma.menu.update({
       where: { id },
       data: {
         isActive: false,
@@ -281,5 +317,10 @@ export class MenuService {
         id: true,
       },
     });
+
+    await bumpCacheVersion("menus");
+    await bumpCacheVersion("analytics");
+
+    return archivedMenu;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useDeferredValue } from "react";
-import { useCart } from "@/hooks/use-cart";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useCart, CartItem, getOptionsHash } from "@/hooks/use-cart";
 import { useSnap } from "@/hooks/use-snap";
 import { MenuGrid } from "@/components/customer/menu-grid";
 import dynamic from "next/dynamic";
@@ -10,7 +10,7 @@ const ItemModal = dynamic(() => import("@/components/customer/item-modal").then(
 const CartSheet = dynamic(() => import("@/components/customer/cart-sheet").then(mod => mod.CartSheet), { ssr: false });
 const TrackingSheet = dynamic(() => import("@/components/customer/tracking-sheet").then(mod => mod.TrackingSheet), { ssr: false });
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Loader2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { Menu } from "@/types/menu";
 import { CustomerHeader } from "@/components/customer/customer-header";
@@ -28,14 +28,85 @@ interface OrderClientProps {
     };
 }
 
+// Custom Hook for Debouncing State
+function useDebounce<T>(value: T, delay: number = 250): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+}
+
+// Lightweight Fuzzy Matching Algorithm
+function fuzzyMatch(text: string, query: string): boolean {
+    const cleanText = text.toLowerCase().trim();
+    const cleanQuery = query.toLowerCase().trim();
+
+    if (!cleanQuery) return true;
+    
+    // Exact or direct substring match
+    if (cleanText.includes(cleanQuery)) return true;
+
+    const textWords = cleanText.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, ""));
+    const queryWords = cleanQuery.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, ""));
+
+    // Check Levenshtein distance for word level similarities
+    const getLevenshteinDistance = (a: string, b: string): number => {
+        const matrix = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+        for (let j = 1; j <= b.length; j++) matrix[0][j] = j;
+
+        for (let i = 1; i <= a.length; i++) {
+            for (let j = 1; j <= b.length; j++) {
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j - 1] + cost
+                );
+            }
+        }
+        return matrix[a.length][b.length];
+    };
+
+    return queryWords.every(qw => {
+        if (!qw) return true;
+        
+        // Subsequence match (e.g. "mny" matches "Mie Nyemek")
+        let queryIdx = 0;
+        for (let textIdx = 0; textIdx < cleanText.length; textIdx++) {
+            if (cleanText[textIdx] === qw[queryIdx]) {
+                queryIdx++;
+            }
+            if (queryIdx === qw.length) {
+                return true;
+            }
+        }
+
+        const maxEdits = qw.length <= 3 ? 0 : qw.length <= 6 ? 1 : 2;
+
+        return textWords.some(tw => {
+            if (tw.startsWith(qw) || qw.startsWith(tw)) return true;
+            const distance = getLevenshteinDistance(tw, qw);
+            return distance <= maxEdits;
+        });
+    });
+}
+
 export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     // 0. Local state for menus (for real-time availability updates)
     const [menus, setMenus] = useState<Menu[]>(initialMenus);
     const [activeCategory, setActiveCategory] = useState("ALL");
     const [searchQuery, setSearchQuery] = useState("");
-    const deferredSearchQuery = useDeferredValue(searchQuery);
+    const debouncedSearchQuery = useDebounce(searchQuery, 250);
 
-    // Dynamic Categories based on available menus
     const categories = useMemo(() => {
         if (!menus) return [];
         const uniqueCategories = Array.from(new Set(menus.map(m => m.category))).sort();
@@ -59,29 +130,33 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     const filteredMenus = useMemo(() => {
         return menus.filter((menu) => {
             const matchesCategory = activeCategory === "ALL" || menu.category === activeCategory;
-            const matchesSearch = menu.name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
+            const matchesSearch = fuzzyMatch(menu.name, debouncedSearchQuery);
             return matchesCategory && matchesSearch;
         });
-    }, [menus, activeCategory, deferredSearchQuery]);
+    }, [menus, activeCategory, debouncedSearchQuery]);
 
-    // Optimization: Select only what is needed to reduce re-renders
     const items = useCart((state) => state.items);
-    // ... rest of selectors ...
     const tableId = useCart((state) => state.tableId);
     const setTableId = useCart((state) => state.setTableId);
     const clearCart = useCart((state) => state.clearCart);
     const getTotal = useCart((state) => state.getTotal);
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
     const hasHydrated = useCart((state) => state.hasHydrated);
+    const updateItemPrices = useCart((state) => state.updateItemPrices);
+    const removeItemsByMenuId = useCart((state) => state.removeItemsByMenuId);
+    const diningType = useCart((state) => state.diningType);
 
-    // --- REAL-TIME MENU SYNC ---
     useEffect(() => {
         const channel = import("@/lib/supabase").then(({ supabase }) => {
             return supabase
                 .channel(REALTIME_CHANNELS.menuUpdates)
                 .on("broadcast", { event: "menu-update" }, (payload) => {
-                    const { menuId, isAvailable } = payload.payload;
-                    if (menuId) {
+                    const { menuId, isAvailable, fullMenu } = payload.payload;
+                    if (fullMenu) {
+                        setMenus(prev => prev.map(m =>
+                            m.id === fullMenu.id ? { ...m, ...fullMenu } : m
+                        ));
+                    } else if (menuId) {
                         setMenus(prev => prev.map(m =>
                             m.id === menuId ? { ...m, isAvailable } : m
                         ));
@@ -99,15 +174,12 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
         };
     }, []);
 
-    // Sync Table ID from Server to Store (once)
     useEffect(() => {
         if (table?.id && tableId !== table.id) {
             setTableId(table.id);
         }
     }, [table, tableId, setTableId]);
 
-    // ... rest of effects and handlers ...
-    // OPTIMIZATION: Handle Midtrans Redirect Return (Best Practice)
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const orderIdParam = params.get("order_id");
@@ -120,9 +192,9 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
             window.history.replaceState({}, "", newUrl);
 
             if (statusParam === "settlement" || statusParam === "capture") {
-                toast.success("Pembayaran Berhasil! Pesanan diproses ⚡");
+                toast.success("Pembayaran Berhasil! Pesanan diproses");
             } else if (statusParam === "pending") {
-                toast.info("Sedang memverifikasi pembayaran... ⏳");
+                toast.info("Sedang memverifikasi pembayaran...");
             }
         }
     }, [setActiveOrderCode, clearCart]);
@@ -138,6 +210,13 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+    const [editItemHash, setEditItemHash] = useState<string | null>(null);
+
+    const formatPrice = useCallback((price: number) => `Rp ${price.toLocaleString("id-ID")}`, []);
+
+    const SERVICE_FEE_RATE = 0.1;
+    const ROUND_TO = 1000;
 
     const handleCheckout = async () => {
         if (!table.id) {
@@ -148,20 +227,95 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
         try {
             setIsSubmitting(true);
 
-            // Security Refactor: Map items to match server's Zod schema
+            const verifyResult = await apiFetch<{
+                verified: boolean;
+                changes: {
+                    menuId: string;
+                    name: string;
+                    oldPrice: number;
+                    newPrice: number;
+                    unavailable?: boolean;
+                    optionChanges?: { valueId: string; oldAdjust: number; newAdjust: number }[];
+                }[];
+            }>("/api/menus/verify-prices", {
+                method: "POST",
+                body: JSON.stringify({
+                    items: items.map(item => ({
+                        menuId: item.id,
+                        price: item.price,
+                        selectedOptions: item.selectedOptions.map(opt => ({
+                            valueId: opt.valueId,
+                            priceAdjust: opt.priceAdjust,
+                        })),
+                    })),
+                }),
+                silent: true,
+            });
+
+            if (!verifyResult.verified) {
+                const unavailableItems = verifyResult.changes.filter(c => c.unavailable);
+                const priceChangedItems = verifyResult.changes.filter(c => !c.unavailable);
+
+                for (const item of unavailableItems) {
+                    removeItemsByMenuId(item.menuId);
+                }
+
+                if (priceChangedItems.length > 0) {
+                    updateItemPrices(
+                        priceChangedItems.map(c => ({
+                            menuId: c.menuId,
+                            newPrice: c.newPrice,
+                            optionChanges: c.optionChanges?.map(o => ({
+                                valueId: o.valueId,
+                                newAdjust: o.newAdjust,
+                            })),
+                        }))
+                    );
+                }
+
+                const messages: string[] = [];
+                for (const item of unavailableItems) {
+                    messages.push(`"${item.name}" sudah tidak tersedia dan dihapus dari keranjang.`);
+                }
+                for (const item of priceChangedItems) {
+                    messages.push(`"${item.name}" harganya berubah: ${formatPrice(item.oldPrice)} → ${formatPrice(item.newPrice)}`);
+                }
+
+                toast.warning("Ada perubahan harga!", {
+                    description: messages.join("\n"),
+                    duration: 6000,
+                });
+
+                setIsSubmitting(false);
+                return;
+            }
+
+            const subtotal = items.reduce((acc, item) => {
+                const optionsPrice = item.selectedOptions.reduce((optAcc, opt) => optAcc + opt.priceAdjust, 0);
+                return acc + (item.price + optionsPrice) * item.quantity;
+            }, 0);
+            const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE);
+            const beforeRounding = subtotal + serviceFee;
+            const grandTotal = Math.round(beforeRounding / ROUND_TO) * ROUND_TO;
+            const rounding = grandTotal - beforeRounding;
+
+            const diningPrefix = diningType === "DINE_IN" ? "[Makan di Tempat]" : "[Bawa Pulang]";
+
             const orderPayload = {
                 tableId: table.id,
                 items: items.map(item => ({
                     menuId: item.id,
                     quantity: item.quantity,
-                    notes: item.notes,
+                    notes: `${diningPrefix}${item.notes ? ` \nCatatan Item: ${item.notes}` : ""}`,
                     selectedOptions: item.selectedOptions.map(opt => ({
                         menuOptionValueId: opt.valueId,
                         optionName: opt.optionName,
                         optionValue: opt.optionValue,
                         priceAdjust: opt.priceAdjust
                     }))
-                }))
+                })),
+                serviceFee,
+                rounding,
             };
 
             const order = await apiFetch<OrderResponse>("/api/orders", {
@@ -175,11 +329,8 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
 
                 snapPay(order.midtransToken, {
                     onSuccess: async () => {
-                        toast.success("Pembayaran Berhasil! 💸");
+                        toast.success("Pembayaran Berhasil!");
 
-                        // ZERO-LATENCY OPTIMIZATION:
-                        // Instead of waiting 8-18s for the Midtrans Sandbox Webhook, 
-                        // proactively command the server to fetch status and broadcast to kitchen INSTANTLY.
                         try {
                             await apiFetch(`/api/orders/${order.orderCode}/check-payment`, { method: "POST" });
                         } catch (error) {
@@ -190,12 +341,12 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                         clearCart();
                     },
                     onPending: async () => {
-                        toast.info("Menunggu Pembayaran... ⏳");
+                        toast.info("Menunggu Pembayaran...");
                         setActiveOrderCode(order.orderCode);
                         clearCart();
                     },
                     onError: () => {
-                        toast.error("Pembayaran Gagal 😢");
+                        toast.error("Pembayaran Gagal");
                         setActiveOrderCode(order.orderCode);
                         clearCart();
                     },
@@ -207,7 +358,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                 });
             } else {
                 setActiveOrderCode(order.orderCode);
-                toast.success("Pesanan berhasil dikirim ke dapur! 👨‍🍳");
+                toast.success("Pesanan berhasil dikirim ke dapur!");
                 clearCart();
                 setIsCartOpen(false);
             }
@@ -222,6 +373,26 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
     const handleSelectItem = (menu: Menu) => {
         setSelectedMenu(menu);
         setIsItemModalOpen(true);
+    };
+
+    const handleEditItem = (item: CartItem) => {
+        const menuToEdit = menus.find(m => m.id === item.id);
+        if (!menuToEdit) return;
+
+        setEditingItem(item);
+        setEditItemHash(getOptionsHash(item.selectedOptions));
+        setSelectedMenu(menuToEdit);
+        setIsCartOpen(false);
+        setIsItemModalOpen(true);
+    };
+
+    const handleCloseItemModal = () => {
+        setIsItemModalOpen(false);
+        setSelectedMenu(null);
+        setEditingItem(null);
+        setEditItemHash(null);
+        // UX: Re-open the cart sheet after saving
+        setIsCartOpen(true);
     };
 
     return (
@@ -253,7 +424,7 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
                         onClick={() => setIsCartOpen(true)}
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-primary text-black rounded-full flex items-center justify-center font-bold shadow-[0_8px_20px_rgba(46,254,60,0.15)] group-hover:scale-105 transition-transform duration-500">
+                            <div className="w-12 h-12 bg-primary text-black rounded-full flex items-center justify-center font-bold shadow-[0_8px_20px_rgba(53,183,24,0.15)] group-hover:scale-105 transition-transform duration-500">
                                 <ShoppingCart className="w-5 h-5 fill-current" />
                             </div>
                             <div className="flex flex-col items-start translate-y-0.5">
@@ -275,26 +446,23 @@ export function OrderClient({ initialMenus = [], table }: OrderClientProps) {
             }
 
             <ItemModal
-                key={selectedMenu?.id ?? "empty-menu"}
+                key={`${selectedMenu?.id ?? "empty"}-${editItemHash ?? "new"}`}
                 menu={selectedMenu}
                 isOpen={isItemModalOpen}
-                onClose={() => setIsItemModalOpen(false)}
+                onClose={editingItem ? handleCloseItemModal : () => setIsItemModalOpen(false)}
+                initialCartItem={editingItem}
+                editItemHash={editItemHash}
             />
 
             <CartSheet
                 isOpen={isCartOpen}
                 onClose={() => setIsCartOpen(false)}
                 onCheckout={handleCheckout}
+                isSubmitting={isSubmitting}
+                allMenus={menus}
+                onSelectItem={handleSelectItem}
+                onEditItem={handleEditItem}
             />
-
-            {
-                isSubmitting && (
-                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
-                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                        <p className="text-white font-black uppercase tracking-widest text-xs">Mengirim Pesanan...</p>
-                    </div>
-                )
-            }
 
             <TrackingSheet />
         </div >

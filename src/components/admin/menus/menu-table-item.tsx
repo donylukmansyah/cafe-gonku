@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -9,6 +10,7 @@ import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import type { Menu } from "@/types/menu";
 import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
+import { normalizeImageUrl } from "@/lib/image-url";
 
 interface MenuTableItemProps {
     menu: Menu;
@@ -22,17 +24,20 @@ export const MenuTableItem = memo(function MenuTableItem({
     onToggleAvailability,
 }: MenuTableItemProps) {
     const [imageError, setImageError] = useState(false);
+    const imageUrl = normalizeImageUrl(menu.imageUrl);
 
     return (
         <TableRow className="border-white/5 hover:bg-white/[0.02] transition-colors group">
             <TableCell className="py-4">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/5 overflow-hidden flex items-center justify-center relative">
-                        {menu.imageUrl && !imageError ? (
-                            <img
-                                src={menu.imageUrl}
+                        {imageUrl && !imageError ? (
+                            <Image
+                                src={imageUrl}
                                 alt={menu.name}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                fill
+                                sizes="48px"
                                 onError={() => setImageError(true)}
                             />
                         ) : (

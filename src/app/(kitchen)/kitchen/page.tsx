@@ -5,8 +5,9 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChefHat, UtensilsCrossed, MonitorPlay, ShoppingCart } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AppToaster } from "@/components/ui/app-toaster";
 
 // Hooks
 import { useKitchenOrders } from "@/hooks/use-kitchen-orders";
@@ -104,7 +105,7 @@ export default function KitchenPage() {
         if (audioRef.current) {
             audioRef.current.currentTime = 0;
             audioRef.current.play()
-                .then(() => toast.success("Suara notifikasi berfungsi! 🔊"))
+                .then(() => toast.success("Suara notifikasi berfungsi"))
                 .catch((err) => {
                     console.error("Test sound failed:", err);
                     toast.error("Gagal memutar suara. Coba klik dashboard lalu tes lagi.");
@@ -129,7 +130,7 @@ export default function KitchenPage() {
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-primary/30">
-            <Toaster position="top-right" theme="dark" richColors />
+            <AppToaster position="top-right" />
 
             {/* Hidden audio element */}
             <audio ref={audioRef} src="/notif/new-order.wav" preload="auto" />
@@ -148,7 +149,7 @@ export default function KitchenPage() {
                     <Button
                         size="lg"
                         onClick={handleAudioUnlock}
-                        className="bg-primary text-black font-black uppercase tracking-widest px-12 py-8 rounded-full text-lg hover:scale-105 transition-all shadow-[0_0_40px_rgba(46,254,60,0.3)] hover:shadow-[0_0_60px_rgba(46,254,60,0.5)]"
+                        className="bg-primary text-black font-black uppercase tracking-widest px-12 py-8 rounded-full text-lg hover:scale-105 transition-all shadow-[0_0_40px_rgba(53,183,24,0.3)] hover:shadow-[0_0_60px_rgba(53,183,24,0.5)]"
                     >
                         Aktifkan Dashboard
                     </Button>

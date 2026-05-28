@@ -12,6 +12,12 @@ const createTableSchema = z.object({
 // GET /api/tables - List all tables
 export async function GET() {
     try {
+        const session = await getServerSession();
+        if (!session) return apiError("Unauthorized", 401);
+
+        const user = session.user as { role?: string };
+        if (user.role !== "ADMIN") return apiError("Forbidden: Admin access required", 403);
+
         const tables = await TableService.getTables();
         return apiResponse(tables);
     } catch (error) {

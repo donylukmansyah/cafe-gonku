@@ -1,9 +1,9 @@
 
-import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
-// Create Prisma adapter for Neon using the pooled connection
-const adapter = new PrismaNeon({
+// Runtime database connection. Use the pooled DATABASE_URL for app queries.
+const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
 })
 

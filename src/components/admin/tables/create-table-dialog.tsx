@@ -1,7 +1,7 @@
 "use client"
 
-import { Download, Loader2 } from "lucide-react"
-import { useForm } from "react-hook-form"
+import { Loader2 } from "lucide-react"
+import { type Resolver, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
@@ -51,7 +51,7 @@ export function CreateTableDialog({
     existingTables,
 }: CreateTableDialogProps) {
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema) as any,
+        resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
         defaultValues: {
             tableNumber: 0,
             capacity: 4,
@@ -138,7 +138,7 @@ export function CreateTableDialog({
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-primary hover:bg-primary/90 text-black font-bold rounded-xl h-11 flex-1 shadow-[0_0_20px_rgba(46,254,60,0.2)] cursor-pointer"
+                                className="bg-primary hover:bg-primary/90 text-black font-bold rounded-xl h-11 flex-1 shadow-[0_0_20px_rgba(53,183,24,0.2)] cursor-pointer"
                                 disabled={form.formState.isSubmitting}
                             >
                                 {form.formState.isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buat Meja"}

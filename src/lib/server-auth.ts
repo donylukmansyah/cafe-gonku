@@ -3,6 +3,10 @@ import { redirect, unstable_rethrow } from "next/navigation"
 import { auth, Session } from "@/lib/auth"
 import { cache } from "react"
 
+type SessionUserWithRole = Session["user"] & {
+    role?: "ADMIN" | "KITCHEN" | string
+}
+
 /**
  * Retrieves the current session from the server using Next.js headers.
  * This is safe to use in Server Components, Layouts, and Server Actions.
@@ -35,7 +39,7 @@ export async function requireRole(requiredRole: string, redirectTo = "/login"): 
         redirect(redirectTo)
     }
 
-    const role = (session.user as any).role
+    const role = (session.user as SessionUserWithRole).role
 
     if (role !== requiredRole) {
         // If they have a role but it's the wrong one, we might want to redirect them to their correct dashboard
@@ -56,7 +60,7 @@ export async function requireGuest() {
     const session = await getServerSession()
 
     if (session && session.user) {
-        const role = (session.user as any).role
+        const role = (session.user as SessionUserWithRole).role
 
         if (role === "ADMIN") redirect("/admin")
         if (role === "KITCHEN") redirect("/kitchen")

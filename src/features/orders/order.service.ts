@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { snap } from "@/lib/midtrans";
 import { supabaseAdmin, sendBroadcast } from "@/lib/supabase";
 import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
+import { bumpCacheVersion } from "@/lib/redis";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { getCafeDayRange, parseCafeLocalDateTime } from "@/lib/cafe-date";
 import type { CreateOrderInput } from "@/validations/order";
@@ -203,6 +204,7 @@ async function broadcastOrderStatus(
 
 function revalidateAdminDashboard() {
   revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
+  void bumpCacheVersion("analytics");
 }
 
 export class OrderService {
@@ -252,21 +254,21 @@ export class OrderService {
   }
 
   static async createOrder(data: CreateOrderInput) {
-    const { tableId, items, customerName, customerPhone } = data;
+    const { tableId, items, customerName, customerPhone, serviceFee, rounding } = data;
 
     const recentOrder = await prisma.order.findFirst({
       where: {
         tableId,
         status: OrderStatus.PENDING,
         createdAt: {
-          gte: new Date(Date.now() - 2 * 60 * 1000),
+          gte: new Date(Date.now() - 15 * 1000), // 15 seconds debounce
         },
       },
     });
 
     if (recentOrder) {
       throw new Error(
-        "Sudah ada pesanan yang sedang diproses untuk meja ini. Tunggu sebentar.",
+        "Harap tunggu beberapa detik sebelum membuat pesanan baru.",
       );
     }
 
@@ -345,6 +347,21 @@ export class OrderService {
       };
     });
 
+    const SERVICE_FEE_RATE = 0.1;
+    const ROUND_TO = 1000;
+    const serverServiceFee = Math.round(totalAmount * SERVICE_FEE_RATE);
+    const beforeRounding = totalAmount + serverServiceFee;
+    const finalTotal = Math.round(beforeRounding / ROUND_TO) * ROUND_TO;
+    const serverRounding = finalTotal - beforeRounding;
+
+    if (serviceFee !== undefined && serviceFee !== serverServiceFee) {
+      throw new Error("Perhitungan biaya layanan tidak cocok. Silakan coba lagi.");
+    }
+
+    if (rounding !== undefined && rounding !== serverRounding) {
+      throw new Error("Perhitungan pembulatan tidak cocok. Silakan coba lagi.");
+    }
+
     const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
     const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
     const orderCode = `GONKU-${dateStr}-${randomStr}`;
@@ -355,7 +372,7 @@ export class OrderService {
         tableId,
         customerName,
         customerPhone,
-        totalAmount,
+        totalAmount: finalTotal,
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.PENDING,
         orderItems: {
@@ -382,22 +399,40 @@ export class OrderService {
     });
 
     try {
+      const midtransItems = order.orderItems.map((item) => ({
+        id: item.menuId,
+        price:
+          item.price +
+          item.selectedOptions.reduce(
+            (accumulator, option) => accumulator + option.priceAdjust,
+            0,
+          ),
+        quantity: item.quantity,
+        name: item.menu.name.substring(0, 50),
+      }));
+
+      midtransItems.push({
+        id: "SERVICE-FEE",
+        price: serverServiceFee,
+        quantity: 1,
+        name: "Biaya Layanan & Aplikasi",
+      });
+
+      if (serverRounding !== 0) {
+        midtransItems.push({
+          id: "ROUNDING",
+          price: serverRounding,
+          quantity: 1,
+          name: "Pembulatan",
+        });
+      }
+
       const transaction = await snap.createTransaction({
         transaction_details: {
           order_id: orderCode,
-          gross_amount: totalAmount,
+          gross_amount: finalTotal,
         },
-        item_details: order.orderItems.map((item) => ({
-          id: item.menuId,
-          price:
-            item.price +
-            item.selectedOptions.reduce(
-              (accumulator, option) => accumulator + option.priceAdjust,
-              0,
-            ),
-          quantity: item.quantity,
-          name: item.menu.name.substring(0, 50),
-        })),
+        item_details: midtransItems,
         customer_details: {
           first_name: customerName?.trim() || "Customer",
           last_name: `#${orderCode}`,

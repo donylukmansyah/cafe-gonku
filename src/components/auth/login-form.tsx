@@ -74,6 +74,7 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
                                 <Input
                                     id="email"
                                     type="email"
+                                    autoComplete="email"
                                     placeholder="admin@cafegonku.com"
                                     {...register("email")}
                                     disabled={isLoading}
@@ -90,6 +91,7 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
                                     <Input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
+                                        autoComplete="current-password"
                                         placeholder="••••••••"
                                         {...register("password")}
                                         disabled={isLoading}
@@ -97,6 +99,7 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
                                     />
                                     <button
                                         type="button"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
                                         onClick={togglePasswordVisibility}
                                         className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white transition-colors cursor-pointer"
                                         disabled={isLoading}
@@ -112,7 +115,7 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
 
                             <Button
                                 type="submit"
-                                className="w-full h-14 bg-primary hover:bg-primary/90 text-black font-black text-base shadow-[0_20px_40px_-15px_rgba(46,254,60,0.15)] hover:shadow-[0_25px_50px_-12px_rgba(46,254,60,0.25)] transition-all duration-300 rounded-2xl mt-4 group overflow-hidden relative cursor-pointer"
+                                className="w-full h-14 bg-primary hover:bg-primary/90 text-black font-black text-base shadow-[0_20px_40px_-15px_rgba(53,183,24,0.15)] hover:shadow-[0_25px_50px_-12px_rgba(53,183,24,0.25)] transition-all duration-300 rounded-2xl mt-4 group overflow-hidden relative cursor-pointer"
                                 disabled={isLoading}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none" />

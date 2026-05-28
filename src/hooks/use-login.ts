@@ -3,6 +3,10 @@ import { useRouter } from "next/navigation"
 import { authClient, signIn } from "@/lib/auth-client"
 import { LoginInput } from "@/validations/auth"
 
+type SessionUserWithRole = {
+    role?: "ADMIN" | "KITCHEN" | string
+}
+
 export function useLogin(callbackUrl: string = "/admin") {
     const router = useRouter()
     const [error, setError] = useState<string | null>(null)
@@ -34,7 +38,7 @@ export function useLogin(callbackUrl: string = "/admin") {
                 return true
             }
 
-            const userRole = (session.user as any).role
+            const userRole = (session.user as SessionUserWithRole).role
 
             // Handle custom callback URL or default role-based routing
             if (callbackUrl && callbackUrl !== "/admin" && callbackUrl !== "/kitchen" && callbackUrl !== "/login") {

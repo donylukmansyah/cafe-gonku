@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/server-auth";
 import { createOrderSchema } from "@/validations/order";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { OrderService } from "@/lib/services/order.service";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/orders - Get orders for Kitchen Display (Priority Queue)
 export async function GET(request: Request) {
@@ -33,6 +34,11 @@ export async function GET(request: Request) {
 // Security Refactor: Move price calculation to server
 export async function POST(request: Request) {
     try {
+        const rateLimit = await checkRateLimit("orderCreate", getClientIp(request));
+        if (!rateLimit.success) {
+            return apiError("Terlalu banyak request. Coba lagi sebentar.", 429);
+        }
+
         const body = await request.json();
         const validatedData = createOrderSchema.parse(body);
 

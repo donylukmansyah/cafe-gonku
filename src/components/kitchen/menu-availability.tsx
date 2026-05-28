@@ -104,7 +104,7 @@ const MenuItem = memo(function MenuItem({
             <Switch
                 checked={menu.isAvailable}
                 onCheckedChange={() => onToggle(menu)}
-                // Disabled removed to avoid "laggy" locked feel during optimistic update
+                disabled={isUpdating}
                 className="data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-primary/50 border-white/5 bg-zinc-800 h-5 w-9 cursor-pointer transition-all"
             />
         </div>
@@ -244,7 +244,7 @@ export function MenuAvailability({
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-xl">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(46,254,60,0.05)]">
+                    <div className="w-12 h-12 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(53,183,24,0.05)]">
                         <UtensilsCrossed className="w-5 h-5 text-primary" />
                     </div>
                     <div>

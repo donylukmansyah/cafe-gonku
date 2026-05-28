@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { bumpCacheVersion } from "@/lib/redis";
 import {
   getCafeDateKey,
   getCafeDateLabel,
@@ -78,6 +79,8 @@ export class DailyCashService {
         recordedBy: payload.recordedBy ?? null,
       },
     });
+
+    await bumpCacheVersion("analytics");
 
     return serializeCashRecord(record);
   }

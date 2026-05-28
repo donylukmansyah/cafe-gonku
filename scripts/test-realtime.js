@@ -1,9 +1,15 @@
-const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
+async function main() {
+const { createClient } = await import("@supabase/supabase-js");
+await import("dotenv/config");
 
-const NEXT_PUBLIC_SUPABASE_URL = "https://riyivttdajhznrqxuwbl.supabase.co";
-const NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_lGpeLaS5oDV9F756V_RNUg_Q2QB5zBc";
-const SUPABASE_SERVICE_ROLE_KEY = "sb_secret_PDCyTg-phRYZt7JhFxnLDg_jozehC2R";
+const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!NEXT_PUBLIC_SUPABASE_URL || !NEXT_PUBLIC_SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("Missing Supabase environment variables for realtime test.");
+    process.exit(1);
+}
 
 const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
@@ -11,7 +17,7 @@ async function testRealtime() {
     console.log(`[${new Date().toISOString()}] Connecting to Supabase Realtime...`);
 
     // Subscribe to kitchen-updates
-    const channel = supabase
+    supabase
         .channel("kitchen-updates")
         .on("broadcast", { event: "refresh-orders" }, (payload) => {
             console.log(`[${new Date().toISOString()}] 🟢 RECEIVED broadcast on kitchen-updates!`);
@@ -24,7 +30,6 @@ async function testRealtime() {
             if (status === 'SUBSCRIBED') {
                 console.log(`[${new Date().toISOString()}] Sending mock broadcast via REST API...`);
 
-                const startTime = Date.now();
                 // Send broadcast via REST (same as backend webhook)
                 const endpoint = `${NEXT_PUBLIC_SUPABASE_URL}/realtime/v1/api/broadcast`;
                 const response = await fetch(endpoint, {
@@ -58,4 +63,7 @@ async function testRealtime() {
         });
 }
 
-testRealtime();
+await testRealtime();
+}
+
+main();

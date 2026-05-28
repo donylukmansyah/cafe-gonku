@@ -133,7 +133,7 @@ export const OrderCard = memo(function OrderCard({
         <Card
             onClick={onSelect}
             className={`bg-zinc-950/60 backdrop-blur-2xl border-zinc-800/80 overflow-hidden transition-all duration-500 hover:border-primary/30 group cursor-pointer relative ${isSelected
-                ? "ring-2 ring-primary shadow-[0_20px_50px_rgba(46,254,60,0.2)] border-primary/50"
+                ? "ring-2 ring-primary shadow-[0_20px_50px_rgba(53,183,24,0.2)] border-primary/50"
                 : isUrgent
                     ? "ring-2 ring-red-500/40 shadow-[0_20px_50px_rgba(239,68,68,0.2)]"
                     : isWarning
@@ -158,7 +158,7 @@ export const OrderCard = memo(function OrderCard({
                             ? "bg-red-500 shadow-[0_8px_25px_rgba(239,68,68,0.4)]"
                             : isWarning
                                 ? "bg-amber-500 shadow-[0_8px_25px_rgba(245,158,11,0.3)]"
-                                : "bg-primary shadow-[0_10px_30px_rgba(46,254,60,0.15)]"
+                                : "bg-primary shadow-[0_10px_30px_rgba(53,183,24,0.15)]"
                             }`}>
                             {/* Glossy Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-60" />

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { Menu, LayoutDashboard, UtensilsCrossed, TableProperties, BarChart3, Coffee } from "lucide-react"
 import { SidebarLogoutButton } from "./sidebar-logout-button"
 
@@ -30,12 +30,13 @@ export function SidebarMenuButton({ sessionName, sessionEmail }: { sessionName?:
             <SheetContent side="left" className="p-0 w-72 border-r-zinc-800 bg-zinc-900">
                 <div className="sr-only">
                     <SheetTitle>Navigation Menu</SheetTitle>
+                    <SheetDescription>Daftar navigasi dashboard admin Cafe Gonku.</SheetDescription>
                 </div>
 
                 <div className="flex flex-col h-full bg-zinc-900 border-r border-zinc-800">
                     {/* Logo */}
                     <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-800 h-16">
-                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(46,254,60,0.3)]">
+                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(53,183,24,0.3)]">
                             <Coffee className="w-5 h-5 text-black fill-black/20" />
                         </div>
                         <span className="font-bold text-lg text-white tracking-tight">Cafe Gonku</span>

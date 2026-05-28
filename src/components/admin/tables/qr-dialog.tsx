@@ -49,7 +49,11 @@ export function QRDialog({
                     <div className="bg-white p-5 rounded-3xl shadow-[0_0_50px_rgba(255,255,255,0.1)] ring-1 ring-white/5 relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
                         {qrDataUrl ? (
-                            <img src={qrDataUrl} alt="QR Code" className="w-52 h-52 relative z-10" />
+                            <>
+                                {/* QR data URLs are generated client-side; next/image adds no value here. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={qrDataUrl} alt="QR Code" className="w-52 h-52 relative z-10" />
+                            </>
                         ) : (
                             <div className="w-52 h-52 flex items-center justify-center">
                                 <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -64,7 +68,7 @@ export function QRDialog({
                 </div>
                 <DialogFooter>
                     <Button
-                        className="w-full bg-primary hover:bg-primary/90 text-black font-bold h-12 rounded-xl shadow-[0_0_20px_rgba(46,254,60,0.15)] transition-all cursor-pointer"
+                        className="w-full bg-primary hover:bg-primary/90 text-black font-bold h-12 rounded-xl shadow-[0_0_20px_rgba(53,183,24,0.15)] transition-all cursor-pointer"
                         onClick={onDownload}
                         disabled={!qrDataUrl}
                     >
