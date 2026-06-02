@@ -216,6 +216,7 @@ enum PaymentStatus {
 model Order {
   id        String   @id @default(cuid())
   orderCode String   @unique // Kode unik: "GONKU-001", "GONKU-002"
+  accessToken String @unique @default(cuid()) // Customer ownership token
   
   // Table reference
   tableId String

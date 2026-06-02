@@ -1,7 +1,9 @@
 import { Suspense } from "react"
-import { Loader2, Coffee, ShieldCheck } from "lucide-react"
+import { Coffee, ShieldCheck } from "lucide-react"
 import { LoginForm } from "@/components/auth/login-form"
 import { requireGuest } from "@/lib/server-auth"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 interface LoginPageProps {
     searchParams: Promise<{
@@ -13,11 +15,52 @@ async function LoginContent({ searchParamsPromise }: { searchParamsPromise: Prom
     const resolvedSearchParams = await searchParamsPromise
     const callbackUrl = resolvedSearchParams?.callbackUrl || "/admin"
 
-    // Server-side check: if logged in, redirect to appropriate dashboard automatically
-    // This prevents the login screen from ever rendering for authenticated users
-    await requireGuest()
+    // Server-side check inside Suspense for Next 16 Cache Components compatibility.
+    await requireGuest(callbackUrl)
 
     return <LoginForm callbackUrl={callbackUrl} />
+}
+
+function LoginFormSkeleton() {
+    return (
+        <div className="w-full max-w-md space-y-10 relative z-10 animate-pulse">
+            <div className="relative">
+                {/* Subtle background glow for the card */}
+                <div className="absolute -inset-2 bg-gradient-to-r from-primary/5 via-blue-500/5 to-primary/5 rounded-[2.5rem] blur-2xl opacity-20" />
+
+                <Card className="bg-zinc-900/40 backdrop-blur-3xl border-white/10 shadow-3xl rounded-[2.5rem] relative overflow-hidden border-t-white/10">
+                    <CardHeader className="space-y-3 text-center pb-8 pt-10">
+                        {/* Title Skeleton */}
+                        <Skeleton className="h-8 w-48 bg-zinc-800 mx-auto rounded-lg" />
+                        {/* Subtitle Skeleton */}
+                        <Skeleton className="h-4 w-64 bg-zinc-800/50 mx-auto rounded-lg" />
+                    </CardHeader>
+
+                    <CardContent className="px-8 pb-10 space-y-6">
+                        {/* Email Field Skeleton */}
+                        <div className="space-y-2.5">
+                            <Skeleton className="h-3.5 w-24 bg-zinc-800/50 rounded" />
+                            <Skeleton className="h-14 w-full bg-zinc-800/30 rounded-2xl border border-white/5" />
+                        </div>
+
+                        {/* Password Field Skeleton */}
+                        <div className="space-y-2.5">
+                            <Skeleton className="h-3.5 w-24 bg-zinc-800/50 rounded" />
+                            <Skeleton className="h-14 w-full bg-zinc-800/30 rounded-2xl border border-white/5" />
+                        </div>
+
+                        {/* Button Skeleton */}
+                        <Skeleton className="h-14 w-full bg-primary/20 rounded-2xl mt-4" />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Version Footer Skeleton */}
+            <div className="text-center">
+                <Skeleton className="h-3 w-40 bg-zinc-800/50 mx-auto rounded" />
+            </div>
+        </div>
+    )
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
@@ -71,11 +114,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
                 <div className="absolute top-[5%] right-[5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[160px] pointer-events-none animate-pulse duration-[5000ms]" />
                 <div className="absolute bottom-[5%] left-[5%] w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[160px] pointer-events-none animate-pulse delay-1000 duration-[6000ms]" />
 
-                <Suspense fallback={
-                    <div className="flex items-center justify-center">
-                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                    </div>
-                }>
+                <Suspense fallback={<LoginFormSkeleton />}>
                     <LoginContent searchParamsPromise={searchParams} />
                 </Suspense>
             </div>

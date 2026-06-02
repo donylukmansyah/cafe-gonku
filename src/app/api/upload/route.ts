@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/server-auth"
 import { uploadMenuImage } from "@/lib/image-storage"
+import { optimizeImage } from "@/lib/image-optimizer"
 
 export async function POST(request: NextRequest) {
     try {
@@ -49,18 +50,20 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Generate unique filename
-        const fileExt = file.name.split(".").pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-
         // Convert File to ArrayBuffer for upload
         const arrayBuffer = await file.arrayBuffer()
-        const buffer = new Uint8Array(arrayBuffer)
+        const rawBuffer = new Uint8Array(arrayBuffer)
+
+        const optimized = await optimizeImage(rawBuffer, file.type)
+
+        // Generate unique filename
+        const ext = optimized.mimeType === "image/webp" ? "webp" : file.name.split(".").pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
 
         const upload = await uploadMenuImage({
             fileName,
-            mimeType: file.type,
-            bytes: buffer,
+            mimeType: optimized.mimeType,
+            bytes: optimized.data,
         })
 
         return NextResponse.json({

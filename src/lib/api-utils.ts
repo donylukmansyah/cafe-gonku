@@ -4,6 +4,18 @@ import { Prisma } from "@prisma/client";
 
 type ApiErrorDetails = Record<string, unknown> | unknown[];
 
+export class AppError extends Error {
+    status: number;
+    details?: ApiErrorDetails;
+
+    constructor(message: string, status = 400, details?: ApiErrorDetails) {
+        super(message);
+        this.name = "AppError";
+        this.status = status;
+        this.details = details;
+    }
+}
+
 export function apiResponse<T>(data: T, status = 200, cache?: string) {
     return NextResponse.json(
         {
@@ -43,6 +55,10 @@ export function handleApiError(error: unknown, context?: string) {
 
     console.error(JSON.stringify(logData));
 
+    if (error instanceof AppError) {
+        return apiError(error.message, error.status, error.details);
+    }
+
     if (error instanceof ZodError) {
         return apiError("Validation failed", 400, error.issues);
     }
@@ -59,6 +75,5 @@ export function handleApiError(error: unknown, context?: string) {
         }
     }
 
-    const message = error instanceof Error ? error.message : "Internal Server Error";
-    return apiError(message, 500);
+    return apiError("Internal Server Error", 500);
 }

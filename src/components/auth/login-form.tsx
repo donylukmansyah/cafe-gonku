@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Coffee, Eye, EyeOff, ArrowRight } from "lucide-react"
+import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react"
 
 export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) {
     const {
@@ -33,16 +33,6 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
 
     return (
         <div className="w-full max-w-md space-y-10 relative z-10">
-            {/* Mobile Logo */}
-            <div className="lg:hidden flex flex-col items-center justify-center mb-4 text-center">
-                <div className="w-24 h-24 bg-zinc-900/50 backdrop-blur-2xl rounded-[2rem] flex items-center justify-center mb-8 border border-white/10 shadow-2xl relative">
-                    <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full" />
-                    <Coffee className="w-12 h-12 text-primary relative z-10" />
-                </div>
-                <h1 className="text-4xl font-black text-white tracking-tight mb-3">Cafe Gonku</h1>
-                <p className="text-zinc-500 font-medium">Sign in to manage your space</p>
-            </div>
-
             <div className="relative">
                 {/* Subtle background glow for the card */}
                 <div className="absolute -inset-2 bg-gradient-to-r from-primary/10 via-blue-500/10 to-primary/10 rounded-[2.5rem] blur-2xl opacity-30" />

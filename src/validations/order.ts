@@ -22,6 +22,11 @@ export const updateOrderStatusSchema = z.object({
     status: orderStatusSchema,
 });
 
+export const bulkUpdateOrderStatusSchema = z.object({
+    orderIds: z.array(z.string().cuid()).min(1).max(50),
+    status: orderStatusSchema,
+});
+
 // Schema for creating a new order (Customer)
 export const createOrderSchema = z.object({
     tableId: z.string().cuid(),
@@ -44,6 +49,7 @@ export const createOrderSchema = z.object({
     ).min(1),
     serviceFee: z.number().int().min(0).optional(),
     rounding: z.number().int().optional(),
+    priceHash: z.string().optional(),
 });
 
 // Types

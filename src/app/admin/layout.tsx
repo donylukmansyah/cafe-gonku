@@ -1,18 +1,16 @@
 import { requireRole } from "@/lib/server-auth"
-import { Coffee } from "lucide-react"
+import { Coffee, Loader2 } from "lucide-react"
 import { SidebarLogoutButton } from "@/components/admin/sidebar-logout-button"
 import { SidebarMenuButton } from "@/components/admin/sidebar-menu-button"
 import { SidebarDesktopNav } from "@/components/admin/sidebar-desktop-nav"
-
 import { Suspense } from "react"
-import { Loader2 } from "lucide-react"
 
 async function AdminLayoutContent({
     children,
 }: {
     children: React.ReactNode
 }) {
-    // Protect the layout server-side
+    // Protect the layout server-side inside Suspense for Cache Components compatibility.
     const session = await requireRole("ADMIN")
 
     return (
@@ -80,7 +78,6 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode
 }) {
-    // Wrap the dynamic content in a Suspense boundary for PPR compatibility
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-black flex flex-col items-center justify-center">

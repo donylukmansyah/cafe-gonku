@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
                         <span className="print-kpi-value">Rp {data.onlineRevenue.toLocaleString("id-ID")}</span>
                     </div>
                     <div className="print-kpi-card">
-                        <span className="print-kpi-label">Cash / Tunai</span>
+                        <span className="print-kpi-label">Pendapatan Kasir</span>
                         <span className="print-kpi-value">Rp {data.cashRevenue.toLocaleString("id-ID")}</span>
                     </div>
                     <div className="print-kpi-card">

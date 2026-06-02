@@ -1,10 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { OrderService } from "@/lib/services/order.service";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { validateOrderAccess, OrderAccessError } from "@/lib/order-access";
 
 // POST /api/orders/[id]/cancel - Cancel a pending order
 export async function POST(
-    request: NextRequest,
+    request: Request,
     props: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -14,31 +15,27 @@ export async function POST(
             `${getClientIp(request)}:${id}`,
         );
         if (!rateLimit.success) {
-            return NextResponse.json(
-                { error: "Terlalu banyak request pembatalan. Coba lagi sebentar." },
-                { status: 429 },
-            );
+            return apiError("Terlalu banyak request pembatalan. Coba lagi sebentar.", 429);
+        }
+
+        // Validate customer ownership of the order
+        try {
+            await validateOrderAccess(request, id);
+        } catch (err) {
+            if (err instanceof OrderAccessError) {
+                return apiError(err.message, err.status);
+            }
+            return apiError("Unauthorized", 401);
         }
 
         const updatedOrder = await OrderService.cancelOrder(id);
 
-        return NextResponse.json({
+        return apiResponse({
             message: "Pesanan berhasil dibatalkan",
             order: updatedOrder
         });
 
     } catch (error) {
-        console.error("[POST /api/orders/[id]/cancel] Error:", error);
-        if (
-            typeof error === "object" &&
-            error !== null &&
-            "status" in error &&
-            error.status === 400 &&
-            "message" in error &&
-            typeof error.message === "string"
-        ) {
-            return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return handleApiError(error, `POST /api/orders/[id]/cancel`);
     }
 }

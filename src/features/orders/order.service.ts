@@ -7,7 +7,11 @@ import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
 import { bumpCacheVersion } from "@/lib/redis";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { getCafeDayRange, parseCafeLocalDateTime } from "@/lib/cafe-date";
+import { AppError } from "@/lib/api-utils";
 import type { CreateOrderInput } from "@/validations/order";
+import { generateOrderAccessToken } from "@/lib/order-access";
+import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
+import crypto from "crypto";
 
 const ACTIVE_KITCHEN_STATUSES: OrderStatus[] = [
   OrderStatus.PAID,
@@ -171,7 +175,7 @@ function assertKitchenStatusTransition(current: OrderStatus, next: OrderStatus) 
   const allowedStatuses = ALLOWED_KITCHEN_TRANSITIONS[current] ?? [];
 
   if (!allowedStatuses.includes(next)) {
-    throw new Error(`Invalid status transition from ${current} to ${next}`);
+    throw new AppError(`Invalid status transition from ${current} to ${next}`, 400);
   }
 }
 
@@ -254,22 +258,15 @@ export class OrderService {
   }
 
   static async createOrder(data: CreateOrderInput) {
-    const { tableId, items, customerName, customerPhone, serviceFee, rounding } = data;
+    const { tableId, items, customerName, customerPhone, serviceFee, rounding, priceHash } = data;
 
-    const recentOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        status: OrderStatus.PENDING,
-        createdAt: {
-          gte: new Date(Date.now() - 15 * 1000), // 15 seconds debounce
-        },
-      },
+    const table = await prisma.table.findUnique({
+      where: { id: tableId },
+      select: { id: true, isActive: true },
     });
 
-    if (recentOrder) {
-      throw new Error(
-        "Harap tunggu beberapa detik sebelum membuat pesanan baru.",
-      );
+    if (!table || !table.isActive) {
+      throw new AppError("Meja tidak ditemukan atau tidak aktif.", 400);
     }
 
     const menuIds = items.map((item) => item.menuId);
@@ -288,13 +285,38 @@ export class OrderService {
       },
     });
 
+    if (priceHash) {
+      const menuMap = new Map(
+        menus.map((m) => [m.id, m]),
+      );
+
+      const hashItems = buildPriceHashItems(
+        items.map((item) => ({
+          menuId: item.menuId,
+          selectedOptions: (item.selectedOptions ?? []).map((opt) => ({
+            valueId: opt.menuOptionValueId,
+          })),
+        })),
+        menuMap as Map<string, { price: number; menuOptions: { values: { id: string; priceAdjust: number }[] }[] }>,
+      );
+
+      const activePriceHash = computePriceHash(hashItems);
+
+      if (activePriceHash !== priceHash) {
+        throw new AppError(
+          "Harga menu telah berubah. Silakan kembali ke menu untuk memperbarui pesanan Anda.",
+          409,
+        );
+      }
+    }
+
     let totalAmount = 0;
 
     const processedItems = items.map((item) => {
       const menu = menus.find((candidate) => candidate.id === item.menuId);
 
       if (!menu || !menu.isActive || !menu.isAvailable) {
-        throw new Error(`Menu ${menu?.name ?? "tertentu"} sedang tidak tersedia`);
+        throw new AppError(`Menu ${menu?.name ?? "tertentu"} sedang tidak tersedia`, 409);
       }
 
       const selectedValueIds = new Set(
@@ -306,7 +328,7 @@ export class OrderService {
           option.isRequired &&
           !option.values.some((value) => selectedValueIds.has(value.id))
         ) {
-          throw new Error(`Opsi "${option.name}" wajib dipilih untuk ${menu.name}`);
+          throw new AppError(`Opsi "${option.name}" wajib dipilih untuk ${menu.name}`, 400);
         }
       }
 
@@ -320,7 +342,7 @@ export class OrderService {
         );
 
         if (!owningOption || !optionValue) {
-          throw new Error(`Opsi untuk ${menu.name} tidak valid`);
+          throw new AppError(`Opsi untuk ${menu.name} tidak valid`, 400);
         }
 
         return {
@@ -355,47 +377,71 @@ export class OrderService {
     const serverRounding = finalTotal - beforeRounding;
 
     if (serviceFee !== undefined && serviceFee !== serverServiceFee) {
-      throw new Error("Perhitungan biaya layanan tidak cocok. Silakan coba lagi.");
+      throw new AppError("Perhitungan biaya layanan tidak cocok. Silakan coba lagi.", 400);
     }
 
     if (rounding !== undefined && rounding !== serverRounding) {
-      throw new Error("Perhitungan pembulatan tidak cocok. Silakan coba lagi.");
+      throw new AppError("Perhitungan pembulatan tidak cocok. Silakan coba lagi.", 400);
     }
 
     const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
-    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const randomStr = crypto.randomBytes(3).toString("hex").toUpperCase();
     const orderCode = `GONKU-${dateStr}-${randomStr}`;
+    const accessToken = generateOrderAccessToken();
 
-    const order = await prisma.order.create({
-      data: {
-        orderCode,
-        tableId,
-        customerName,
-        customerPhone,
-        totalAmount: finalTotal,
-        status: OrderStatus.PENDING,
-        paymentStatus: PaymentStatus.PENDING,
-        orderItems: {
-          create: processedItems.map((item) => ({
-            menuId: item.menuId,
-            quantity: item.quantity,
-            price: item.price,
-            notes: item.notes,
-            selectedOptions: {
-              create: item.selectedOptions,
-            },
-          })),
-        },
-      },
-      include: {
-        orderItems: {
-          include: {
-            menu: true,
-            selectedOptions: true,
+    const order = await prisma.$transaction(async (tx) => {
+      const lockKey = Buffer.from(tableId).reduce((h, b) => (h * 31 + b) | 0, 0);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
+
+      const recentOrder = await tx.order.findFirst({
+        where: {
+          tableId,
+          status: OrderStatus.PENDING,
+          createdAt: {
+            gte: new Date(Date.now() - 15 * 1000),
           },
         },
-        table: true,
-      },
+      });
+
+      if (recentOrder) {
+        throw new AppError(
+          "Harap tunggu beberapa detik sebelum membuat pesanan baru.",
+          429,
+        );
+      }
+
+      return tx.order.create({
+        data: {
+          orderCode,
+          accessToken,
+          tableId,
+          customerName,
+          customerPhone,
+          totalAmount: finalTotal,
+          status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          orderItems: {
+            create: processedItems.map((item) => ({
+              menuId: item.menuId,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+              selectedOptions: {
+                create: item.selectedOptions,
+              },
+            })),
+          },
+        },
+        include: {
+          orderItems: {
+            include: {
+              menu: true,
+              selectedOptions: true,
+            },
+          },
+          table: true,
+        },
+      });
     });
 
     try {
@@ -466,8 +512,18 @@ export class OrderService {
         },
       });
 
-      throw new Error("Gagal memulai pembayaran. Silakan coba lagi.");
+      throw new AppError("Gagal memulai pembayaran. Silakan coba lagi.", 502);
     }
+  }
+
+  static async bulkUpdateOrderStatus(ids: string[], status: OrderStatus, userId: string) {
+    const updatedOrders = [];
+
+    for (const id of ids) {
+      updatedOrders.push(await this.updateOrderStatus(id, status, userId));
+    }
+
+    return updatedOrders;
   }
 
   static async updateOrderStatus(id: string, status: OrderStatus, userId: string) {
@@ -481,14 +537,22 @@ export class OrderService {
     });
 
     if (!existingOrder) {
-      throw new Error("Order not found");
+      throw new AppError("Order not found", 404);
     }
 
     assertKitchenStatusTransition(existingOrder.status, status);
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
+    const { count } = await prisma.order.updateMany({
+      where: { id, status: existingOrder.status },
       data: { status },
+    });
+
+    if (count === 0) {
+      throw new AppError("Status pesanan sudah berubah. Silakan refresh halaman.", 409);
+    }
+
+    const updatedOrder = await prisma.order.findUniqueOrThrow({
+      where: { id },
       include: {
         table: {
           select: {
@@ -539,15 +603,22 @@ export class OrderService {
     const nextState = mapGatewayStatusToOrderState(gatewayPayload);
     const nextPaidAt = resolveGatewayPaidAt(gatewayPayload) ?? new Date();
 
-    if (
-      order.paymentStatus === PaymentStatus.PAID &&
-      nextState.paymentStatus !== PaymentStatus.PAID
-    ) {
-      return {
-        status: order.paymentStatus,
-        updated: false,
-        message: "Ignoring stale non-paid update after payment confirmation",
-      };
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      if (nextState.paymentStatus !== PaymentStatus.PAID) {
+        return {
+          status: order.paymentStatus,
+          updated: false,
+          message: "Ignoring stale non-paid update after payment confirmation",
+        };
+      }
+
+      if (order.paidAt) {
+        return {
+          status: order.paymentStatus,
+          updated: false,
+          message: "Payment already confirmed",
+        };
+      }
     }
 
     if (
@@ -562,12 +633,20 @@ export class OrderService {
       };
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: order.id },
+    const shouldPreserveKitchenStatus =
+      order.paymentStatus === PaymentStatus.PAID &&
+      nextState.paymentStatus === PaymentStatus.PAID;
+
+    const { count } = await prisma.order.updateMany({
+      where: {
+        id: order.id,
+        paymentStatus: order.paymentStatus,
+      },
       data: {
         paymentStatus: nextState.paymentStatus,
-        status:
-          nextState.paymentStatus === PaymentStatus.PAID
+        status: shouldPreserveKitchenStatus
+          ? order.status
+          : nextState.paymentStatus === PaymentStatus.PAID
             ? OrderStatus.PAID
             : nextState.orderStatus,
         paidAt:
@@ -576,6 +655,18 @@ export class OrderService {
             : order.paidAt,
         paymentMethod: gatewayPayload.payment_type ?? order.paymentMethod,
       },
+    });
+
+    if (count === 0) {
+      return {
+        status: nextState.paymentStatus,
+        updated: false,
+        message: "Status already updated by another process",
+      };
+    }
+
+    const updatedOrder = await prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
       select: kitchenOrderSelect,
     });
 
@@ -622,7 +713,7 @@ export class OrderService {
     });
 
     if (!order) {
-      throw new Error("Order not found");
+      throw new AppError("Order not found", 404);
     }
 
     return this.applyGatewayUpdate(order, payload);
@@ -644,7 +735,7 @@ export class OrderService {
     });
 
     if (!order) {
-      throw new Error("Order not found");
+      throw new AppError("Order not found", 404);
     }
 
     if (order.paymentStatus === PaymentStatus.PAID) {
@@ -680,7 +771,10 @@ export class OrderService {
   static async cancelOrder(idOrCode: string) {
     const existingOrder = await prisma.order.findFirst({
       where: {
-        orderCode: idOrCode,
+        OR: [
+          { id: idOrCode },
+          { orderCode: idOrCode }
+        ]
       },
       select: {
         id: true,
@@ -691,7 +785,7 @@ export class OrderService {
     });
 
     if (!existingOrder) {
-      throw new Error("Order not found");
+      throw new AppError("Order not found", 404);
     }
 
     if (

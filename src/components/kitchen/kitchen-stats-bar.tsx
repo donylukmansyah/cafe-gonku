@@ -8,7 +8,7 @@ interface KitchenStatsBarProps {
     paidCount: number;
     preparingCount: number;
     readyCount: number;
-    lastUpdated?: Date;
+    lastUpdated?: Date | null;
 }
 
 export const KitchenStatsBar = memo(function KitchenStatsBar({
@@ -42,29 +42,31 @@ export const KitchenStatsBar = memo(function KitchenStatsBar({
     ];
 
     return (
-        <div className="px-6 py-3 bg-zinc-900/50 border-b border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-                {stats.map((stat) => (
-                    <div
-                        key={stat.label}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/50 rounded-lg border border-zinc-800"
-                    >
-                        <div className={`w-2 h-2 rounded-full ${stat.dotColor}`} />
-                        <stat.icon className="w-3.5 h-3.5 text-zinc-500" />
-                        <span className="text-sm font-medium text-zinc-400">{stat.label}</span>
-                        <Badge className={`${stat.badgeClass} border font-bold px-2 text-xs`}>
-                            {stat.count}
-                        </Badge>
-                    </div>
-                ))}
-            </div>
-
-            {lastUpdated && (
-                <div className="text-[10px] text-zinc-600 font-mono flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-emerald-500/50" />
-                    Data synced at {lastUpdated.toLocaleTimeString("id-ID")}
+        <div className="px-6 py-3 bg-zinc-900/50 border-b border-zinc-800">
+            <div className="max-w-[1800px] mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    {stats.map((stat) => (
+                        <div
+                            key={stat.label}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/50 rounded-lg border border-zinc-800"
+                        >
+                            <div className={`w-2 h-2 rounded-full ${stat.dotColor}`} />
+                            <stat.icon className="w-3.5 h-3.5 text-zinc-500" />
+                            <span className="text-sm font-medium text-zinc-400">{stat.label}</span>
+                            <Badge className={`${stat.badgeClass} border font-bold px-2 text-xs`}>
+                                {stat.count}
+                            </Badge>
+                        </div>
+                    ))}
                 </div>
-            )}
+
+                {lastUpdated && (
+                    <div className="text-[10px] text-zinc-600 font-mono flex items-center gap-1.5">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500/50" />
+                        Data synced at {lastUpdated.toLocaleTimeString("id-ID")}
+                    </div>
+                )}
+            </div>
         </div>
     );
 });

@@ -5,22 +5,7 @@ import { OrderClient } from "./order-client";
 import { Button } from "@/components/ui/button";
 import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";
-import { MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
 
-// We only use the cache directive for menus as table lookups are fast and need to be real-time
-import { unstable_cache } from "next/cache";
-
-// 1. Fetch menues using unstable_cache to deduplicate and cache menus
-// Wait, Next 15 "use cache" requires next.config.mjs experimental.useCache = true. I will stick to unstable_cache for safety since I don't know if useCache is enabled.
-export const getMenusCached = unstable_cache(
-    async () => {
-        return await MenuService.getMenus();
-    },
-    ['menus-customer'],
-    { revalidate: 3600, tags: [MENU_PUBLIC_CACHE_TAG] } // Revalidate every hour, or when menu cache is invalidated
-);
-
-// 1. Fetch Data on Server
 const getTableAndMenus = async (qrCode: string | undefined) => {
     if (!qrCode) return { table: null, menus: [] };
 
@@ -28,7 +13,7 @@ const getTableAndMenus = async (qrCode: string | undefined) => {
 
     if (!table) return { table: null, menus: [] };
 
-    const menus = await getMenusCached();
+    const menus = await MenuService.getMenus();
 
     return { table, menus };
 };

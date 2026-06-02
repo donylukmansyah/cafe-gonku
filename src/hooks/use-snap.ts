@@ -23,7 +23,10 @@ export const useSnap = () => {
 
     useEffect(() => {
         const myMidtransClientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
-        const scriptUrl = "https://app.sandbox.midtrans.com/snap/snap.js";
+        const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true";
+        const scriptUrl = isProduction
+            ? "https://app.midtrans.com/snap/snap.js"
+            : "https://app.sandbox.midtrans.com/snap/snap.js";
 
         const scriptId = "midtrans-script";
         let script = document.getElementById(scriptId) as HTMLScriptElement;

@@ -27,6 +27,7 @@ export function TrackingSheet() {
     const { order, refresh, activeOrderCode } = useRealtimeOrder();
     const { snapPay } = useSnap();
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
+    const getOrderAccessToken = useCart((state) => state.getOrderAccessToken);
     const hasHydrated = useCart((state) => state.hasHydrated);
     const itemCount = useCart((state) => state.getItemCount());
 
@@ -36,6 +37,12 @@ export function TrackingSheet() {
             // Optional: Auto open/close logic or just toast
         }
     }, [order?.status]);
+
+    useEffect(() => {
+        if (isOpen) {
+            refresh();
+        }
+    }, [isOpen, refresh]);
 
     const [isCancelling, setIsCancelling] = useState(false);
 
@@ -66,8 +73,17 @@ export function TrackingSheet() {
         if (!activeOrderCode) return;
         setIsCancelling(true);
         try {
+            const token = getOrderAccessToken(activeOrderCode);
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json"
+            };
+            if (token) {
+                headers["x-order-token"] = token;
+            }
+
             const res = await fetch(`/api/orders/${activeOrderCode}/cancel`, {
-                method: "POST"
+                method: "POST",
+                headers
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Gagal membatalkan");
@@ -116,7 +132,7 @@ export function TrackingSheet() {
                     </div>
                 </div>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[85vh] rounded-t-[2rem] border-t border-white/5 bg-zinc-950 p-0 flex flex-col shadow-2xl">
+            <SheetContent side="bottom" className="h-[85vh] rounded-t-[2rem] border-t border-x border-white/5 bg-zinc-950 p-0 flex flex-col shadow-2xl max-w-md mx-auto inset-x-0">
                 <SheetDescription className="sr-only">
                     Status pembayaran dan progress pesanan aktif.
                 </SheetDescription>

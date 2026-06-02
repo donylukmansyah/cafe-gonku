@@ -7,9 +7,9 @@ export async function proxy(request: NextRequest) {
     // --- Content Security Policy ---
     const cspHeader = `
         default-src 'self';
-        script-src 'self' 'unsafe-eval' 'unsafe-inline' https://app.sandbox.midtrans.com https://app.midtrans.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.sandbox.midtrans.com https://app.midtrans.com;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com;
+        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com https://patrins.com;
         font-src 'self' https://fonts.gstatic.com;
         object-src 'none';
         base-uri 'self';
@@ -22,11 +22,12 @@ export async function proxy(request: NextRequest) {
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
+    requestHeaders.set("x-current-path", `${request.nextUrl.pathname}${request.nextUrl.search}`);
     requestHeaders.set("Content-Security-Policy", cspHeader);
 
     // --- Prepare Response ---
-    // Note: Authentication and RBAC are handled securely by Server Components (e.g., layouts)
-    // to avoid edge runtime limitations and database connection overhead in the proxy layer.
+    // Auth and RBAC stay in Server Components/layouts because Better Auth uses the Prisma adapter.
+    // The proxy only forwards request context and applies security headers.
     const response = NextResponse.next({
         request: {
             headers: requestHeaders,
@@ -52,7 +53,6 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * - api/orders, api/menus etc (API routes that need high performance)
          */
         {
             source: "/((?!_next/static|_next/image|favicon.ico).*)",

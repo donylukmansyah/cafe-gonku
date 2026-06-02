@@ -1,7 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
 
-type RateLimitName = "orderCreate" | "paymentCheck" | "paymentSync" | "orderCancel";
+type RateLimitName = "orderCreate" | "priceVerify" | "paymentCheck" | "paymentSync" | "orderCancel" | "orderDetail";
 
 const limiters = redis
   ? {
@@ -10,6 +10,12 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(6, "1 m"),
         analytics: true,
         prefix: "ratelimit:order-create",
+      }),
+      priceVerify: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(12, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:price-verify",
       }),
       paymentCheck: new Ratelimit({
         redis,
@@ -28,6 +34,12 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(10, "1 m"),
         analytics: true,
         prefix: "ratelimit:order-cancel",
+      }),
+      orderDetail: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(30, "1 m"),
+        analytics: true,
+        prefix: "ratelimit:order-detail",
       }),
     }
   : null;

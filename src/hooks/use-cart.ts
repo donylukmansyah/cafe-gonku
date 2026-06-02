@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { setOrderCookie, clearOrderCookie } from "@/lib/order-cookie";
 
 export interface CartItem {
     id: string; // menuId
@@ -38,6 +39,9 @@ interface CartStore {
     setHasHydrated: (state: boolean) => void;
     diningType: "DINE_IN" | "TAKEAWAY";
     setDiningType: (type: "DINE_IN" | "TAKEAWAY") => void;
+    orderAccessTokens: Record<string, string>;
+    setOrderAccessToken: (orderCode: string, token: string) => void;
+    getOrderAccessToken: (orderCode: string) => string | null;
 }
 
 // Helper to generate a unique key for items with the same menuId but different options
@@ -153,11 +157,34 @@ export const useCart = create<CartStore>()(
                 return get().items.reduce((count, item) => count + item.quantity, 0);
             },
             activeOrderCode: null,
-            setActiveOrderCode: (code) => set({ activeOrderCode: code }),
+            setActiveOrderCode: (code) => {
+                if (code) {
+                    const token = get().orderAccessTokens[code];
+                    if (token) setOrderCookie(code, token);
+                } else {
+                    clearOrderCookie();
+                }
+                set({ activeOrderCode: code });
+            },
             hasHydrated: false,
             setHasHydrated: (state) => set({ hasHydrated: state }),
             diningType: "DINE_IN",
             setDiningType: (type) => set({ diningType: type }),
+            orderAccessTokens: {},
+            setOrderAccessToken: (orderCode, token) => {
+                set((state) => ({
+                    orderAccessTokens: {
+                        ...state.orderAccessTokens,
+                        [orderCode]: token
+                    }
+                }));
+                if (get().activeOrderCode === orderCode) {
+                    setOrderCookie(orderCode, token);
+                }
+            },
+            getOrderAccessToken: (orderCode) => {
+                return get().orderAccessTokens[orderCode] ?? null;
+            },
         }),
         {
             name: "cafe-gonku-cart",

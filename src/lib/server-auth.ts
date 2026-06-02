@@ -1,11 +1,15 @@
 import { headers } from "next/headers"
 import { redirect, unstable_rethrow } from "next/navigation"
-import { auth, Session } from "@/lib/auth"
+import { auth, type Session } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { getDashboardPathForRole, getPostLoginRedirect, sanitizeInternalRedirect, type AppRole } from "@/lib/auth-routes"
 import { cache } from "react"
 
 type SessionUserWithRole = Session["user"] & {
     role?: "ADMIN" | "KITCHEN" | string
 }
+
+const LOGIN_PATH = "/login"
 
 /**
  * Retrieves the current session from the server using Next.js headers.
@@ -16,6 +20,20 @@ export const getServerSession = cache(async (): Promise<Session | null> => {
         const session = await auth.api.getSession({
             headers: await headers(),
         })
+
+        if (!session?.user?.id) {
+            return null
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { isActive: true },
+        })
+
+        if (!user?.isActive) {
+            return null
+        }
+
         return session
     } catch (error) {
         unstable_rethrow(error)
@@ -23,6 +41,22 @@ export const getServerSession = cache(async (): Promise<Session | null> => {
         return null
     }
 });
+
+async function getCurrentRequestPath() {
+    const requestHeaders = await headers()
+
+    return sanitizeInternalRedirect(requestHeaders.get("x-current-path"))
+}
+
+async function getLoginRedirectPath(fallbackPath = LOGIN_PATH) {
+    const currentPath = await getCurrentRequestPath()
+
+    if (!currentPath) {
+        return fallbackPath
+    }
+
+    return `${fallbackPath}?callbackUrl=${encodeURIComponent(currentPath)}`
+}
 
 /**
  * Ensures the user is authenticated and has the required role.
@@ -32,21 +66,17 @@ export const getServerSession = cache(async (): Promise<Session | null> => {
  * @param redirectTo The path to redirect to if unauthorized (default: "/login")
  * @returns The active session if authorized
  */
-export async function requireRole(requiredRole: string, redirectTo = "/login"): Promise<Session> {
+export async function requireRole(requiredRole: AppRole, redirectTo = LOGIN_PATH): Promise<Session> {
     const session = await getServerSession()
 
     if (!session || !session.user) {
-        redirect(redirectTo)
+        redirect(await getLoginRedirectPath(redirectTo))
     }
 
     const role = (session.user as SessionUserWithRole).role
 
     if (role !== requiredRole) {
-        // If they have a role but it's the wrong one, we might want to redirect them to their correct dashboard
-        if (role === "ADMIN") redirect("/admin")
-        if (role === "KITCHEN") redirect("/kitchen")
-
-        redirect(redirectTo)
+        redirect(getDashboardPathForRole(role))
     }
 
     return session
@@ -56,16 +86,12 @@ export async function requireRole(requiredRole: string, redirectTo = "/login"): 
  * Checks if a user is already logged in and optionally redirects them to their respective dashboard.
  * Useful for the /login page to prevent authenticated users from seeing the form.
  */
-export async function requireGuest() {
+export async function requireGuest(callbackUrl?: string) {
     const session = await getServerSession()
 
     if (session && session.user) {
         const role = (session.user as SessionUserWithRole).role
 
-        if (role === "ADMIN") redirect("/admin")
-        if (role === "KITCHEN") redirect("/kitchen")
-
-        // Fallback or customer dashboard
-        redirect("/")
+        redirect(getPostLoginRedirect(role, callbackUrl))
     }
 }

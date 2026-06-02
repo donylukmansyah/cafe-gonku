@@ -60,7 +60,7 @@ src/features/          # Service layer (*.service.ts) — business logic
 src/lib/               # Shared infra (prisma, auth, redis, supabase, midtrans, utils)
 src/validations/       # Zod 4 schemas for request validation
 src/types/             # TypeScript types and Midtrans type declarations
-prisma/schema.prisma   # 12 models, enums for roles/status/categories
+prisma/schema.prisma   # 14 models, 5 enums (UserRole, MenuCategory, MenuHighlightType, OrderStatus, PaymentStatus)
 prisma/seed.ts         # Seeds admin+kitchen users, tables, sample menus
 ```
 
@@ -85,4 +85,4 @@ prisma/seed.ts         # Seeds admin+kitchen users, tables, sample menus
 
 ## Security note
 
-The `.env` file is present in the repo despite `.gitignore` listing `.env*`. Do not commit secrets. Verify `.gitignore` is working before pushing.
+`.env` is correctly listed in `.gitignore` (`.env*` pattern) and is not git-tracked. Do not commit secrets — verify with `git status` before pushing.

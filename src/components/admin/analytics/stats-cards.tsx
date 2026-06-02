@@ -32,7 +32,7 @@ export const StatsCards = memo(function StatsCards({ totalRevenue, onlineRevenue
         {
             title: "Cash Revenue",
             value: `Rp ${cashRevenue.toLocaleString("id-ID")}`,
-            description: "Input kas harian dari cashier/kitchen",
+            description: "Input pendapatan kasir dari cashier/kitchen",
             icon: CalendarRange,
             color: "text-blue-400",
             bgColor: "bg-blue-500/10",

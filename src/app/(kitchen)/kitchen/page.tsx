@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChefHat, UtensilsCrossed, MonitorPlay, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
@@ -20,14 +20,111 @@ import { OrderQueue } from "@/components/kitchen/order-queue";
 import { MenuAvailability } from "@/components/kitchen/menu-availability";
 import { DailyCashPanel } from "@/components/kitchen/daily-cash-panel";
 
-export default function KitchenPage() {
+// High-Fidelity Page-Level Skeleton Loader
+function KitchenPageSkeleton() {
+    return (
+        <div className="min-h-screen bg-black text-white selection:bg-primary/30">
+            {/* Navbar Placeholder */}
+            <header className="h-[72px] bg-zinc-950 border-b border-zinc-900/80 px-6 flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-zinc-900" />
+                    <div className="space-y-1.5">
+                        <div className="h-5 w-36 bg-zinc-900 rounded" />
+                        <div className="h-3 w-24 bg-zinc-900 rounded" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="h-9 w-20 bg-zinc-900 rounded-xl" />
+                    <div className="h-9 w-9 bg-zinc-900 rounded-xl" />
+                    <div className="h-9 w-24 bg-zinc-900 rounded-xl" />
+                </div>
+            </header>
+
+            {/* Stats Bar Placeholder */}
+            <div className="bg-zinc-950/40 border-b border-zinc-900 py-4 px-6 animate-pulse">
+                <div className="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center flex-wrap gap-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-10 w-32 bg-zinc-900 rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="h-4 w-40 bg-zinc-900 rounded" />
+                </div>
+            </div>
+
+            <main className="p-6 max-w-[1800px] mx-auto space-y-6 animate-pulse">
+                {/* Tabs Bar Placeholder */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900/40 p-2 rounded-2xl border border-zinc-800/80">
+                    <div className="h-12 w-full sm:w-[480px] bg-zinc-900 rounded-xl" />
+                    <div className="h-10 w-32 bg-zinc-900 rounded-xl self-end sm:self-auto" />
+                </div>
+
+                {/* Queue Cards Grid Placeholder */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div
+                            key={i}
+                            className="bg-zinc-950/60 border border-zinc-900 rounded-2xl overflow-hidden p-5 space-y-4"
+                        >
+                            <div className="h-1.5 w-full bg-zinc-900 rounded-full" />
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-zinc-900 shrink-0" />
+                                    <div className="space-y-2">
+                                        <div className="h-5 w-24 bg-zinc-900 rounded" />
+                                        <div className="h-3.5 w-20 bg-zinc-900 rounded" />
+                                    </div>
+                                </div>
+                                <div className="h-6 w-20 bg-zinc-900 rounded-full" />
+                            </div>
+                            <div className="space-y-2.5">
+                                {[1, 2].map((j) => (
+                                    <div key={j} className="flex items-start gap-3.5 p-3.5 bg-zinc-900/20 rounded-xl border border-zinc-900/50">
+                                        <div className="w-9 h-9 bg-zinc-900 rounded-lg shrink-0" />
+                                        <div className="flex-1 space-y-2 py-1">
+                                            <div className="h-4 w-3/4 bg-zinc-900 rounded" />
+                                            <div className="h-3 w-1/2 bg-zinc-900 rounded" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="h-12 w-full bg-zinc-900 rounded-xl" />
+                        </div>
+                    ))}
+                </div>
+            </main>
+        </div>
+    );
+}
+
+function KitchenDashboardContent() {
     const { data: session } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [audioUnlocked, setAudioUnlocked] = useState(false);
-    const [activeTab, setActiveTab] = useState("queue");
     const audioRef = useRef<HTMLAudioElement>(null);
+
+    // Sync tab with URL search parameter ?page=
+    const pageParam = searchParams.get("page");
+    const activeTab = useMemo(() => {
+        if (pageParam === "2" || pageParam === "menu") return "menu";
+        if (pageParam === "3" || pageParam === "cash") return "cash";
+        return "queue";
+    }, [pageParam]);
+
+    const handleTabChange = useCallback((value: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value === "queue") {
+            params.set("page", "1");
+        } else if (value === "menu") {
+            params.set("page", "2");
+        } else if (value === "cash") {
+            params.set("page", "3");
+        }
+        router.push(`/kitchen?${params.toString()}`);
+    }, [router, searchParams]);
 
     // Memoize options to prevent identity change on every render
     const kitchenOrdersOptions = useMemo(() => ({
@@ -116,7 +213,6 @@ export default function KitchenPage() {
     // Interaction required for audio unlock
     const handleAudioUnlock = useCallback(() => {
         if (audioRef.current) {
-            // Play and immediately pause to register initial user interaction with the media element
             audioRef.current.play().then(() => {
                 audioRef.current?.pause();
                 if (audioRef.current) audioRef.current.currentTime = 0;
@@ -174,42 +270,42 @@ export default function KitchenPage() {
             />
 
             <main className="p-6 max-w-[1800px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900/40 p-2 rounded-2xl border border-zinc-800">
-                        <TabsList className="bg-zinc-900 border border-zinc-700/50 p-1 h-auto w-full sm:w-auto justify-start">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-950/40 p-2.5 rounded-3xl border border-zinc-800/80 backdrop-blur-md shadow-2xl">
+                        <TabsList className="bg-zinc-950 border border-zinc-800 p-1.5 h-auto w-full sm:w-auto justify-start rounded-2xl flex flex-col sm:flex-row gap-1">
                             <TabsTrigger
                                 value="queue"
-                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-black cursor-pointer px-8 py-3 transition-all text-xs rounded-xl uppercase tracking-wider flex items-center justify-center w-full sm:w-auto"
                             >
                                 <ChefHat className="w-4 h-4 mr-2" />
                                 Pesanan Aktif
                             </TabsTrigger>
                             <TabsTrigger
                                 value="menu"
-                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-black cursor-pointer px-8 py-3 transition-all text-xs rounded-xl uppercase tracking-wider flex items-center justify-center w-full sm:w-auto"
                             >
                                 <UtensilsCrossed className="w-4 h-4 mr-2" />
                                 Status Menu
                             </TabsTrigger>
                             <TabsTrigger
                                 value="cash"
-                                className="data-[state=active]:bg-primary data-[state=active]:text-black font-bold cursor-pointer px-8 py-2.5 transition-all text-sm"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-black cursor-pointer px-8 py-3 transition-all text-xs rounded-xl uppercase tracking-wider flex items-center justify-center w-full sm:w-auto"
                             >
                                 <ShoppingCart className="w-4 h-4 mr-2" />
-                                Kas Harian
+                                Pendapatan di Kasir
                             </TabsTrigger>
                         </TabsList>
 
                         {activeTab === "queue" && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-black/40 rounded-xl border border-zinc-800 self-end sm:self-auto">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${!showHistory ? "text-primary/70" : "text-zinc-600"}`}>LIVE</span>
+                            <div className="flex items-center gap-3.5 px-4 py-2.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 self-end sm:self-auto shadow-lg shadow-black/40">
+                                <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${!showHistory ? "text-primary shadow-[0_0_10px_rgba(53,183,24,0.4)]" : "text-zinc-600"}`}>LIVE</span>
                                 <div
                                     onClick={() => setShowHistory(!showHistory)}
-                                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 relative ${showHistory ? "bg-primary" : "bg-zinc-800"}`}
+                                    className={`w-14 h-7 rounded-full p-1 cursor-pointer transition-all duration-300 relative border border-zinc-700/50 ${showHistory ? "bg-primary" : "bg-zinc-900"}`}
                                 >
-                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${showHistory ? "translate-x-6" : "translate-x-0"}`} />
+                                    <div className={`w-4.5 h-4.5 bg-white rounded-full transition-transform duration-300 shadow-md ${showHistory ? "translate-x-6" : "translate-x-0"}`} />
                                 </div>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${showHistory ? "text-primary/70" : "text-zinc-600"}`}>HISTORY</span>
+                                <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${showHistory ? "text-primary shadow-[0_0_10px_rgba(53,183,24,0.4)]" : "text-zinc-600"}`}>HISTORY</span>
                             </div>
                         )}
                     </div>
@@ -220,6 +316,7 @@ export default function KitchenPage() {
                             isLoading={isLoadingOrders}
                             isUpdating={isUpdating}
                             onStatusChange={handleStatusChange}
+                            showHistory={showHistory}
                         />
                     </TabsContent>
 
@@ -238,5 +335,13 @@ export default function KitchenPage() {
                 </Tabs>
             </main>
         </div>
+    );
+}
+
+export default function KitchenPage() {
+    return (
+        <Suspense fallback={<KitchenPageSkeleton />}>
+            <KitchenDashboardContent />
+        </Suspense>
     );
 }

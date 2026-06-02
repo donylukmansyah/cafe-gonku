@@ -201,7 +201,8 @@ export function ItemModal({ menu, isOpen, onClose, initialCartItem = null, editI
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 rounded-lg transition-all active:scale-75"
-                                    onClick={() => setQuantity(quantity + 1)}
+                                    onClick={() => setQuantity(Math.min(quantity + 1, 99))}
+                                    disabled={quantity >= 99}
                                 >
                                     <Plus className="w-3 h-3" />
                                 </Button>

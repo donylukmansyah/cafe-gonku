@@ -11,7 +11,9 @@ import {
     Truck,
     MessageSquare,
     Timer,
-    Loader2
+    Loader2,
+    UtensilsCrossed,
+    ShoppingBag
 } from "lucide-react";
 import { formatDistanceToNow, differenceInMinutes } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -129,6 +131,31 @@ export const OrderCard = memo(function OrderCard({
         }
     };
 
+    // Extract dining type from items (look at prefix in any notes)
+    let isTakeaway = false;
+    for (const item of order.orderItems) {
+        if (item.notes?.includes("[Bawa Pulang]")) {
+            isTakeaway = true;
+            break;
+        }
+    }
+    const diningLabel = isTakeaway ? "TAKEAWAY" : "DINE IN";
+    const DiningIcon = isTakeaway ? ShoppingBag : UtensilsCrossed;
+    const diningClass = isTakeaway
+        ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+        : "bg-primary/20 text-primary border-primary/30";
+
+    const parseCleanNotes = (notes: string | null) => {
+        if (!notes) return null;
+        let clean = notes;
+        clean = clean.replace("[Makan di Tempat]", "");
+        clean = clean.replace("[Bawa Pulang]", "");
+        clean = clean.replace(" \nCatatan Item:", "");
+        clean = clean.replace("\nCatatan Item:", "");
+        clean = clean.trim();
+        return clean || null;
+    };
+
     return (
         <Card
             onClick={onSelect}
@@ -188,49 +215,57 @@ export const OrderCard = memo(function OrderCard({
                             <StatusIcon className="w-3 h-3 mr-1.5" />
                             {config.label}
                         </Badge>
+                        <Badge className={`${diningClass} border-none font-black text-[10px] px-3 py-1 uppercase tracking-tighter shadow-inner`}>
+                            <DiningIcon className="w-3 h-3 mr-1.5" />
+                            {diningLabel}
+                        </Badge>
                     </div>
                 </div>
             </CardHeader>
 
             <CardContent className="px-5 pb-5 space-y-4">
                 <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                    {order.orderItems.map((item) => (
-                        <div
-                            key={item.id}
-                            className="group/item flex items-start gap-3.5 p-3.5 bg-zinc-900/40 hover:bg-zinc-800/60 transition-colors rounded-xl border border-zinc-800/50"
-                        >
-                            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 border border-primary/20 group-hover/item:bg-primary/20 transition-all">
-                                <span className="text-primary font-black text-sm">{item.quantity}x</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <span className="font-extrabold text-zinc-100 text-[16px] block group-hover/item:text-primary transition-colors tracking-tight">
-                                    {item.menu.name}
-                                </span>
+                    {order.orderItems.map((item) => {
+                        const cleanNote = parseCleanNotes(item.notes);
 
-                                {item.selectedOptions.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                        {item.selectedOptions.map((opt) => (
-                                            <span
-                                                key={opt.id}
-                                                className="text-[10px] px-2 py-0.5 bg-zinc-800 border border-zinc-700/50 text-zinc-400 font-medium rounded-md"
-                                            >
-                                                {opt.optionName}: {opt.optionValue}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
+                        return (
+                            <div
+                                key={item.id}
+                                className="group/item flex items-start gap-3.5 p-3.5 bg-zinc-900/40 hover:bg-zinc-800/60 transition-colors rounded-xl border border-zinc-800/50"
+                            >
+                                <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 border border-primary/20 group-hover/item:bg-primary/20 transition-all">
+                                    <span className="text-primary font-black text-sm">{item.quantity}x</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <span className="font-extrabold text-zinc-100 text-[16px] block group-hover/item:text-primary transition-colors tracking-tight">
+                                        {item.menu.name}
+                                    </span>
 
-                                {item.notes && (
-                                    <div className="flex items-start gap-2 mt-3 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-lg group-hover/item:bg-amber-500/10 transition-colors">
-                                        <MessageSquare className="w-3.5 h-3.5 text-amber-500/60 mt-0.5 shrink-0" />
-                                        <p className="text-xs text-amber-500/80 font-medium italic italic-leading-tight">
-                                            &quot;{item.notes}&quot;
-                                        </p>
-                                    </div>
-                                )}
+                                    {item.selectedOptions.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {item.selectedOptions.map((opt) => (
+                                                <span
+                                                    key={opt.id}
+                                                    className="text-[10px] px-2 py-0.5 bg-zinc-800 border border-zinc-700/50 text-zinc-400 font-medium rounded-md"
+                                                >
+                                                    {opt.optionName}: {opt.optionValue}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {cleanNote && (
+                                        <div className="flex items-start gap-2 mt-3 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-lg group-hover/item:bg-amber-500/10 transition-colors">
+                                            <MessageSquare className="w-3.5 h-3.5 text-amber-500/60 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-amber-500/80 font-medium italic italic-leading-tight">
+                                                &quot;{cleanNote}&quot;
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {config.nextStatus && config.nextLabel && (

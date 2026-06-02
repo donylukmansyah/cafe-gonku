@@ -1,5 +1,4 @@
 import { requireRole } from "@/lib/server-auth"
-
 import { Suspense } from "react"
 import { Loader2 } from "lucide-react"
 
@@ -8,8 +7,7 @@ async function KitchenLayoutContent({
 }: {
     children: React.ReactNode
 }) {
-    // Protect the layout server-side
-    // This immediately redirects unauthenticated users or those without the KITCHEN role
+    // Protect the layout server-side inside Suspense for Cache Components compatibility.
     await requireRole("KITCHEN")
 
     return (

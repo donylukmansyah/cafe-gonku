@@ -4,7 +4,6 @@ import { useState, memo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
     UtensilsCrossed,
@@ -86,7 +85,7 @@ const MenuItem = memo(function MenuItem({
         >
             <div className="flex items-center gap-3.5 flex-1 min-w-0">
                 <div
-                    className={`w-2 h-2 rounded-full shrink-0 transition-all duration-500 ${menu.isAvailable ? `${categoryDotClass} animate-pulse-slow` : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 transition-all duration-500 ${menu.isAvailable ? `${categoryDotClass} animate-pulse` : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse"
                         }`}
                 />
                 <div className="flex-1 min-w-0">
@@ -176,19 +175,20 @@ export function MenuAvailability({
 
         try {
             await onToggle(menu.id, newAvailability);
-            toast.success(
-                <div className="flex items-center gap-2">
-                    {newAvailability ? (
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                    ) : (
-                        <XCircle className="w-4 h-4 text-red-400" />
-                    )}
-                    <span>
-                        <strong>{menu.name}</strong> sekarang{" "}
-                        {newAvailability ? "tersedia" : "tidak tersedia"}
-                    </span>
-                </div>
+            const message = (
+                <span>
+                    <strong>{menu.name}</strong> sekarang{" "}
+                    {newAvailability ? "tersedia" : "tidak tersedia"}
+                </span>
             );
+
+            if (newAvailability) {
+                toast.success(message);
+            } else {
+                toast(message, {
+                    icon: <XCircle className="h-4 w-4 text-red-400" strokeWidth={2.5} />,
+                });
+            }
         } catch {
             toast.error("Gagal mengubah status menu");
         } finally {
@@ -222,19 +222,58 @@ export function MenuAvailability({
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {[1, 2].map((i) => (
-                    <Card key={i} className="bg-zinc-900 border-zinc-800">
-                        <CardHeader className="pb-4">
-                            <Skeleton className="h-6 w-40 bg-zinc-800" />
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {[1, 2, 3, 4].map((j) => (
-                                <Skeleton key={j} className="h-14 w-full bg-zinc-800" />
-                            ))}
-                        </CardContent>
-                    </Card>
-                ))}
+            <div className="space-y-6 animate-pulse">
+                {/* Header Bar Skeleton */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-zinc-800 rounded-2xl" />
+                        <div className="space-y-1.5">
+                            <div className="h-5 w-28 bg-zinc-800 rounded" />
+                            <div className="h-3 w-36 bg-zinc-800/60 rounded" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="hidden sm:flex items-center gap-2">
+                            <div className="h-6 w-14 bg-zinc-800 rounded-full" />
+                            <div className="h-6 w-14 bg-zinc-800 rounded-full" />
+                        </div>
+                        <div className="h-10 flex-1 sm:w-56 bg-zinc-800 rounded-lg" />
+                    </div>
+                </div>
+
+                {/* Category Cards Grid Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i} className="bg-zinc-900 border-zinc-800 overflow-hidden">
+                            <CardHeader className="pb-3 border-b border-zinc-800">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 bg-zinc-800 rounded-lg" />
+                                        <div className="space-y-1.5">
+                                            <div className="h-4 w-20 bg-zinc-800 rounded" />
+                                            <div className="h-3 w-12 bg-zinc-800/60 rounded" />
+                                        </div>
+                                    </div>
+                                    <div className="h-5 w-10 bg-zinc-800 rounded-full" />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-3 space-y-2">
+                                {[1, 2, 3, 4].map((j) => (
+                                    <div key={j} className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/40 border border-white/[0.03]">
+                                        <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                                            <div className="w-2 h-2 rounded-full bg-zinc-800 shrink-0" />
+                                            <div className="flex-1 min-w-0 space-y-1.5">
+                                                <div className="h-3.5 w-3/5 bg-zinc-800 rounded" />
+                                                <div className="h-2.5 w-1/4 bg-zinc-800/60 rounded" />
+                                            </div>
+                                        </div>
+                                        <div className="w-9 h-5 bg-zinc-800 rounded-full shrink-0" />
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
         );
     }

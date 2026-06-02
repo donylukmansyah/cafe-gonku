@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Rubik } from "next/font/google";
 import "./globals.css";
 import { SWRProvider } from "@/components/providers/swr-provider";
@@ -9,6 +9,10 @@ const rubik = Rubik({
   variable: "--font-rubik",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#35b718",
+};
+
 export const metadata: Metadata = {
   title: {
     default: "Cafe Gonku",
@@ -17,6 +21,11 @@ export const metadata: Metadata = {
   description: "Modern Cafe Management System - QR-Based Smart Ordering",
   keywords: ["cafe", "gonku", "ordering system", "restaurant", "qr menu"],
   authors: [{ name: "Gonku Team" }],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Cafe Gonku",
+  },
   openGraph: {
     type: "website",
     locale: "id_ID",
@@ -51,6 +60,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={`${rubik.variable} antialiased font-sans`}
         suppressHydrationWarning
@@ -58,6 +70,11 @@ export default function RootLayout({
         <SWRProvider>
           {children}
         </SWRProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if("serviceWorker"in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("/sw.js")})}`,
+          }}
+        />
       </body>
     </html>
   );

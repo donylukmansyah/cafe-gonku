@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { authClient, signIn } from "@/lib/auth-client"
+import { getPostLoginRedirect } from "@/lib/auth-routes"
 import { LoginInput } from "@/validations/auth"
 
 type SessionUserWithRole = {
@@ -40,18 +41,7 @@ export function useLogin(callbackUrl: string = "/admin") {
 
             const userRole = (session.user as SessionUserWithRole).role
 
-            // Handle custom callback URL or default role-based routing
-            if (callbackUrl && callbackUrl !== "/admin" && callbackUrl !== "/kitchen" && callbackUrl !== "/login") {
-                router.push(callbackUrl)
-            } else {
-                if (userRole === "ADMIN") {
-                    router.push("/admin")
-                } else if (userRole === "KITCHEN") {
-                    router.push("/kitchen")
-                } else {
-                    router.push("/")
-                }
-            }
+            router.push(getPostLoginRedirect(userRole, callbackUrl))
 
             router.refresh()
             return true

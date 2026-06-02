@@ -43,15 +43,18 @@ export const TableRowItem = memo(function TableRowItem({
                 </div>
             </TableCell>
             <TableCell>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center gap-2 w-fit">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${table.isActive ? 'bg-emerald-500 animate-pulse-slow' : 'bg-red-500'}`} />
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${table.isActive ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
+                            {table.isActive ? 'Active' : 'Offline'}
+                        </span>
+                    </div>
                     <Switch
                         checked={table.isActive}
                         onCheckedChange={() => onToggleStatus(table.id, table.isActive)}
-                        className="data-[state=checked]:bg-primary"
+                        className="h-4 w-8 data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-emerald-500/50 border-white/5 bg-zinc-800 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0"
                     />
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${table.isActive ? 'text-primary' : 'text-zinc-600'}`}>
-                        {table.isActive ? 'Active' : 'Offline'}
-                    </span>
                 </div>
             </TableCell>
             <TableCell className="text-right">

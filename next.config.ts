@@ -1,9 +1,11 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   cacheComponents: true,
+  allowedDevOrigins: ["*.ngrok-free.dev"],
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -48,4 +50,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, { silent: true });

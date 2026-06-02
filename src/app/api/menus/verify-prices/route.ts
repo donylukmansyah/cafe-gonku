@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
 
 const verifyPricesSchema = z.object({
     items: z.array(z.object({
@@ -16,7 +17,7 @@ const verifyPricesSchema = z.object({
 
 export async function POST(request: Request) {
     try {
-        const rateLimit = await checkRateLimit("orderCreate", getClientIp(request));
+        const rateLimit = await checkRateLimit("priceVerify", getClientIp(request));
         if (!rateLimit.success) {
             return apiError("Terlalu banyak request. Coba lagi sebentar.", 429);
         }
@@ -118,9 +119,24 @@ export async function POST(request: Request) {
             }
         }
 
+        const verified = changes.length === 0;
+        let priceHash: string | undefined;
+
+        if (verified) {
+            const hashItems = buildPriceHashItems(
+                items.map(item => ({
+                    menuId: item.menuId,
+                    selectedOptions: item.selectedOptions.map(opt => ({ valueId: opt.valueId })),
+                })),
+                menuMap as Map<string, { price: number; menuOptions: { values: { id: string; priceAdjust: number }[] }[] }>,
+            );
+            priceHash = computePriceHash(hashItems);
+        }
+
         return apiResponse({
-            verified: changes.length === 0,
+            verified,
             changes,
+            priceHash,
         });
     } catch (error) {
         return handleApiError(error, "POST /api/menus/verify-prices");

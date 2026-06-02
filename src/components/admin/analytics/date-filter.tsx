@@ -43,7 +43,7 @@ export function DateFilter({
                 <SelectTrigger className="h-10 w-full sm:w-48 bg-zinc-900/50 border-white/10 rounded-xl focus:ring-primary/20 hover:bg-zinc-800/80 transition-all font-bold text-zinc-300 text-xs cursor-pointer shadow-[0_0_15px_rgba(255,255,255,0.02)]">
                     <SelectValue placeholder="Pilih periode" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-white/10 rounded-xl shadow-2xl">
+                <SelectContent position="popper" align="end" className="bg-zinc-900 border-white/10 rounded-xl shadow-2xl">
                     <SelectItem value="1" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary py-2.5">Hari Ini</SelectItem>
                     <SelectItem value="7" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary py-2.5">7 Hari Terakhir</SelectItem>
                     <SelectItem value="30" className="rounded-lg text-xs focus:bg-primary/20 focus:text-primary py-2.5">30 Hari Terakhir</SelectItem>

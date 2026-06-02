@@ -48,7 +48,7 @@ export default async function AdminDashboardPage() {
         {
             title: "Revenue Hari Ini",
             value: `Rp ${stats.totalRevenue.toLocaleString("id-ID")}`,
-            description: "Gabungan QR payment + kas tunai",
+            description: "Gabungan QR payment + pendapatan kasir",
             icon: TrendingUp,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",

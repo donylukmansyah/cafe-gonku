@@ -75,7 +75,7 @@ export function CartSheet({ isOpen, onClose, onCheckout, isSubmitting, allMenus 
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent side="bottom" className="h-[92vh] bg-zinc-950 border-white/5 rounded-t-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+            <SheetContent side="bottom" className="h-[92vh] bg-zinc-950 border-white/5 border-x rounded-t-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl max-w-md mx-auto inset-x-0">
                 <SheetDescription className="sr-only">
                     Ringkasan keranjang, tipe makan, rekomendasi menu, dan tombol checkout.
                 </SheetDescription>

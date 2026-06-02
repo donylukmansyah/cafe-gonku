@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cacheRemember } from "@/lib/redis";
+import { AppError } from "@/lib/api-utils";
 import {
   getCafeDateKey,
   getCafeDateLabel,
@@ -42,6 +43,8 @@ type DashboardMetrics = {
   totalOrders: number;
 };
 
+const MAX_ANALYTICS_DAYS = 90;
+
 type AdminOverview = {
   menuCount: number;
   tableCount: number;
@@ -64,12 +67,17 @@ export class AnalyticsService {
 
     if (options.startDate && options.endDate) {
       const range = getCafeDateTimeRangeFromDates(options.startDate, options.endDate);
+      if (range.dateKeys.length > MAX_ANALYTICS_DAYS) {
+        throw new AppError(`Rentang analytics maksimal ${MAX_ANALYTICS_DAYS} hari.`, 400);
+      }
       dateKeys = range.dateKeys;
       start = range.start;
       end = range.end;
     } else {
       const days = options.days || 7;
-      const safeDays = Number.isFinite(days) ? Math.max(days, 1) : 7; // Removed the 30 days cap
+      const safeDays = Number.isFinite(days)
+        ? Math.min(Math.max(days, 1), MAX_ANALYTICS_DAYS)
+        : 7;
       const range = getCafeDateTimeRange(safeDays);
       dateKeys = range.dateKeys;
       start = range.start;

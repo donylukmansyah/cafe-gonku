@@ -41,8 +41,11 @@ async function recordCacheMetric(scope: string, metric: CacheMetric) {
   const key = namespacedKey(`cache:metrics:${scope}:${metric}`);
 
   try {
-    await redis.incr(key);
-    await redis.expire(key, CACHE_METRICS_TTL_SECONDS);
+    // Pipeline the increment and expiration to save a round-trip
+    const pipe = redis.pipeline();
+    pipe.incr(key);
+    pipe.expire(key, CACHE_METRICS_TTL_SECONDS);
+    await pipe.exec();
   } catch {
     // Metrics must never affect request handling.
   }

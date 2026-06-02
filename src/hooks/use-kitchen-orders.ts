@@ -50,7 +50,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
     const [showHistory, setShowHistory] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const soundedOrdersRef = useRef<Set<string>>(new Set());
@@ -143,14 +143,10 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
             );
 
             try {
-                const promises = orderIds.map(orderId =>
-                    apiFetch(`/api/orders/${orderId}/status`, {
-                        method: "PATCH",
-                        body: JSON.stringify({ status: newStatus }),
-                    })
-                );
-
-                await Promise.all(promises);
+                await apiFetch("/api/orders/bulk-status", {
+                    method: "PATCH",
+                    body: JSON.stringify({ orderIds, status: newStatus }),
+                });
                 await fetchOrders(true);
                 return true;
             } catch (error) {

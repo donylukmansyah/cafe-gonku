@@ -74,7 +74,7 @@ export const MenuTableItem = memo(function MenuTableItem({
                     <Switch
                         checked={menu.isAvailable}
                         onCheckedChange={() => onToggleAvailability(menu.id, menu.isAvailable)}
-                        className="h-4 w-8 data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-emerald-500/50 border-white/5 bg-zinc-800"
+                        className="h-4 w-8 data-[state=checked]:bg-emerald-500/40 data-[state=checked]:border-emerald-500/50 border-white/5 bg-zinc-800 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0"
                     />
                 </div>
             </TableCell>

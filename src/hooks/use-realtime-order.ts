@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useCart } from "@/hooks/use-cart";
 import { apiFetch } from "@/lib/api-client";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
+import { useLiveRefetch } from "@/hooks/use-live-refetch";
 
 export interface OrderDetails {
     id: string;
@@ -38,11 +39,19 @@ export interface OrderDetails {
 export function useRealtimeOrder() {
     const activeOrderCode = useCart((state) => state.activeOrderCode);
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
+    const getOrderAccessToken = useCart((state) => state.getOrderAccessToken);
 
     const [order, setOrder] = useState<OrderDetails | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const isMounted = useRef(true);
+
+    // Stabilize Zustand selectors with refs to prevent useCallback/useEffect re-triggers.
+    // These functions change reference on every render from Zustand, but their behavior is stable.
+    const getOrderAccessTokenRef = useRef(getOrderAccessToken);
+    getOrderAccessTokenRef.current = getOrderAccessToken;
+    const setActiveOrderCodeRef = useRef(setActiveOrderCode);
+    setActiveOrderCodeRef.current = setActiveOrderCode;
 
     const fetchOrder = useCallback(async (showLoading = false) => {
         if (!activeOrderCode) return;
@@ -50,18 +59,24 @@ export function useRealtimeOrder() {
         if (showLoading) setIsLoading(true);
 
         try {
-            const orderData = await apiFetch<OrderDetails>(`/api/orders/${activeOrderCode}`, { silent: true });
+            const token = getOrderAccessTokenRef.current(activeOrderCode);
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers["x-order-token"] = token;
+            }
+
+            const orderData = await apiFetch<OrderDetails>(`/api/orders/${activeOrderCode}`, {
+                silent: true,
+                headers,
+            });
 
             if (isMounted.current) {
                 setOrder(orderData);
-
-                // If order is completed/cancelled, we might want to stop polling?
-                // But for now let's keep it simple.
             }
         } catch (error) {
             const msg = error instanceof Error ? error.message.toLowerCase() : "";
             if (msg.includes("not found")) {
-                setActiveOrderCode(null);
+                setActiveOrderCodeRef.current(null);
                 setOrder(null);
             } else {
                 console.error("Error fetching order:", error);
@@ -69,7 +84,11 @@ export function useRealtimeOrder() {
         } finally {
             if (isMounted.current && showLoading) setIsLoading(false);
         }
-    }, [activeOrderCode, setActiveOrderCode]);
+    }, [activeOrderCode]);
+
+    // Store fetchOrder in ref so effects can call latest version without re-subscribing
+    const fetchOrderRef = useRef(fetchOrder);
+    fetchOrderRef.current = fetchOrder;
 
     // Initial Fetch & Real-time Subscription
     useEffect(() => {
@@ -80,7 +99,7 @@ export function useRealtimeOrder() {
         }
 
         // Initial fetch
-        fetchOrder(true);
+        fetchOrderRef.current(true);
 
         console.log(`[Supabase] Subscribing to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
 
@@ -109,57 +128,95 @@ export function useRealtimeOrder() {
                         toast.info(`Status pesanan: ${data.status}`);
                     } else {
                         // Fallback to fetch if payload is incomplete
-                        fetchOrder();
+                        fetchOrderRef.current();
                     }
                 }
             })
             .subscribe((status) => {
                 if (status === "SUBSCRIBED") {
                     console.log(`[Supabase] Connected to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
+                    fetchOrderRef.current();
                 }
             });
 
-        // --- Fallback Polling (30s) ---
-        const pollInterval = setInterval(() => {
-            fetchOrder();
-        }, 30000);
         return () => {
             isMounted.current = false;
-            clearInterval(pollInterval);
             supabase.removeChannel(channel);
         };
-    }, [activeOrderCode, fetchOrder]);
+    }, [activeOrderCode]);
 
-    // Aggressive Polling for Payment Status (Zero-Latency Workaround)
-    // Sometimes Midtrans webhooks are delayed by ngrok or queue, and Midtrans QRIS popups
-    // don't always trigger `onSuccess` automatically until closed.
-    // By polling every 3 seconds, we ensure the kitchen gets the order instantly after payment.
+    const shouldLiveRefetch =
+        Boolean(activeOrderCode) &&
+        order?.status !== "SERVED" &&
+        order?.status !== "CANCELLED" &&
+        order?.status !== "EXPIRED";
+
+    useLiveRefetch({
+        enabled: shouldLiveRefetch,
+        intervalMs: 5000,
+        onRefetch: () => fetchOrderRef.current(),
+    });
+
     useEffect(() => {
         if (!activeOrderCode || order?.paymentStatus !== "PENDING") return;
 
-        console.log("[Payment] Starting aggressive realtime check loop...");
-        const interval = setInterval(async () => {
+        let timeout: ReturnType<typeof setTimeout> | null = null;
+        let attempt = 0;
+        let stopped = false;
+        const startedAt = Date.now();
+
+        const getDelay = () => {
+            const elapsed = Date.now() - startedAt;
+            if (elapsed < 30_000) return 3_000;
+            if (elapsed < 120_000) return 10_000;
+            return 30_000;
+        };
+
+        const checkPayment = async () => {
+            if (stopped || !isMounted.current) return;
+
             try {
+                const token = getOrderAccessTokenRef.current(activeOrderCode);
+                const headers: Record<string, string> = {};
+                if (token) {
+                    headers["x-order-token"] = token;
+                }
+
                 const data = await apiFetch<{ updated?: boolean }>(`/api/orders/${activeOrderCode}/check-payment`, {
                     method: "POST",
                     silent: true,
+                    headers,
                 });
+
                 if (data.updated && isMounted.current) {
                     toast.success("Pembayaran terkonfirmasi");
-                    fetchOrder(); // This will update order state -> triggers cleanup
+                    fetchOrderRef.current();
+                    return;
                 }
             } catch (e) {
                 console.error("Payment check error:", e);
             }
-        }, 3000); // 3 seconds interval for near-instant confirmation
 
-        return () => clearInterval(interval);
-    }, [activeOrderCode, order?.paymentStatus, fetchOrder]);
+            attempt += 1;
+            if (!stopped && attempt < 30) {
+                timeout = setTimeout(checkPayment, getDelay());
+            }
+        };
+
+        timeout = setTimeout(checkPayment, 3_000);
+
+        return () => {
+            stopped = true;
+            if (timeout) clearTimeout(timeout);
+        };
+    }, [activeOrderCode, order?.paymentStatus]);
+
+    const refresh = useCallback(() => fetchOrder(true), [fetchOrder]);
 
     return {
         order,
         isLoading,
-        refresh: () => fetchOrder(true),
+        refresh,
         activeOrderCode
     };
 }
