@@ -84,6 +84,35 @@ export async function cacheSet<T>(
   }
 }
 
+export async function cacheSetNx<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+) {
+  if (!redis) return true;
+  const redisKey = namespacedKey(key);
+
+  try {
+    const result = await redis.set(redisKey, value, {
+      ex: withTtlJitter(ttlSeconds),
+      nx: true,
+    });
+    const scope = key.split(":")[1] ?? "unknown";
+
+    if (result) {
+      await recordCacheMetric(scope, "set");
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("[Redis] cache set nx failed", { key, error });
+    const scope = key.split(":")[1] ?? "unknown";
+    await recordCacheMetric(scope, "error");
+    return true;
+  }
+}
+
 export async function getCacheVersion(scope: string) {
   if (!redis) return 1;
   const key = namespacedKey(`cache:version:${scope}`);

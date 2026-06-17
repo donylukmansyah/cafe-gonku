@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
-import { useCart, getOptionsHash } from "@/hooks/use-cart";
+import { useCart } from "@/hooks/use-cart";
 import {
     Sheet,
     SheetContent,
@@ -183,11 +183,10 @@ export function CartSheet({ isOpen, onClose, onCheckout, isSubmitting, allMenus 
 
                                 <div className="space-y-4">
                                     {items.map((item) => {
-                                        const optionsHash = getOptionsHash(item.selectedOptions);
                                         const optionsPrice = item.selectedOptions.reduce((acc, opt) => acc + opt.priceAdjust, 0);
 
                                         return (
-                                            <div key={`${item.id}-${optionsHash}`} className="flex gap-3 group">
+                                            <div key={item.lineId} className="flex gap-3 group">
                                                 <div className="relative w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 overflow-hidden flex-shrink-0 shadow-lg group-hover:border-primary/20 transition-all">
                                                     {normalizeImageUrl(item.imageUrl) ? (
                                                         <Image
@@ -214,7 +213,7 @@ export function CartSheet({ isOpen, onClose, onCheckout, isSubmitting, allMenus 
                                                             </button>
                                                         </div>
                                                         <button
-                                                            onClick={() => removeItem(item.id, optionsHash)}
+                                                            onClick={() => removeItem(item.lineId)}
                                                             className="text-zinc-700 hover:text-red-500 transition-colors p-0.5 shrink-0"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5" />
@@ -237,7 +236,7 @@ export function CartSheet({ isOpen, onClose, onCheckout, isSubmitting, allMenus 
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-7 w-7 text-zinc-500 hover:text-white"
-                                                                onClick={() => updateQuantity(item.id, optionsHash, -1)}
+                                                                onClick={() => updateQuantity(item.lineId, -1)}
                                                             >
                                                                 <Minus className="w-3 h-3" />
                                                             </Button>
@@ -246,7 +245,7 @@ export function CartSheet({ isOpen, onClose, onCheckout, isSubmitting, allMenus 
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-7 w-7 text-primary hover:text-primary"
-                                                                onClick={() => updateQuantity(item.id, optionsHash, 1)}
+                                                                onClick={() => updateQuantity(item.lineId, 1)}
                                                             >
                                                                 <Plus className="w-3 h-3" />
                                                             </Button>

@@ -44,14 +44,16 @@ export async function POST(request: Request) {
     const timer = createApiTimer("POST /api/orders");
 
     try {
-        const rateLimit = await timer.step("rateLimit", () => checkRateLimit("orderCreate", getClientIp(request)));
-        if (!rateLimit.success) {
-            timer.finish(429);
-            return apiError("Terlalu banyak request. Coba lagi sebentar.", 429);
-        }
-
         const body = await timer.step("parseBody", () => request.json());
         const validatedData = createOrderSchema.parse(body);
+
+        const rateLimit = await timer.step("rateLimit", () =>
+            checkRateLimit("orderCreate", `${getClientIp(request)}:${validatedData.tableId}`),
+        );
+        if (!rateLimit.success) {
+            timer.finish(429);
+            return apiError("Terlalu banyak request untuk meja ini. Coba lagi sebentar.", 429);
+        }
 
         const result = await timer.step("createOrder", () => OrderService.createOrder(validatedData));
 

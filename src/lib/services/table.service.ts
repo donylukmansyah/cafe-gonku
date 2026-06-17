@@ -91,11 +91,14 @@ export class TableService {
             throw new Error("Table not found");
         }
 
-        await prisma.order.deleteMany({ where: { tableId: id } });
-        await prisma.table.delete({ where: { id } });
+        await prisma.table.update({
+            where: { id },
+            data: { isActive: false },
+        });
         await bumpCacheVersion("tables");
         await bumpCacheVersion("analytics");
 
         return true;
+
     }
 }

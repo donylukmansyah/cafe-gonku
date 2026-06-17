@@ -17,6 +17,13 @@ export async function GET(request: NextRequest) {
         const includeInactive = searchParams.get("includeInactive") === "true";
         const onlyAvailable = searchParams.get("onlyAvailable") === "true";
         const skipCache = searchParams.get("skipCache") === "true" || includeInactive;
+        const q = searchParams.get("q");
+        const status = searchParams.get("status");
+        const pageParam = searchParams.get("page");
+        const limitParam = searchParams.get("limit");
+        const page = pageParam ? Number(pageParam) : undefined;
+        const limit = limitParam ? Number(limitParam) : undefined;
+        const wantsPagination = Boolean(pageParam || limitParam);
 
         if (includeInactive) {
             const session = await timer.step("auth", () => getServerSession());
@@ -32,8 +39,17 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        if (wantsPagination) {
+            const result = await timer.step("menus", () =>
+                MenuService.getMenusPage({ page, limit, category, includeInactive, onlyAvailable, q, status }),
+            );
+
+            timer.finish(200, { category, includeInactive, onlyAvailable, skipCache, count: result.menus.length });
+            return apiResponse(result, 200, skipCache ? "no-store" : undefined);
+        }
+
         const menus = await timer.step("menus", () =>
-            MenuService.getMenus({ category, includeInactive, onlyAvailable, skipCache }),
+            MenuService.getMenus({ category, includeInactive, onlyAvailable, skipCache, q, status }),
         );
 
         timer.finish(200, { category, includeInactive, onlyAvailable, skipCache, count: menus.length });

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
 import { calculateCartSubtotal, calculatePaymentBreakdown } from "@/lib/order-pricing";
@@ -22,39 +22,57 @@ export function useCustomerCheckout({
   tableId,
   items,
   diningType,
-  snapPay,
   clearCart,
   updateItemPrices,
   removeItemsByMenuId,
   setActiveOrderCode,
   setOrderAccessToken,
   onPaymentStart,
-  onOrderCreated,
+  openDokuCheckout,
 }: {
   tableId: string;
   items: CartItem[];
   diningType: "DINE_IN" | "TAKEAWAY";
-  snapPay: (token: string, callbacks: Record<string, () => void | Promise<void>>) => void;
   clearCart: () => void;
   updateItemPrices: (updates: { menuId: string; newPrice: number; optionChanges?: { valueId: string; newAdjust: number }[] }[]) => void;
   removeItemsByMenuId: (menuId: string) => void;
   setActiveOrderCode: (code: string | null) => void;
   setOrderAccessToken: (orderCode: string, token: string) => void;
   onPaymentStart: () => void;
-  onOrderCreated: () => void;
+  openDokuCheckout: (paymentUrl: string) => boolean;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
+  const checkoutIdRef = useRef<string | null>(null);
 
   const formatPrice = useCallback(
     (price: number) => `Rp ${price.toLocaleString("id-ID")}`,
     [],
   );
 
+  useEffect(() => {
+    if (items.length === 0) {
+      checkoutIdRef.current = null;
+    }
+  }, [items.length]);
+
   const handleCheckout = useCallback(async () => {
+    if (submitLockRef.current || isSubmitting) {
+      return;
+    }
+
     if (!tableId) {
       toast.error("Silakan scan QR Code meja dulu ya!");
       return;
     }
+
+    if (items.length === 0) {
+      toast.error("Keranjang masih kosong.");
+      return;
+    }
+
+    submitLockRef.current = true;
+    checkoutIdRef.current ??= crypto.randomUUID();
 
     try {
       setIsSubmitting(true);
@@ -62,6 +80,7 @@ export function useCustomerCheckout({
       const verifyResult = await apiFetch<VerifyPricesResult>("/api/menus/verify-prices", {
         method: "POST",
         body: JSON.stringify({
+          tableId,
           items: items.map((item) => ({
             menuId: item.id,
             price: item.price,
@@ -109,6 +128,7 @@ export function useCustomerCheckout({
           description: messages.join("\n"),
           duration: 6000,
         });
+        checkoutIdRef.current = null;
         return;
       }
 
@@ -134,6 +154,7 @@ export function useCustomerCheckout({
           serviceFee,
           rounding,
           priceHash: verifyResult.priceHash,
+          checkoutId: checkoutIdRef.current,
         }),
       });
 
@@ -141,69 +162,32 @@ export function useCustomerCheckout({
         setOrderAccessToken(order.orderCode, order.accessToken);
       }
 
-      if (order.midtransToken) {
-        setIsSubmitting(false);
-        onPaymentStart();
+      setActiveOrderCode(order.orderCode);
+      clearCart();
+      onPaymentStart();
 
-        snapPay(order.midtransToken, {
-          onSuccess: async () => {
-            toast.success("Pembayaran Berhasil!");
-
-            try {
-              const headers: Record<string, string> = {};
-              if (order.accessToken) {
-                headers["x-order-token"] = order.accessToken;
-              }
-              await apiFetch(`/api/orders/${order.orderCode}/check-payment`, {
-                method: "POST",
-                headers,
-              });
-            } catch (error) {
-              console.error("Proactive check-payment failed:", error);
-            }
-
-            setActiveOrderCode(order.orderCode);
-            clearCart();
-          },
-          onPending: async () => {
-            toast.info("Menunggu Pembayaran...");
-            setActiveOrderCode(order.orderCode);
-            clearCart();
-          },
-          onError: () => {
-            toast.error("Pembayaran Gagal");
-            setActiveOrderCode(order.orderCode);
-            clearCart();
-          },
-          onClose: () => {
-            toast.warning("Pembayaran belum selesai");
-            setActiveOrderCode(order.orderCode);
-            clearCart();
-          },
-        });
-      } else {
-        setActiveOrderCode(order.orderCode);
-        toast.success("Pesanan berhasil dikirim ke dapur!");
-        clearCart();
-        onOrderCreated();
+      const paymentUrl = order.paymentRedirectUrl ?? order.midtransRedirectUrl;
+      if (paymentUrl) {
+        openDokuCheckout(paymentUrl);
       }
     } catch {
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   }, [
     tableId,
+    isSubmitting,
     items,
     diningType,
     formatPrice,
-    snapPay,
     clearCart,
     updateItemPrices,
     removeItemsByMenuId,
     setActiveOrderCode,
     setOrderAccessToken,
     onPaymentStart,
-    onOrderCreated,
+    openDokuCheckout,
   ]);
 
   return { isSubmitting, handleCheckout };

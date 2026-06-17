@@ -9,23 +9,25 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useSnap } from "@/hooks/use-snap";
 import { useRealtimeOrder } from "@/hooks/use-realtime-order";
+import { useDokuCheckout } from "@/hooks/use-doku-checkout";
 
 // Order Status Types (Match Prisma Enum)
 type OrderStatus = "PENDING" | "PAID" | "PREPARING" | "READY" | "SERVED" | "CANCELLED" | "EXPIRED";
 
+const PAYMENT_EXPIRY_MINUTES = 60;
+
 const STEPS = [
-    { status: "PENDING", label: "Menunggu", icon: Clock },
-    { status: "PREPARING", label: "Disiapkan", icon: ChefHat },
-    { status: "READY", label: "Diantar", icon: Truck },
+    { status: "PAID", label: "Menunggu Dapur", icon: Clock },
+    { status: "PREPARING", label: "Dimasak", icon: ChefHat },
+    { status: "READY", label: "Siap", icon: Truck },
     { status: "SERVED", label: "Selesai", icon: Utensils },
 ];
 
 export function TrackingSheet() {
     const [isOpen, setIsOpen] = useState(false);
     const { order, refresh, activeOrderCode } = useRealtimeOrder();
-    const { snapPay } = useSnap();
+    const { openDokuCheckout } = useDokuCheckout();
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
     const getOrderAccessToken = useCart((state) => state.getOrderAccessToken);
     const hasHydrated = useCart((state) => state.hasHydrated);
@@ -47,26 +49,13 @@ export function TrackingSheet() {
     const [isCancelling, setIsCancelling] = useState(false);
 
     const handlePayment = () => {
-        if (!order?.midtransToken) {
+        const paymentUrl = order?.paymentRedirectUrl ?? order?.midtransToken;
+        if (!paymentUrl) {
             toast.error("Gagal memulai pembayaran. Silakan buat pesanan baru.");
             return;
         }
 
-        snapPay(order.midtransToken, {
-            onSuccess: () => {
-                toast.success("Pembayaran berhasil");
-                refresh();
-            },
-            onPending: () => {
-                toast.info("Pembayaran tertunda. Silakan selesaikan pembayaranmu.");
-            },
-            onError: () => {
-                toast.error("Pembayaran gagal. Silakan coba lagi.");
-            },
-            onClose: () => {
-                toast.info("Selesaikan pembayaranmu nanti di sini ya!");
-            },
-        });
+        openDokuCheckout(paymentUrl);
     };
 
     const handleCancelOrder = async () => {
@@ -112,6 +101,13 @@ export function TrackingSheet() {
     };
 
     const currentStep = order ? getCurrentStepIndex(order.status) : 0;
+    const paymentExpiresAt = order
+        ? new Date(order.paymentExpiresAt ?? new Date(order.createdAt).getTime() + PAYMENT_EXPIRY_MINUTES * 60_000)
+        : null;
+    const isPaymentExpiredByTime = order?.paymentStatus === "PENDING" && paymentExpiresAt ? Date.now() > paymentExpiresAt.getTime() : false;
+    const steps = order?.paymentStatus === "PENDING"
+        ? [{ ...STEPS[0], status: "PENDING", label: "Belum Bayar" }, ...STEPS.slice(1)]
+        : STEPS;
     const isCancelled = order?.status === "CANCELLED" || order?.status === "EXPIRED";
 
     return (
@@ -171,38 +167,50 @@ export function TrackingSheet() {
 
                     {/* Stepper */}
                     {!isCancelled ? (
-                        <div className="relative flex justify-between px-2">
-                            {/* Progress Track */}
-                            <div className="absolute top-3.5 left-[22px] right-[22px] h-[2px] -z-10 bg-zinc-900">
-                                <div
-                                    className="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(53,183,24,0.4)]"
-                                    style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                                />
-                            </div>
-
-                            {STEPS.map((step, index) => {
+                        <div className="flex items-start px-2">
+                            {steps.map((step, index) => {
                                 const isActive = index <= currentStep;
                                 const isCurrent = index === currentStep;
+                                const isSegmentActive = index < currentStep;
                                 const Icon = step.icon;
 
                                 return (
-                                    <div key={step.status} className="flex flex-col items-center gap-2 group">
-                                        <div className={cn(
-                                            "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-zinc-950 z-10",
-                                            isActive
-                                                ? "border-primary text-primary bg-zinc-900 md:bg-zinc-950"
-                                                : "border-zinc-800 text-zinc-700",
-                                            isCurrent && "ring-4 ring-primary/10 scale-110 shadow-[0_0_15px_rgba(53,183,24,0.2)]"
-                                        )}>
-                                            <Icon className="w-3.5 h-3.5" />
+                                    <div
+                                        key={step.status}
+                                        className={cn(
+                                            "flex items-start",
+                                            index < steps.length - 1 ? "flex-1" : "flex-none"
+                                        )}
+                                    >
+                                        <div className="relative flex w-7 shrink-0 flex-col items-center group">
+                                            <div className={cn(
+                                                "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-zinc-950 z-10",
+                                                isActive
+                                                    ? "border-primary text-primary bg-zinc-900 md:bg-zinc-950"
+                                                    : "border-zinc-800 text-zinc-700",
+                                                isCurrent && "ring-4 ring-primary/10 scale-110 shadow-[0_0_15px_rgba(53,183,24,0.2)]"
+                                            )}>
+                                                <Icon className="w-3.5 h-3.5" />
+                                            </div>
+                                            <span className={cn(
+                                                "absolute left-1/2 top-9 w-16 -translate-x-1/2 text-[9px] font-bold text-center transition-all duration-300 uppercase tracking-tight leading-tight",
+                                                isActive ? "text-zinc-300" : "text-zinc-700",
+                                                isCurrent && "text-primary scale-105"
+                                            )}>
+                                                {step.label}
+                                            </span>
                                         </div>
-                                        <span className={cn(
-                                            "text-[9px] font-bold text-center transition-all duration-300 uppercase tracking-tight",
-                                            isActive ? "text-zinc-300" : "text-zinc-700",
-                                            isCurrent && "text-primary scale-105"
-                                        )}>
-                                            {step.label}
-                                        </span>
+
+                                        {index < steps.length - 1 && (
+                                            <div
+                                                className={cn(
+                                                    "mt-3.5 h-[2px] flex-1 rounded-full transition-all duration-700 ease-out",
+                                                    isSegmentActive
+                                                        ? "bg-primary shadow-[0_0_12px_rgba(53,183,24,0.4)]"
+                                                        : "bg-transparent"
+                                                )}
+                                            />
+                                        )}
                                     </div>
                                 );
                             })}
@@ -226,6 +234,26 @@ export function TrackingSheet() {
                 <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hidden">
                     {order ? (
                         <div className="space-y-6 pb-24"> {/* Added padding bottom for safe scroll */}
+                            {order.paymentStatus === "PENDING" && (
+                                <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4 space-y-2">
+                                    <div className="flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-widest">
+                                        <Clock className="w-4 h-4" />
+                                        Menunggu Pembayaran
+                                    </div>
+                                    <p className="text-xs leading-relaxed text-zinc-400">
+                                        Selesaikan pembayaran sebelum {paymentExpiresAt?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}. Jangan membayar setelah waktu habis.
+                                    </p>
+                                    <p className="text-[11px] leading-relaxed text-zinc-500">
+                                        Jika pembayaran dilakukan setelah expired dan saldo terpotong, pesanan tidak otomatis diproses. Silakan hubungi kasir dengan kode order <span className="font-mono text-zinc-300">{order.orderCode}</span>.
+                                    </p>
+                                    {isPaymentExpiredByTime && (
+                                        <div className="rounded-xl border border-red-500/15 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-300">
+                                            Waktu bayar kemungkinan sudah habis. Silakan buat pesanan baru atau hubungi kasir.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="space-y-4">
                                 <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Menu Dipesan</h4>
                                 {order.orderItems?.map((item) => (
@@ -303,11 +331,17 @@ export function TrackingSheet() {
                 </div>
 
                 {/* Fixed Bottom Action Bar */}
-                {(order?.status === "SERVED" || order?.status === "CANCELLED" || order?.status === "EXPIRED" || (order?.paymentStatus === "PENDING" && order?.midtransToken)) && (
+                {(order?.status === "SERVED" || order?.status === "CANCELLED" || order?.status === "EXPIRED" || (order?.paymentStatus === "PENDING" && (order?.paymentRedirectUrl || order?.midtransToken))) && (
                     <div className="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-zinc-950 via-zinc-950 to-zinc-950/0 pt-12">
                         {/* CASE: Pending Payment */}
                         {order.paymentStatus === "PENDING" && order.status !== "CANCELLED" && order.status !== "EXPIRED" && (
-                            <div className="flex gap-3">
+                            <div className="space-y-3">
+                                {isPaymentExpiredByTime && (
+                                    <div className="rounded-xl border border-red-500/15 bg-red-500/10 px-4 py-3 text-[11px] leading-relaxed text-red-200">
+                                        Waktu pembayaran sudah habis. Jangan lanjut bayar QR lama. Jika saldo sudah terpotong, hubungi kasir dengan kode order <span className="font-mono font-bold">{order.orderCode}</span>.
+                                    </div>
+                                )}
+                                <div className="flex gap-3">
                                 <Button
                                     variant="outline"
                                     disabled={isCancelling}
@@ -318,10 +352,12 @@ export function TrackingSheet() {
                                 </Button>
                                 <Button
                                     onClick={handlePayment}
-                                    className="flex-[2] h-12 bg-amber-500 hover:bg-amber-600 text-black font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                                    disabled={isPaymentExpiredByTime}
+                                    className="flex-[2] h-12 bg-amber-500 hover:bg-amber-600 text-black font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                    Bayar Sekarang
+                                    {isPaymentExpiredByTime ? "Waktu Habis" : "Bayar Sekarang"}
                                 </Button>
+                                </div>
                             </div>
                         )}
 

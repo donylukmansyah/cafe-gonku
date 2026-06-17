@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const PATRINS_API_BASE = "https://patrins.com";
 const PATRINS_DOWNLOAD_TOKEN_TTL_SECONDS = 60 * 60 * 11;
+const MENU_IMAGE_BUCKET = "menu-images";
 
 type UploadMenuImageInput = {
   fileName: string;
@@ -25,20 +26,6 @@ function getPatrinsAuthHeaders() {
   };
 }
 
-function getAppUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-}
-
-function resolvePatrinsUrl(pathOrUrl: string) {
-  return pathOrUrl.startsWith("http")
-    ? pathOrUrl
-    : `${PATRINS_API_BASE}${pathOrUrl}`;
-}
-
-function getPatrinsFileUrl(fileId: string) {
-  return `${getAppUrl()}/api/images/patrins/${fileId}`;
-}
-
 function getPatrinsFileId(imageUrl: string) {
   const match = imageUrl.match(/\/api\/images\/patrins\/([^/?#]+)/);
   if (match?.[1]) return match[1];
@@ -49,70 +36,23 @@ function getPatrinsFileId(imageUrl: string) {
   return null;
 }
 
-async function uploadToPatrins({
-  fileName,
-  mimeType,
-  bytes,
-}: UploadMenuImageInput): Promise<UploadMenuImageResult> {
-  const authHeaders = getPatrinsAuthHeaders();
-  if (!authHeaders) {
-    throw new Error("PATRINS_API_KEY is not configured");
+async function ensureMenuImageBucket() {
+  if (!supabaseAdmin) {
+    throw new Error("Supabase Admin client not initialized");
   }
 
-  const initResponse = await fetch(`${PATRINS_API_BASE}/api/upload-direct/init`, {
-    method: "POST",
-    headers: {
-      ...authHeaders,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fileName,
-      fileSize: bytes.byteLength,
-      mimeType,
-      ...(process.env.PATRINS_FOLDER_ID
-        ? { folderId: process.env.PATRINS_FOLDER_ID }
-        : {}),
-    }),
+  const { data: bucket, error: getError } = await supabaseAdmin.storage.getBucket(MENU_IMAGE_BUCKET);
+  if (bucket && !getError) return;
+
+  const { error: createError } = await supabaseAdmin.storage.createBucket(MENU_IMAGE_BUCKET, {
+    public: true,
+    fileSizeLimit: 5 * 1024 * 1024,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
   });
 
-  const initPayload = await initResponse.json();
-  if (!initResponse.ok) {
-    throw new Error(initPayload?.error || "Patrins upload init failed");
+  if (createError && !createError.message.toLowerCase().includes("already exists")) {
+    throw createError;
   }
-
-  const uploadResponse = await fetch(resolvePatrinsUrl(initPayload.uploadUrl), {
-    method: "PUT",
-    headers: {
-      ...authHeaders,
-      "Content-Type": "application/octet-stream",
-    },
-    body: Buffer.from(bytes),
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error(await uploadResponse.text());
-  }
-
-  const finalizeResponse = await fetch(`${PATRINS_API_BASE}/api/upload-finalize`, {
-    method: "POST",
-    headers: {
-      ...authHeaders,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ uploadId: initPayload.uploadId }),
-  });
-
-  const finalizePayload = await finalizeResponse.json();
-  if (!finalizeResponse.ok || !finalizePayload?.file?.id) {
-    throw new Error(finalizePayload?.error || "Patrins upload finalize failed");
-  }
-
-  const fileId = finalizePayload.file.id as string;
-  return {
-    provider: "patrins",
-    url: getPatrinsFileUrl(fileId),
-    path: `patrins:${fileId}`,
-  };
 }
 
 async function uploadToSupabase({
@@ -124,9 +64,11 @@ async function uploadToSupabase({
     throw new Error("Supabase Admin client not initialized");
   }
 
+  await ensureMenuImageBucket();
+
   const filePath = `menus/${fileName}`;
   const { error } = await supabaseAdmin.storage
-    .from("menu-images")
+    .from(MENU_IMAGE_BUCKET)
     .upload(filePath, bytes, {
       contentType: mimeType,
       cacheControl: "3600",
@@ -138,7 +80,7 @@ async function uploadToSupabase({
   }
 
   const { data: urlData } = supabaseAdmin.storage
-    .from("menu-images")
+    .from(MENU_IMAGE_BUCKET)
     .getPublicUrl(filePath);
 
   return {
@@ -149,12 +91,7 @@ async function uploadToSupabase({
 }
 
 export async function uploadMenuImage(input: UploadMenuImageInput) {
-  try {
-    return await uploadToPatrins(input);
-  } catch (error) {
-    console.error("[ImageStorage] Patrins upload failed, falling back to Supabase", error);
-    return uploadToSupabase(input);
-  }
+  return uploadToSupabase(input);
 }
 
 export async function getPatrinsDownloadUrl(fileId: string) {
@@ -202,11 +139,11 @@ export async function deleteMenuImage(imageUrl: string) {
     return;
   }
 
-  const parts = imageUrl.split("/menu-images/");
+  const parts = imageUrl.split(`/${MENU_IMAGE_BUCKET}/`);
   if (parts.length < 2 || !supabaseAdmin) return;
 
   const { error } = await supabaseAdmin.storage
-    .from("menu-images")
+    .from(MENU_IMAGE_BUCKET)
     .remove([parts[1]]);
 
   if (error) {

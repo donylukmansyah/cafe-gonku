@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useState } from "react";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -32,12 +31,11 @@ export const MenuTableItem = memo(function MenuTableItem({
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/5 overflow-hidden flex items-center justify-center relative">
                         {imageUrl && !imageError ? (
-                            <Image
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
                                 src={imageUrl}
                                 alt={menu.name}
-                                className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                fill
-                                sizes="48px"
+                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 onError={() => setImageError(true)}
                             />
                         ) : (

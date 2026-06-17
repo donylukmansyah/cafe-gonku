@@ -13,9 +13,12 @@ export interface OrderDetails {
     orderCode: string;
     status: "PENDING" | "PAID" | "PREPARING" | "READY" | "SERVED" | "CANCELLED" | "EXPIRED";
     paymentStatus: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
+    /** @deprecated Use paymentRedirectUrl. Kept for older Midtrans-named DB field. */
     midtransToken?: string;
+    paymentRedirectUrl?: string | null;
     totalAmount: number;
     createdAt: string;
+    paymentExpiresAt?: string | null;
     customerName?: string;
     table: {
         tableNumber: number;
@@ -86,9 +89,27 @@ export function useRealtimeOrder() {
         }
     }, [activeOrderCode]);
 
+    const checkPaymentStatus = useCallback(async () => {
+        if (!activeOrderCode) return { updated: false };
+
+        const token = getOrderAccessTokenRef.current(activeOrderCode);
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers["x-order-token"] = token;
+        }
+
+        return apiFetch<{ updated?: boolean; latePayment?: boolean; message?: string }>(`/api/orders/${activeOrderCode}/check-payment`, {
+            method: "POST",
+            silent: true,
+            headers,
+        });
+    }, [activeOrderCode]);
+
     // Store fetchOrder in ref so effects can call latest version without re-subscribing
     const fetchOrderRef = useRef(fetchOrder);
     fetchOrderRef.current = fetchOrder;
+    const checkPaymentStatusRef = useRef(checkPaymentStatus);
+    checkPaymentStatusRef.current = checkPaymentStatus;
 
     // Initial Fetch & Real-time Subscription
     useEffect(() => {
@@ -109,25 +130,29 @@ export function useRealtimeOrder() {
             .on("broadcast", { event: "refresh-orders" }, (payload) => {
                 console.log("[Supabase] Order update received:", payload);
                 const data = payload.payload;
+                const orderCode = typeof data?.orderCode === "string" ? data.orderCode : data?.orderId;
 
-                if (data?.orderId === activeOrderCode) {
-                    // ZERO-DELAY UPDATE: If payload has status, update local state instantly
-                    if (data.status) {
+                if (orderCode === activeOrderCode) {
+                    const orderStatus = data?.orderStatus ?? data?.status;
+                    const paymentStatus = data?.paymentStatus;
+
+                    if (typeof orderStatus === "string") {
                         setOrder(prev => {
                             if (!prev) return prev;
-                            // Only update if status actually changed to avoid unnecessary re-renders
-                            if (prev.status === data.status) return prev;
+                            if (prev.status === orderStatus && (!paymentStatus || prev.paymentStatus === paymentStatus)) return prev;
 
                             return {
                                 ...prev,
-                                status: data.status,
-                                // If status is PAID, also update paymentStatus for UI consistency
-                                paymentStatus: data.status === "PAID" ? "PAID" : prev.paymentStatus
+                                status: orderStatus as OrderDetails["status"],
+                                paymentStatus: typeof paymentStatus === "string"
+                                    ? paymentStatus as OrderDetails["paymentStatus"]
+                                    : orderStatus === "PAID"
+                                      ? "PAID"
+                                      : prev.paymentStatus,
                             };
                         });
-                        toast.info(`Status pesanan: ${data.status}`);
+                        toast.info(`Status pesanan: ${orderStatus}`);
                     } else {
-                        // Fallback to fetch if payload is incomplete
                         fetchOrderRef.current();
                     }
                 }
@@ -176,17 +201,16 @@ export function useRealtimeOrder() {
             if (stopped || !isMounted.current) return;
 
             try {
-                const token = getOrderAccessTokenRef.current(activeOrderCode);
-                const headers: Record<string, string> = {};
-                if (token) {
-                    headers["x-order-token"] = token;
-                }
+                const data = await checkPaymentStatusRef.current();
 
-                const data = await apiFetch<{ updated?: boolean }>(`/api/orders/${activeOrderCode}/check-payment`, {
-                    method: "POST",
-                    silent: true,
-                    headers,
-                });
+                if (data.latePayment && isMounted.current) {
+                    toast.warning("Pembayaran melewati batas waktu", {
+                        description: "Pesanan tidak otomatis diproses. Silakan hubungi kasir dengan kode order.",
+                        duration: 8000,
+                    });
+                    fetchOrderRef.current();
+                    return;
+                }
 
                 if (data.updated && isMounted.current) {
                     toast.success("Pembayaran terkonfirmasi");
@@ -208,6 +232,49 @@ export function useRealtimeOrder() {
         return () => {
             stopped = true;
             if (timeout) clearTimeout(timeout);
+        };
+    }, [activeOrderCode, order?.paymentStatus]);
+
+    useEffect(() => {
+        if (!activeOrderCode || order?.paymentStatus !== "PENDING") return;
+
+        let isChecking = false;
+
+        const checkAfterReturn = async () => {
+            if (isChecking || document.visibilityState !== "visible") return;
+
+            isChecking = true;
+            try {
+                const data = await checkPaymentStatusRef.current();
+                if (data.latePayment && isMounted.current) {
+                    toast.warning("Pembayaran melewati batas waktu", {
+                        description: "Pesanan tidak otomatis diproses. Silakan hubungi kasir dengan kode order.",
+                        duration: 8000,
+                    });
+                    fetchOrderRef.current();
+                    return;
+                }
+
+                if (data.updated && isMounted.current) {
+                    toast.success("Pembayaran terkonfirmasi");
+                    fetchOrderRef.current();
+                    return;
+                }
+
+                fetchOrderRef.current();
+            } catch (error) {
+                console.error("Payment return check error:", error);
+            } finally {
+                isChecking = false;
+            }
+        };
+
+        window.addEventListener("focus", checkAfterReturn);
+        document.addEventListener("visibilitychange", checkAfterReturn);
+
+        return () => {
+            window.removeEventListener("focus", checkAfterReturn);
+            document.removeEventListener("visibilitychange", checkAfterReturn);
         };
     }, [activeOrderCode, order?.paymentStatus]);
 

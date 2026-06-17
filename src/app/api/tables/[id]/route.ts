@@ -42,7 +42,7 @@ export async function DELETE(
 
         await TableService.deleteTable(id)
 
-        return apiResponse({ message: "Table deleted successfully" })
+        return apiResponse({ message: "Table deactivated successfully" })
     } catch (error) {
         return handleApiError(error, "DELETE /api/tables/[id]")
     }

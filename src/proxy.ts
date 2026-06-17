@@ -7,16 +7,16 @@ export async function proxy(request: NextRequest) {
     // --- Content Security Policy ---
     const cspHeader = `
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.sandbox.midtrans.com https://app.midtrans.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sandbox.doku.com https://jokul.doku.com;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com https://patrins.com;
+        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com https://patrins.com https://sandbox.doku.com https://jokul.doku.com;
         font-src 'self' https://fonts.gstatic.com;
         object-src 'none';
         base-uri 'self';
-        form-action 'self';
+        form-action 'self' https://sandbox.doku.com https://jokul.doku.com https://www.doku.com;
         frame-ancestors 'none';
-        frame-src 'self' https://app.sandbox.midtrans.com https://app.midtrans.com;
-        connect-src 'self' https://*.supabase.co wss://*.supabase.co https://app.sandbox.midtrans.com https://app.midtrans.com;
+        frame-src 'self' https://sandbox.doku.com https://jokul.doku.com https://www.doku.com;
+        connect-src 'self' https://*.supabase.co wss://*.supabase.co https://sandbox.doku.com https://jokul.doku.com https://api-sandbox.doku.com https://api.doku.com;
         upgrade-insecure-requests;
     `.replace(/\s{2,}/g, " ").trim();
 

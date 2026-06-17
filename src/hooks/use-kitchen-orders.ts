@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
+import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 
 interface OrderItem {
     id: string;
@@ -174,65 +175,60 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         syncPendingOrders();
 
         const channel = supabase
-            .channel("kitchen-updates")
+            .channel(REALTIME_CHANNELS.kitchenUpdates)
             .on("broadcast", { event: "refresh-orders" }, (payload) => {
                 const data = payload.payload;
-                const status = data?.status;
-                const orderId = data?.orderId;
-                const isPayment = status === "PAID";
-                const isNewPaidOrder = isPayment && !soundedOrdersRef.current.has(orderId);
-                const fullOrder = data?.fullOrder;
+                const orderCode = typeof data?.orderCode === "string" ? data.orderCode : data?.orderId;
+                const orderStatus = data?.orderStatus ?? data?.status;
+                const paymentStatus = data?.paymentStatus;
+                const isPaymentPaid = paymentStatus === "PAID" || data?.status === "PAID";
+                const isNewPaidOrder = isPaymentPaid && typeof orderCode === "string" && !soundedOrdersRef.current.has(orderCode);
+                const fullOrder = data?.fullOrder as Order | undefined;
 
-                console.log(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderId}: ${status}`);
+                console.log(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderCode}: ${orderStatus}/${paymentStatus ?? "UNKNOWN"}`);
 
                 if (isNewPaidOrder) {
                     if (soundEnabled) {
                         playNotification();
                     }
-                    if (orderId) soundedOrdersRef.current.add(orderId);
-                    toast.success(`Pesanan Masuk: ${orderId}`, {
+                    soundedOrdersRef.current.add(orderCode);
+                    toast.success(`Pesanan Masuk: ${orderCode}`, {
                         description: "Sudah bayar! Segera cek daftar Pesanan Aktif.",
                         duration: 10000,
                     });
                 }
 
-                if (data?.orderId && data?.status) {
-                    if (data.status === "PENDING") return;
+                if (typeof orderCode === "string" && typeof orderStatus === "string") {
+                    if (orderStatus === "PENDING") return;
 
-                    if (fullOrder && isPayment) {
-                        // Instant State Injection for new Paid Orders
+                    if (fullOrder && isPaymentPaid) {
                         setOrders(prev => {
-                            const exists = prev.some(o => o.orderCode === data.orderId);
+                            const exists = prev.some(o => o.orderCode === orderCode);
                             if (exists) {
-                                // If it exists, just update the status (idempotent)
-                                return prev.map(o => o.orderCode === data.orderId ? { ...o, status: data.status, ...fullOrder } : o);
+                                return prev.map(o => o.orderCode === orderCode ? { ...o, ...fullOrder, status: fullOrder.status ?? orderStatus } : o);
                             }
-                            // Inject brand new order from broadcast payload!
                             return [...prev, fullOrder].sort((a, b) => new Date(a.paidAt || a.createdAt).getTime() - new Date(b.paidAt || b.createdAt).getTime());
                         });
                     } else {
-                        // Fallback for status updates (PREPARING, READY, etc) 
                         setOrders((prev) => {
-                            const existing = prev.find(o => o.orderCode === data.orderId);
+                            const existing = prev.find(o => o.orderCode === orderCode);
                             if (!existing) {
-                                // Important: We ONLY initiate a fetch request for missing non-paid orders.
-                                // If we don't have it, we must fetch it. However, we schedule this OUTSIDE of the setOrders callback using setTimeout to avoid React warnings.
                                 setTimeout(() => fetchOrders(true), 0);
                                 return prev;
                             }
                             return prev.map(o =>
-                                o.orderCode === data.orderId
-                                    ? { ...o, status: data.status }
+                                o.orderCode === orderCode
+                                    ? { ...o, status: orderStatus as Order["status"] }
                                     : o
                             );
                         });
                     }
                 } else {
-                    // Fallback for empty payload
                     fetchOrders(true);
                 }
             })
             .subscribe();
+
 
         pollingRef.current = setInterval(() => {
             if (document.visibilityState === "visible") fetchOrders();
@@ -240,7 +236,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
         const syncInterval = setInterval(() => {
             syncPendingOrders();
-        }, 60000); // Increased to 60s (Midtrans sync isn't that urgent)
+        }, 60000); // Payment gateway sync is not that urgent
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {

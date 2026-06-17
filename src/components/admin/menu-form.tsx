@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { OptionField } from "./menus/menu-option-field"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
+import { useSWRConfig } from "swr"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createMenuSchema, type CreateMenuFormInput } from "@/validations/menu"
 import { MENU_HIGHLIGHT_OPTIONS } from "@/lib/menu-highlight"
@@ -21,8 +22,8 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Loader2, Plus, Trash2, Upload } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import Image from "next/image"
 import { formatNumber } from "@/lib/utils"
 
 type MenuFormProps = {
@@ -37,13 +38,27 @@ const categories = [
     { value: "DESSERT", label: "Dessert" },
 ]
 
+const emptyMenuFormValues: CreateMenuFormInput = {
+    name: "",
+    description: "",
+    price: 0,
+    category: "FOOD",
+    isAvailable: true,
+    isActive: true,
+    highlightType: "NONE",
+    menuOptions: [],
+}
+
 export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
     const router = useRouter()
+    const { mutate } = useSWRConfig()
     const [isLoading, setIsLoading] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
     const [imagePreview, setImagePreview] = useState<string | null>(
         initialData?.imageUrl || null
     )
+    const [imagePreviewError, setImagePreviewError] = useState(false)
+    const [isDraggingImage, setIsDraggingImage] = useState(false)
 
     // Price display state
     const [displayPrice, setDisplayPrice] = useState("")
@@ -53,27 +68,19 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
         handleSubmit,
         control,
         setValue,
+        reset,
         formState: { errors },
     } = useForm<CreateMenuFormInput>({
         resolver: zodResolver(createMenuSchema),
-        defaultValues: initialData || {
-            name: "",
-            description: "",
-            price: 0,
-            category: "FOOD",
-            isAvailable: true,
-            isActive: true,
-            highlightType: "NONE",
-            menuOptions: [],
-        },
+        defaultValues: initialData || emptyMenuFormValues,
     })
 
-    // Initialize display price
     useEffect(() => {
-        if (initialData?.price) {
-            setDisplayPrice(formatNumber(initialData.price))
-        }
-    }, [initialData])
+        reset(initialData || emptyMenuFormValues)
+        setDisplayPrice(initialData?.price ? formatNumber(initialData.price) : "")
+        setImagePreview(initialData?.imageUrl || null)
+        setImagePreviewError(false)
+    }, [initialData, reset])
 
     const {
         fields: optionFields,
@@ -93,9 +100,11 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
         }
     }
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
+    const uploadImageFile = async (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            toast.error("File harus berupa gambar")
+            return
+        }
 
         setIsUploading(true)
         try {
@@ -115,12 +124,36 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
             const data = await res.json()
             setValue("imageUrl", data.url)
             setImagePreview(data.url)
+            setImagePreviewError(false)
             toast.success("Gambar berhasil diupload")
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Gagal upload gambar")
         } finally {
             setIsUploading(false)
+            setIsDraggingImage(false)
         }
+    }
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        await uploadImageFile(file)
+        e.target.value = ""
+    }
+
+    const handleImageDrop = async (e: React.DragEvent<HTMLLabelElement | HTMLDivElement>) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (isUploading) return
+
+        const file = e.dataTransfer.files?.[0]
+        if (!file) {
+            setIsDraggingImage(false)
+            return
+        }
+
+        await uploadImageFile(file)
     }
 
     const onSubmit = async (data: CreateMenuFormInput) => {
@@ -141,7 +174,18 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
             }
 
             toast.success(isEdit ? "Menu berhasil diupdate" : "Menu berhasil dibuat")
-            router.push("/admin/menus") // Corrected path
+            if (!isEdit) {
+                reset(emptyMenuFormValues)
+                setDisplayPrice("")
+                setImagePreview(null)
+                setImagePreviewError(false)
+            }
+            await mutate(
+                (key) => typeof key === "string" && key.startsWith("/api/menus?"),
+                undefined,
+                { revalidate: true }
+            )
+            router.replace("/admin/menus")
             router.refresh()
         } catch (error) {
             console.error(error)
@@ -219,11 +263,14 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                                         </Select>
                                     )}
                                 />
+                                {errors.category && (
+                                    <p className="text-sm text-red-500">{errors.category.message}</p>
+                                )}
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Highlight Customer</Label>
+                            <Label>Highlight Customer *</Label>
                             <Controller
                                 control={control}
                                 name="highlightType"
@@ -245,6 +292,9 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                                     </Select>
                                 )}
                             />
+                            {errors.highlightType && (
+                                <p className="text-sm text-red-500">{errors.highlightType.message}</p>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -297,20 +347,44 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                     <CardContent>
                         <div className="space-y-4">
                             {imagePreview ? (
-                                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100 group">
-                                    <Image
-                                        src={imagePreview}
-                                        alt="Preview"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div
+                                    className={cn(
+                                        "relative aspect-video rounded-lg overflow-hidden bg-gray-100 group border-2 transition-colors",
+                                        isDraggingImage ? "border-primary" : "border-transparent"
+                                    )}
+                                    onDragOver={(e) => {
+                                        e.preventDefault()
+                                        if (!isUploading) setIsDraggingImage(true)
+                                    }}
+                                    onDragLeave={() => setIsDraggingImage(false)}
+                                    onDrop={handleImageDrop}
+                                >
+                                    {!imagePreviewError ? (
+                                        // Native img avoids preview issues with local API redirects / signed image URLs.
+                                        // Admin preview is not LCP-critical, so Next Image optimization is unnecessary here.
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="h-full w-full object-cover"
+                                            onError={() => setImagePreviewError(true)}
+                                        />
+                                    ) : (
+                                        <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-950 text-center px-6">
+                                            <Upload className="w-8 h-8 text-zinc-600 mb-2" />
+                                            <p className="text-sm font-bold text-zinc-300">Gambar tidak bisa ditampilkan</p>
+                                            <p className="text-xs text-zinc-500 mt-1">Hapus lalu upload ulang gambar.</p>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-3 items-center justify-center text-center px-4">
+                                        <p className="text-xs font-bold text-white/90">Drag gambar baru ke sini untuk mengganti</p>
                                         <Button
                                             type="button"
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => {
                                                 setImagePreview(null)
+                                                setImagePreviewError(false)
                                                 setValue("imageUrl", undefined)
                                             }}
                                         >
@@ -318,9 +392,27 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                                             Hapus Gambar
                                         </Button>
                                     </div>
+                                    {isUploading && (
+                                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                                            <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+                                            <p className="text-sm text-white">Mengupload...</p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
-                                <label className={`flex flex-col items-center justify-center aspect-video border-2 border-dashed border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <label
+                                    className={cn(
+                                        "flex flex-col items-center justify-center aspect-video border-2 border-dashed rounded-lg cursor-pointer transition-colors",
+                                        isDraggingImage ? "border-primary bg-primary/5" : "border-zinc-700 hover:bg-zinc-800/50",
+                                        isUploading && "opacity-50 cursor-not-allowed"
+                                    )}
+                                    onDragOver={(e) => {
+                                        e.preventDefault()
+                                        if (!isUploading) setIsDraggingImage(true)
+                                    }}
+                                    onDragLeave={() => setIsDraggingImage(false)}
+                                    onDrop={handleImageDrop}
+                                >
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -337,7 +429,7 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                                         <>
                                             <Upload className="w-8 h-8 text-zinc-400 mb-2" />
                                             <p className="text-sm text-zinc-400">
-                                                Klik untuk upload gambar
+                                                Klik atau drag gambar ke sini
                                             </p>
                                             <p className="text-xs text-zinc-500 mt-1">
                                                 Max 5MB (JPEG, PNG, WebP)
@@ -405,7 +497,7 @@ export function MenuForm({ initialData, isEdit = false }: MenuFormProps) {
                 <Button
                     type="submit"
                     className="bg-primary hover:bg-primary/90 text-black font-bold"
-                    disabled={isLoading}
+                    disabled={isLoading || isUploading}
                 >
                     {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

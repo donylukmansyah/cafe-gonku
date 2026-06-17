@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Plus, Flame, Sparkles, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -32,19 +31,10 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
             return a.name.localeCompare(b.name);
         });
 
-    const recommendedMenus = highlightedMenus.length > 0
-        ? highlightedMenus.slice(0, 3)
-        : allMenus.filter((menu) => menu.isAvailable).slice(0, 3);
+    const recommendedMenus = highlightedMenus.slice(0, 3);
 
     if (isLoading) {
-        return (
-            <div className="space-y-6 pb-10 px-4 pt-2">
-                {/* Skeletons... (Can stay the same or simply remove search skeleton) */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {/* ... (Grid Skeleton content) */}
-                </div>
-            </div>
-        );
+        return <MenuGridSkeleton />;
     }
 
     return (
@@ -69,37 +59,28 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                             {recommendedMenus.map((menu) => (
                                 <div
                                     key={`rec-${menu.id}`}
-                                    className="min-w-[300px] bg-zinc-900 border border-white/5 rounded-3xl p-5 flex gap-5 items-center relative overflow-hidden group cursor-pointer snap-center hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 ease-out shadow-[0_12px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_20px_40px_rgba(53,183,24,0.08)] active:scale-95 translate-z-0"
+                                    className="min-w-[300px] bg-[#19191B] backdrop-blur-2xl border border-white/10 rounded-3xl p-5 flex gap-5 items-center relative overflow-hidden group cursor-pointer snap-center hover:bg-[#1F1F21] hover:border-primary/25 hover:-translate-y-1 transition-all duration-300 ease-out shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.28)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_22px_55px_rgba(53,183,24,0.10)] active:scale-95 translate-z-0"
                                     onClick={() => onSelectItem(menu)}
                                 >
-                                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-zinc-950 shadow-inner relative border border-white/5">
+                                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-[#19191B] shadow-inner relative border border-white/10">
                                         {normalizeImageUrl(menu.imageUrl) ? (
-                                            <Image
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
                                                 src={normalizeImageUrl(menu.imageUrl)!}
-                                                className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                                                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                                                 alt={menu.name}
-                                                fill
-                                                sizes="96px"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center font-black text-[9px] tracking-widest opacity-20 italic text-zinc-400">GONKU</div>
                                         )}
+
                                     </div>
                                     <div className="flex-1 min-w-0 z-10">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Sparkles className="w-3 h-3 text-amber-500" />
-                                            {isHighlightedMenu(menu.highlightType) ? (
-                                                <MenuHighlightBadge
-                                                    highlightType={menu.highlightType}
-                                                    className="h-4 px-2 py-0 border-none"
-                                                />
-                                            ) : (
-                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">
-                                                    Pilihan Gonku
-                                                </span>
-                                            )}
+                                        <div className="mb-2 flex items-center gap-1.5 text-[9px] font-black uppercase leading-none tracking-widest text-amber-400/90">
+                                            <Sparkles className="h-3 w-3" />
+                                            <span>Rekomendasi</span>
                                         </div>
-                                        <h3 className="font-black text-white text-[17px] truncate tracking-tight mb-1 group-hover:text-primary transition-colors">{menu.name}</h3>
+                                        <h3 className="font-black text-white text-[17px] line-clamp-2 leading-tight tracking-tight mb-1 group-hover:text-primary transition-colors">{menu.name}</h3>
                                         <div className="flex items-center justify-between">
                                             <div className="text-white font-black text-lg flex items-center gap-1">
                                                 <span className="text-[11px] text-zinc-500 font-bold uppercase tracking-tighter">Rp</span>
@@ -146,35 +127,70 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
     );
 }
 
+function MenuGridSkeleton() {
+    return (
+        <div className="space-y-6 pb-10 pt-2">
+            <div className="px-5">
+                <div className="mb-6 mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-1.5 h-6 rounded-full bg-primary/30" />
+                        <Skeleton className="h-6 w-32 rounded-lg bg-zinc-800" />
+                    </div>
+                    <Skeleton className="h-4 w-16 rounded bg-zinc-800" />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 overflow-visible pt-1 px-0.5">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <div
+                            key={index}
+                            className="relative bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden flex flex-col shadow-[0_10px_25px_rgba(0,0,0,0.2)] animate-pulse"
+                        >
+                            <div className="aspect-square relative bg-zinc-950 overflow-hidden">
+                                <Skeleton className="absolute inset-0 w-full h-full bg-zinc-800/70" />
+                                <Skeleton className="absolute top-3 left-3 h-6 w-16 rounded-full bg-zinc-700/70" />
+                                <Skeleton className="absolute bottom-4 right-4 w-10 h-10 rounded-xl bg-zinc-700/70" />
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            </div>
+                            <div className="p-5 flex flex-col flex-1 bg-zinc-900/30 space-y-3">
+                                <Skeleton className="h-3 w-14 rounded bg-zinc-800" />
+                                <Skeleton className="h-5 w-4/5 rounded bg-zinc-800" />
+                                <Skeleton className="h-5 w-24 rounded bg-zinc-800" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
-    const [isImageLoading, setIsImageLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
     const imageUrl = normalizeImageUrl(menu.imageUrl);
+    const shouldShowImage = Boolean(imageUrl && !imageError);
 
     return (
         <div
-            className="group relative bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden flex flex-col hover:bg-zinc-900 hover:border-primary/20 hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 ease-out shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_40px_rgba(53,183,24,0.08)] cursor-pointer animate-in fade-in zoom-in-95 translate-z-0"
+            className="group relative bg-[#19191B] backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden flex flex-col hover:bg-[#1F1F21] hover:border-primary/25 hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 ease-out shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.24)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_20px_45px_rgba(53,183,24,0.10)] cursor-pointer animate-in fade-in zoom-in-95 translate-z-0"
             onClick={onClick}
         >
             <div className="aspect-square relative bg-zinc-950 overflow-hidden">
-                {imageUrl && (
-                    <>
-                        {isImageLoading && <Skeleton className="absolute inset-0 w-full h-full bg-zinc-950 animate-pulse" />}
-                        <Image
-                            src={imageUrl}
-                            alt={menu.name}
-                            className={cn(
-                                "object-cover transition-all duration-500 ease-out",
-                                isImageLoading ? "opacity-0" : "opacity-100",
-                                menu.isAvailable ? "group-hover:scale-105" : "grayscale opacity-20 contrast-125"
-                            )}
-                            fill
-                            sizes="(max-width: 768px) 50vw, 33vw"
-                            onLoad={() => setIsImageLoading(false)}
-                        />
-                    </>
+                {shouldShowImage && (
+                    // Keep image visible by default. Cached browser images can complete before React onLoad runs after refresh,
+                    // so opacity-gated loading state can leave cards permanently black until remount/filter change.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={imageUrl!}
+                        alt={menu.name}
+                        className={cn(
+                            "h-full w-full object-cover transition-all duration-500 ease-out",
+                            menu.isAvailable ? "group-hover:scale-105" : "grayscale opacity-20 contrast-125"
+                        )}
+                        onError={() => setImageError(true)}
+                    />
                 )}
-                {!imageUrl && (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-zinc-800 font-black bg-zinc-950 shadow-inner">
+                {!shouldShowImage && (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-zinc-700 font-black bg-[#19191B] shadow-inner">
                         <span className="text-[10px] tracking-[0.3em] opacity-10">GONKU</span>
                     </div>
                 )}
@@ -183,7 +199,11 @@ function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
 
                 <div className="absolute top-3 left-3 z-20">
-                    <MenuHighlightBadge highlightType={menu.highlightType} className="px-2 py-1 border-none" />
+                    <MenuHighlightBadge
+                        highlightType={menu.highlightType}
+                        compact
+                        className="h-6 rounded-full px-2.5 py-0 text-[9px] tracking-wider"
+                    />
                 </div>
 
                 <div className={cn(
@@ -212,13 +232,13 @@ function MenuCard({ menu, onClick }: { menu: Menu; onClick: () => void }) {
                     </div>
                 )}
             </div>
-            <div className="p-5 flex flex-col flex-1 relative bg-zinc-900/30">
+            <div className="p-5 flex flex-col flex-1 relative bg-[#19191B] border-t border-white/[0.06]">
                 <div className="flex flex-col gap-0.5">
                     <span className="text-zinc-500 font-black text-[9px] uppercase tracking-[0.2em] mb-1">
                         {menu.category}
                     </span>
                     <h3 className={cn(
-                        "text-[16px] font-black leading-tight transition-all duration-300 tracking-tight",
+                        "text-[16px] font-black leading-tight transition-all duration-300 tracking-tight line-clamp-2 min-h-[2.5rem]",
                         menu.isAvailable ? "text-white" : "text-zinc-700"
                     )}>
                         {menu.name}

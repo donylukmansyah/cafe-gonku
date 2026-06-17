@@ -1,10 +1,11 @@
 import { cacheLife, cacheTag } from "next/cache"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity } from "lucide-react"
+import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AnalyticsService } from "@/lib/services/analytics.service"
 import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags"
+import { OrderService } from "@/lib/services/order.service"
 
 async function getStats() {
     'use cache';
@@ -14,8 +15,19 @@ async function getStats() {
     return AnalyticsService.getAdminOverview();
 }
 
+async function getLatePaymentIssues() {
+    'use cache';
+    cacheLife({ revalidate: 60 });
+    cacheTag(ADMIN_DASHBOARD_CACHE_TAG);
+
+    return OrderService.getLatePaymentIssues(5);
+}
+
 export default async function AdminDashboardPage() {
-    const stats = await getStats()
+    const [stats, latePaymentIssues] = await Promise.all([
+        getStats(),
+        getLatePaymentIssues(),
+    ])
 
     const statCards = [
         {
@@ -99,6 +111,60 @@ export default async function AdminDashboardPage() {
                     </Link>
                 ))}
             </div>
+
+            {latePaymentIssues.length > 0 && (
+                <Card className="bg-red-950/20 border-red-500/20 shadow-2xl shadow-red-950/20">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20">
+                                <AlertTriangle className="w-5 h-5 text-red-400" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-white">Late Payment Alert</CardTitle>
+                                <CardDescription className="text-red-200/70">
+                                    Pembayaran masuk setelah expired. Jangan proses otomatis; cocokkan dengan customer/kasir.
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4">
+                            <h3 className="text-sm font-bold text-amber-300 mb-2">SOP Kasir / Owner</h3>
+                            <ol className="list-decimal pl-4 space-y-1 text-xs leading-relaxed text-zinc-300">
+                                <li>Cocokkan <span className="font-mono text-white">orderCode</span>, nominal, dan jam bayar di dashboard Doku/Midtrans.</li>
+                                <li>Jika uang benar masuk dan customer masih mau pesan, buat pesanan baru/manual ke dapur. Jangan pakai QR/order lama.</li>
+                                <li>Jika customer tidak jadi pesan, proses refund/settlement sesuai dashboard payment gateway.</li>
+                                <li>Jangan ubah database manual kecuali sudah cocok dengan mutasi gateway.</li>
+                            </ol>
+                        </div>
+
+                        {latePaymentIssues.map((issue) => (
+                            <div key={issue.id} className="rounded-2xl border border-red-500/10 bg-black/20 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-mono text-sm font-bold text-white">{issue.order.orderCode}</span>
+                                        <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-300">
+                                            Late payment
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-zinc-400">
+                                        {issue.order.customerName || "Pelanggan"} • Meja {issue.order.table.tableNumber} • Rp {issue.order.totalAmount.toLocaleString("id-ID")}
+                                    </p>
+                                    <p className="text-[11px] text-zinc-500 line-clamp-2">{issue.message}</p>
+                                </div>
+                                <div className="text-left md:text-right space-y-1 shrink-0">
+                                    <p className="text-xs text-zinc-400">
+                                        {issue.createdAt.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                                    </p>
+                                    <p className="text-[11px] text-zinc-500">
+                                        Order: {issue.order.status} • Payment: {issue.order.paymentStatus}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Quick Actions & Recent Activity */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">

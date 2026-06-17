@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import { Coffee, Cookie, IceCream, LayoutGrid, Utensils } from "lucide-react";
-import { fuzzyMatch } from "@/lib/fuzzy-match";
-import { useDebounce } from "@/hooks/use-debounce";
 import type { Menu } from "@/types/menu";
 
 function getCategoryIcon(category: string) {
@@ -24,28 +22,13 @@ export function useMenuFilter(
   activeCategory: string,
   searchQuery: string,
 ) {
-  const debouncedSearchQuery = useDebounce(searchQuery, 250);
+  const categories = useMemo(() => ([
+    { id: "ALL", label: "Semua", icon: LayoutGrid },
+    { id: "FOOD", label: "FOOD", icon: getCategoryIcon("FOOD") },
+    { id: "DRINK", label: "DRINK", icon: getCategoryIcon("DRINK") },
+    { id: "SNACK", label: "SNACK", icon: getCategoryIcon("SNACK") },
+    { id: "DESSERT", label: "DESSERT", icon: getCategoryIcon("DESSERT") },
+  ]), []);
 
-  const categories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(menus.map((m) => m.category))).sort();
-
-    return [
-      { id: "ALL", label: "Semua", icon: LayoutGrid },
-      ...uniqueCategories.map((cat) => ({
-        id: cat,
-        label: cat,
-        icon: getCategoryIcon(cat),
-      })),
-    ];
-  }, [menus]);
-
-  const filteredMenus = useMemo(() => {
-    return menus.filter((menu) => {
-      const matchesCategory = activeCategory === "ALL" || menu.category === activeCategory;
-      const matchesSearch = fuzzyMatch(menu.name, debouncedSearchQuery);
-      return matchesCategory && matchesSearch;
-    });
-  }, [menus, activeCategory, debouncedSearchQuery]);
-
-  return { categories, filteredMenus };
+  return { categories, filteredMenus: menus, activeCategory, searchQuery };
 }

@@ -1,18 +1,14 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { TableService } from "@/lib/services/table.service";
 import { MenuService } from "@/lib/services/menu.service";
-import { OrderClient } from "./order-client";
+import { OrderClient } from "../../order/order-client";
 import { Button } from "@/components/ui/button";
 import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";
 
 const CUSTOMER_MENU_LIMIT = 20;
 
-const getTableAndMenus = async (qrCode: string | undefined) => {
-    if (!qrCode) return { table: null, menus: [], pagination: null };
-
+const getTableAndMenus = async (qrCode: string) => {
     const table = await TableService.getTableByQrCode(qrCode);
 
     if (!table) return { table: null, menus: [], pagination: null };
@@ -27,33 +23,14 @@ const getTableAndMenus = async (qrCode: string | undefined) => {
 };
 
 interface PageProps {
-    searchParams: Promise<{ table?: string; order_id?: string }>;
+    params: Promise<{ qrCode: string }>;
 }
 
-async function getFallbackTableQr() {
-    const cookieStore = await cookies();
-    return cookieStore.get("cafe-gonku-table")?.value ?? null;
-}
+async function TableOrderContent({ paramsPromise }: { paramsPromise: Promise<{ qrCode: string }> }) {
+    const { qrCode } = await paramsPromise;
+    const { table, menus, pagination } = await getTableAndMenus(qrCode);
 
-async function OrderContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ table?: string; order_id?: string }> }) {
-    const searchParams = await searchParamsPromise;
-    const fallbackTableQr = await getFallbackTableQr();
-
-    if (!searchParams.table && fallbackTableQr) {
-        redirect(`/t/${encodeURIComponent(fallbackTableQr)}`);
-    }
-
-    if (searchParams.table) {
-        redirect(`/t/${encodeURIComponent(searchParams.table)}`);
-    }
-
-    const tableQr = searchParams.table ?? fallbackTableQr ?? undefined;
-
-    // 2. Resolve Data
-    const { table, menus, pagination } = await getTableAndMenus(tableQr);
-
-    // 3. Handle Errors / Empty States (Server Side Rendering)
-    if (!tableQr || !table) {
+    if (!table) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen px-8 text-center space-y-6">
                 <div className="w-20 h-20 bg-zinc-900 rounded-[2.5rem] flex items-center justify-center border border-white/5">
@@ -64,11 +41,7 @@ async function OrderContent({ searchParamsPromise }: { searchParamsPromise: Prom
                     <p className="text-zinc-500 text-sm leading-relaxed">
                         Silakan scan QR Code yang ada di meja kamu untuk mulai memesan makanan.
                     </p>
-                    {!tableQr ? (
-                        <p className="text-xs text-zinc-600 font-mono bg-zinc-900/50 p-2 rounded">Code: MISSING_QR</p>
-                    ) : (
-                        <p className="text-xs text-zinc-600 font-mono bg-zinc-900/50 p-2 rounded">Code: INVALID_TABLE</p>
-                    )}
+                    <p className="text-xs text-zinc-600 font-mono bg-zinc-900/50 p-2 rounded">Code: INVALID_TABLE</p>
                 </div>
                 <Link href="/" className="w-full">
                     <Button className="bg-primary hover:bg-primary/90 text-black font-black w-full rounded-2xl h-12 transition-all active:scale-95">
@@ -82,8 +55,7 @@ async function OrderContent({ searchParamsPromise }: { searchParamsPromise: Prom
     return <OrderClient initialMenus={menus || []} initialPagination={pagination} table={table} />;
 }
 
-export default function OrderPage(props: PageProps) {
-    // 4. Render Client Component with Data within Suspense boundary
+export default function TableOrderPage(props: PageProps) {
     return (
         <Suspense fallback={
             <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
@@ -94,7 +66,7 @@ export default function OrderPage(props: PageProps) {
                 <p className="text-zinc-500 font-bold text-sm animate-pulse">Menyiapkan Menu...</p>
             </div>
         }>
-            <OrderContent searchParamsPromise={props.searchParams} />
+            <TableOrderContent paramsPromise={props.params} />
         </Suspense>
     );
 }

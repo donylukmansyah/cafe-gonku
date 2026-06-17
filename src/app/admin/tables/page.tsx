@@ -42,7 +42,7 @@ export default function TablesPage() {
         setShowQRDialog(true)
 
         // Generate QR code dynamically to save bundle size
-        const orderUrl = `${appUrl}/order?table=${table.qrCode}`
+        const orderUrl = `${appUrl}/t/${encodeURIComponent(table.qrCode)}`
         try {
             const QRCode = (await import("qrcode")).default;
             const dataUrl = await QRCode.toDataURL(orderUrl, {

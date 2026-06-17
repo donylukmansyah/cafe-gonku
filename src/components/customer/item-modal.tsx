@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { MenuHighlightBadge } from "@/components/menu-highlight-badge";
 import { normalizeImageUrl } from "@/lib/image-url";
 
 interface ItemModalProps {
@@ -98,12 +97,12 @@ export function ItemModal({ menu, isOpen, onClose, initialCartItem = null, editI
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-[calc(100vw-32px)] max-w-sm p-0 overflow-hidden border-none rounded-[2rem] bg-zinc-950/90 backdrop-blur-xl shadow-2xl">
+            <DialogContent className="flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] max-w-sm flex-col overflow-hidden border-none bg-zinc-950/90 p-0 rounded-[2rem] shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-32px)]">
                 <DialogDescription className="sr-only">
                     Pilih jumlah, opsi, dan catatan untuk menu {menu.name}.
                 </DialogDescription>
                 {/* Header Image */}
-                <div className="h-48 relative overflow-hidden group">
+                <div className="relative h-40 shrink-0 overflow-hidden group sm:h-48">
                     {imageUrl ? (
                         <Image
                             src={imageUrl}
@@ -124,16 +123,13 @@ export function ItemModal({ menu, isOpen, onClose, initialCartItem = null, editI
                                 {menu.name}
                             </DialogTitle>
                         </DialogHeader>
-                        <div className="mt-2">
-                            <MenuHighlightBadge highlightType={menu.highlightType} className="border-none px-2 py-1" />
-                        </div>
                         <p className="text-zinc-400 text-xs font-medium leading-relaxed line-clamp-2 max-w-[95%]">
                             {menu.description || "Rasakan cita rasa otentik khas Cafe Gonku."}
                         </p>
                     </div>
                 </div>
 
-                <div className="px-6 pb-6 pt-2 space-y-6 max-h-[50vh] overflow-y-auto scrollbar-hidden">
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 pb-6 pt-4 scrollbar-hidden sm:px-6">
                     {/* Options */}
                     {menu.menuOptions.map((option) => (
                         <div key={option.id} className="space-y-3 animate-in slide-in-from-bottom-5 duration-500">
@@ -182,7 +178,7 @@ export function ItemModal({ menu, isOpen, onClose, initialCartItem = null, editI
                 </div>
 
                  {/* Footer / Add to Cart Section */}
-                <DialogFooter className="p-4 bg-zinc-950 border-t border-white/5 flex flex-row items-center justify-between gap-2.5 relative z-20 shrink-0">
+                <DialogFooter className="relative z-20 flex shrink-0 flex-row items-center justify-between gap-2.5 border-t border-white/5 bg-zinc-950 p-3 sm:p-4">
                     {menu.isAvailable ? (
                         <>
                             <div className="flex items-center bg-zinc-900/50 rounded-xl border border-white/5 p-0.5 backdrop-blur-sm shrink-0">

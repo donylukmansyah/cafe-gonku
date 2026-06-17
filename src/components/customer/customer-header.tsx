@@ -34,7 +34,7 @@ export function CustomerHeader({
     return (
         <>
             {/* Header */}
-            <div className="h-20 px-6 flex items-center justify-between bg-zinc-950/80">
+            <div className="h-20 px-6 flex items-center justify-between bg-[#070709]">
                 <div className="flex flex-col">
                     <h1 className="text-2xl font-black tracking-tighter text-white flex items-center gap-2 group">
                         GON<span className="text-primary italic group-hover:skew-x-12 transition-transform">KU</span>
@@ -53,7 +53,7 @@ export function CustomerHeader({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="relative bg-zinc-900/80 border border-white/5 rounded-2xl w-12 h-12 hover:bg-primary/20 hover:text-primary transition-all shadow-lg active:scale-90"
+                    className="relative bg-[#070709]/80 border border-white/10 rounded-2xl w-12 h-12 hover:bg-primary/20 hover:text-primary transition-all shadow-lg active:scale-90 backdrop-blur-xl"
                     onClick={onOpenCart}
                 >
                     <ShoppingCart className="w-5 h-5 text-zinc-300" />
@@ -69,13 +69,13 @@ export function CustomerHeader({
             <div className="h-[1px] bg-white/5 w-full" />
 
             {/* Search & Categories */}
-            <div className="sticky top-0 z-40 px-5 pt-4 pb-4 space-y-4 bg-zinc-950/90 backdrop-blur-xl border-b border-white/5 shadow-[0_18px_35px_rgba(0,0,0,0.35)] transition-all duration-300 transform-gpu">
+            <div className="sticky top-0 z-40 px-5 pt-4 pb-4 space-y-4 bg-[#070709]/90 backdrop-blur-xl border-b border-white/5 shadow-[0_18px_35px_rgba(0,0,0,0.35)] transition-all duration-300 transform-gpu">
                 {/* Search */}
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                     <Input
                         placeholder="Cari menu favoritmu..."
-                        className="pl-11 h-12 bg-zinc-900 border-white/5 rounded-2xl focus-visible:ring-primary/20 text-sm placeholder:text-zinc-600 w-full font-medium"
+                        className="pl-11 h-12 bg-[#070709]/80 border-white/10 rounded-2xl focus-visible:ring-primary/20 text-sm placeholder:text-zinc-600 w-full font-medium backdrop-blur-xl"
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
                     />
@@ -100,7 +100,7 @@ export function CustomerHeader({
                                                     inline: "center",
                                                 });
                                             }}
-                                            className="px-5 py-2.5 rounded-2xl border border-white/5 bg-zinc-900 data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary/50 text-xs font-bold transition-all shadow-sm whitespace-nowrap capitalize flex items-center gap-2 snap-center group"
+                                            className="px-5 py-2.5 rounded-2xl border border-white/10 bg-[#070709]/80 data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary/50 text-xs font-bold transition-all shadow-sm whitespace-nowrap capitalize flex items-center gap-2 snap-center group backdrop-blur-xl"
                                         >
                                             <Icon className="w-4 h-4" />
                                             {cat.label.toLowerCase()}

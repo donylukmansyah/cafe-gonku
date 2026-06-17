@@ -1,10 +1,11 @@
+import * as Sentry from "@sentry/nextjs";
 import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { snap } from "@/lib/midtrans";
+import { createDokuCheckoutPayment, getDokuOrderStatus } from "@/lib/doku";
 import { supabaseAdmin, sendBroadcast } from "@/lib/supabase";
 import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
-import { bumpCacheVersion } from "@/lib/redis";
+import { bumpCacheVersion, cacheGet, cacheSet } from "@/lib/redis";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { getCafeDayRange, parseCafeLocalDateTime } from "@/lib/cafe-date";
 import { AppError } from "@/lib/api-utils";
@@ -32,6 +33,53 @@ const ALLOWED_KITCHEN_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   SERVED: [],
   CANCELLED: [],
 };
+
+const sanitizeDokuText = (value: string) => {
+  const sanitized = value.replace(/[^a-zA-Z0-9.\-/+,=_:'@% ]/g, " ").replace(/\s+/g, " ").trim();
+
+  return sanitized || "Item";
+};
+
+const PAYMENT_EXPIRY_MINUTES = 60;
+
+const getCheckoutIdempotencyCacheKey = (tableId: string, checkoutId: string) =>
+  `checkout:${tableId}:${checkoutId}`;
+
+function normalizeGatewayAmount(amount: string | number | undefined | null) {
+  if (amount === undefined || amount === null) return null;
+
+  const parsed = typeof amount === "number" ? amount : Number(amount);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+}
+
+function assertGatewayAmountMatches(
+  gatewayAmount: string | number | undefined | null,
+  orderAmount: number,
+  options: { requireAmount?: boolean; orderCode?: string } = {},
+) {
+  const normalizedAmount = normalizeGatewayAmount(gatewayAmount);
+
+  if (normalizedAmount === null) {
+    if (options.requireAmount) {
+      const error = new AppError("Payment amount is required for paid gateway update", 400);
+      Sentry.captureException(error, {
+        tags: { area: "payment", orderCode: options.orderCode ?? "unknown" },
+      });
+      throw error;
+    }
+
+    return;
+  }
+
+  if (normalizedAmount !== orderAmount) {
+    const error = new AppError("Payment amount mismatch", 400);
+    Sentry.captureException(error, {
+      tags: { area: "payment", orderCode: options.orderCode ?? "unknown" },
+      extra: { gatewayAmount: normalizedAmount, orderAmount },
+    });
+    throw error;
+  }
+}
 
 const kitchenOrderSelect = {
   id: true,
@@ -80,6 +128,7 @@ const orderDetailsSelect = {
   midtransToken: true,
   totalAmount: true,
   createdAt: true,
+  paymentExpiresAt: true,
   paidAt: true,
   customerName: true,
   table: {
@@ -117,6 +166,15 @@ type GatewayStatusPayload = {
   settlement_time?: string | null;
   transaction_time?: string | null;
   payment_amounts?: Array<{ paid_at?: string | null }> | null;
+  gross_amount?: string | number | null;
+  order?: { amount?: string | number | null };
+};
+
+type GatewayUpdateSource = "webhook" | "check-payment" | "sync-payment" | "local-expire";
+
+type GatewayUpdateContext = {
+  source: GatewayUpdateSource;
+  gateway: "doku" | "midtrans" | "local";
 };
 
 function mapGatewayStatusToOrderState(payload: GatewayStatusPayload) {
@@ -135,6 +193,7 @@ function mapGatewayStatusToOrderState(payload: GatewayStatusPayload) {
       };
 
     case "settlement":
+    case "SUCCESS":
       return {
         paymentStatus: PaymentStatus.PAID,
         orderStatus: OrderStatus.PAID,
@@ -142,18 +201,23 @@ function mapGatewayStatusToOrderState(payload: GatewayStatusPayload) {
 
     case "deny":
     case "cancel":
+    case "FAILED":
       return {
         paymentStatus: PaymentStatus.FAILED,
         orderStatus: OrderStatus.CANCELLED,
       };
 
     case "expire":
+    case "EXPIRED":
       return {
         paymentStatus: PaymentStatus.EXPIRED,
         orderStatus: OrderStatus.CANCELLED,
       };
 
     case "pending":
+    case "PENDING":
+    case "TIMEOUT":
+    case "REDIRECT":
     default:
       return {
         paymentStatus: PaymentStatus.PENDING,
@@ -179,36 +243,65 @@ function assertKitchenStatusTransition(current: OrderStatus, next: OrderStatus) 
   }
 }
 
-async function broadcastOrderStatus(
-  orderCode: string,
-  status: string,
-  fullOrder?: unknown,
-) {
+async function broadcastOrderStatus({
+  orderCode,
+  eventType,
+  orderStatus,
+  paymentStatus,
+  fullOrder,
+}: {
+  orderCode: string;
+  eventType: "payment.updated" | "order.status.updated";
+  orderStatus: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  fullOrder?: unknown;
+}) {
   if (!supabaseAdmin) {
     return;
   }
 
-  await Promise.all([
-    sendBroadcast(
-      "refresh-orders",
-      {
-        orderId: orderCode,
-        status,
-        ...(fullOrder ? { fullOrder } : {}),
-      },
-      REALTIME_CHANNELS.kitchenUpdates,
-    ),
-    sendBroadcast(
-      "refresh-orders",
-      { orderId: orderCode, status },
-      REALTIME_CHANNELS.order(orderCode),
-    ),
-  ]);
+  const payload = {
+    eventType,
+    orderCode,
+    orderId: orderCode,
+    orderStatus,
+    paymentStatus,
+    status: orderStatus,
+    ...(fullOrder ? { fullOrder } : {}),
+  };
+
+  try {
+    await Promise.all([
+      sendBroadcast("refresh-orders", payload, REALTIME_CHANNELS.kitchenUpdates),
+      sendBroadcast("refresh-orders", payload, REALTIME_CHANNELS.order(orderCode)),
+    ]);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { area: "realtime", eventType },
+      extra: { orderCode, orderStatus, paymentStatus },
+    });
+
+    console.error("[Realtime] Failed to broadcast order status", {
+      orderCode,
+      eventType,
+      orderStatus,
+      paymentStatus,
+      error,
+    });
+  }
 }
 
 function revalidateAdminDashboard() {
   revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
   void bumpCacheVersion("analytics");
+}
+
+function withPaymentAliases<T extends { midtransToken?: string | null; midtransOrderId?: string | null }>(order: T) {
+  return {
+    ...order,
+    paymentRedirectUrl: order.midtransToken ?? null,
+    paymentGatewayOrderId: order.midtransOrderId ?? null,
+  };
 }
 
 export class OrderService {
@@ -241,6 +334,39 @@ export class OrderService {
     });
   }
 
+  static async getLatePaymentIssues(limit = 5) {
+    return prisma.orderLog.findMany({
+      where: {
+        message: {
+          startsWith: "Late payment ignored",
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: limit,
+      select: {
+        id: true,
+        message: true,
+        createdAt: true,
+        order: {
+          select: {
+            orderCode: true,
+            customerName: true,
+            totalAmount: true,
+            paymentStatus: true,
+            status: true,
+            table: {
+              select: {
+                tableNumber: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   static async getOrderByIdOrCode(idOrCode: string) {
     let order = await prisma.order.findUnique({
       where: { id: idOrCode },
@@ -254,11 +380,39 @@ export class OrderService {
       });
     }
 
-    return order;
+    return order ? withPaymentAliases(order) : null;
   }
 
   static async createOrder(data: CreateOrderInput) {
-    const { tableId, items, customerName, customerPhone, serviceFee, rounding, priceHash } = data;
+    const { tableId, items, customerName, customerPhone, serviceFee, rounding, priceHash, checkoutId } = data;
+    const checkoutCacheKey = checkoutId ? getCheckoutIdempotencyCacheKey(tableId, checkoutId) : null;
+
+    if (checkoutCacheKey) {
+      const cachedOrderCode = await cacheGet<string>(checkoutCacheKey);
+
+      if (cachedOrderCode) {
+        const existingOrder = await prisma.order.findUnique({
+          where: { orderCode: cachedOrderCode },
+          include: {
+            orderItems: {
+              include: {
+                menu: true,
+                selectedOptions: true,
+              },
+            },
+            table: true,
+          },
+        });
+
+        if (existingOrder?.paymentStatus === PaymentStatus.PENDING && existingOrder.midtransToken) {
+          return withPaymentAliases({
+            ...existingOrder,
+            midtransToken: existingOrder.midtransToken,
+            midtransRedirectUrl: existingOrder.midtransToken,
+          });
+        }
+      }
+    }
 
     const table = await prisma.table.findUnique({
       where: { id: tableId },
@@ -388,6 +542,7 @@ export class OrderService {
     const randomStr = crypto.randomBytes(3).toString("hex").toUpperCase();
     const orderCode = `GONKU-${dateStr}-${randomStr}`;
     const accessToken = generateOrderAccessToken();
+    const paymentExpiresAt = new Date(Date.now() + PAYMENT_EXPIRY_MINUTES * 60_000);
 
     const order = await prisma.$transaction(async (tx) => {
       const lockKey = Buffer.from(tableId).reduce((h, b) => (h * 31 + b) | 0, 0);
@@ -420,6 +575,7 @@ export class OrderService {
           totalAmount: finalTotal,
           status: OrderStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
+          paymentExpiresAt,
           orderItems: {
             create: processedItems.map((item) => ({
               menuId: item.menuId,
@@ -444,8 +600,7 @@ export class OrderService {
       });
     });
 
-    try {
-      const midtransItems = order.orderItems.map((item) => ({
+    const paymentItems = order.orderItems.map((item) => ({
         id: item.menuId,
         price:
           item.price +
@@ -454,36 +609,57 @@ export class OrderService {
             0,
           ),
         quantity: item.quantity,
-        name: item.menu.name.substring(0, 50),
+        name: sanitizeDokuText(item.menu.name).substring(0, 50),
       }));
 
-      midtransItems.push({
+      paymentItems.push({
         id: "SERVICE-FEE",
         price: serverServiceFee,
         quantity: 1,
-        name: "Biaya Layanan & Aplikasi",
+        name: "Biaya Layanan dan Aplikasi",
       });
 
-      if (serverRounding !== 0) {
-        midtransItems.push({
-          id: "ROUNDING",
-          price: serverRounding,
-          quantity: 1,
-          name: "Pembulatan",
-        });
-      }
+    if (serverRounding !== 0) {
+      paymentItems.push({
+        id: "ROUNDING",
+        price: serverRounding,
+        quantity: 1,
+        name: "Pembulatan",
+      });
+    }
 
-      const transaction = await snap.createTransaction({
-        transaction_details: {
-          order_id: orderCode,
-          gross_amount: finalTotal,
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const notificationUrl = process.env.DOKU_NOTIFICATION_URL;
+      const callbackUrl = appUrl
+        ? `${appUrl}/t/${encodeURIComponent(order.table.qrCode)}?order_id=${encodeURIComponent(orderCode)}`
+        : undefined;
+
+      const dokuPayment = await createDokuCheckoutPayment({
+        order: {
+          amount: finalTotal,
+          invoice_number: orderCode,
+          currency: "IDR",
+          callback_url: callbackUrl,
+          callback_url_result: callbackUrl,
+          language: "ID",
+          auto_redirect: true,
+          line_items: paymentItems,
         },
-        item_details: midtransItems,
-        customer_details: {
-          first_name: customerName?.trim() || "Customer",
-          last_name: `#${orderCode}`,
+        payment: {
+          payment_due_date: 60,
+          type: "SALE",
+        },
+        customer: {
+          id: order.id,
+          name: customerName?.trim() || "Customer",
           phone: customerPhone?.trim() || undefined,
         },
+        additional_info: notificationUrl
+          ? {
+              override_notification_url: notificationUrl,
+            }
+          : undefined,
       });
 
       await prisma.order.update({
@@ -491,17 +667,25 @@ export class OrderService {
           id: order.id,
         },
         data: {
-          midtransToken: transaction.token,
+          midtransToken: dokuPayment.url,
           midtransOrderId: orderCode,
+          paymentMethod: "doku_checkout",
         },
       });
 
-      return {
+      if (checkoutCacheKey) {
+        await cacheSet(checkoutCacheKey, orderCode, 60 * 60);
+      }
+
+      return withPaymentAliases({
         ...order,
-        midtransToken: transaction.token,
-        midtransRedirectUrl: transaction.redirect_url,
-      };
-    } catch {
+        midtransToken: dokuPayment.url,
+        midtransRedirectUrl: dokuPayment.url,
+        paymentGatewayOrderId: orderCode,
+      });
+    } catch (error) {
+      console.error("DOKU checkout failed", error);
+
       await prisma.order.update({
         where: {
           id: order.id,
@@ -584,12 +768,16 @@ export class OrderService {
       },
     });
 
-    await broadcastOrderStatus(existingOrder.orderCode, status);
+    await broadcastOrderStatus({
+      orderCode: existingOrder.orderCode,
+      eventType: "order.status.updated",
+      orderStatus: status,
+    });
 
     return updatedOrder;
   }
 
-  private static async applyGatewayUpdate(
+  static async applyGatewayPaymentUpdate(
     order: {
       id: string;
       orderCode: string;
@@ -597,11 +785,84 @@ export class OrderService {
       paymentStatus: PaymentStatus;
       paymentMethod: string | null;
       paidAt: Date | null;
+      totalAmount?: number;
+      createdAt?: Date;
+      paymentExpiresAt?: Date | null;
     },
     gatewayPayload: GatewayStatusPayload,
+    context: GatewayUpdateContext,
   ) {
     const nextState = mapGatewayStatusToOrderState(gatewayPayload);
+
+    if (order.totalAmount !== undefined) {
+      assertGatewayAmountMatches(
+        gatewayPayload.gross_amount ?? gatewayPayload.order?.amount,
+        order.totalAmount,
+        {
+          requireAmount: nextState.paymentStatus === PaymentStatus.PAID,
+          orderCode: order.orderCode,
+        },
+      );
+    }
+
     const nextPaidAt = resolveGatewayPaidAt(gatewayPayload) ?? new Date();
+    const paymentExpiredAt = order.paymentExpiresAt ?? (order.createdAt
+      ? new Date(order.createdAt.getTime() + PAYMENT_EXPIRY_MINUTES * 60_000)
+      : null);
+
+    if (
+      order.paymentStatus !== PaymentStatus.PAID &&
+      nextState.paymentStatus === PaymentStatus.PAID &&
+      paymentExpiredAt &&
+      nextPaidAt > paymentExpiredAt
+    ) {
+      await prisma.orderLog.create({
+        data: {
+          orderId: order.id,
+          status: order.status,
+          message: `Late payment ignored via ${gatewayPayload.payment_type ?? context.gateway} (${context.source}). Paid at ${nextPaidAt.toISOString()}, expired at ${paymentExpiredAt.toISOString()}`,
+        },
+      });
+
+      Sentry.captureMessage("Late payment ignored after expiry", {
+        level: "warning",
+        tags: { area: "payment", gateway: context.gateway, source: context.source },
+        extra: {
+          orderCode: order.orderCode,
+          paidAt: nextPaidAt.toISOString(),
+          expiredAt: paymentExpiredAt.toISOString(),
+          paymentStatus: order.paymentStatus,
+          orderStatus: order.status,
+        },
+      });
+
+      return {
+        status: order.paymentStatus,
+        updated: false,
+        latePayment: true,
+        message: "Ignoring late payment after expiry",
+      };
+    }
+
+    if (
+      order.status === OrderStatus.CANCELLED &&
+      order.paymentStatus !== PaymentStatus.PAID &&
+      nextState.paymentStatus === PaymentStatus.PAID
+    ) {
+      await prisma.orderLog.create({
+        data: {
+          orderId: order.id,
+          status: order.status,
+          message: `Ignored late payment after cancellation via ${gatewayPayload.payment_type ?? context.gateway} (${context.source})`,
+        },
+      });
+
+      return {
+        status: order.paymentStatus,
+        updated: false,
+        message: "Ignoring payment after cancellation",
+      };
+    }
 
     if (order.paymentStatus === PaymentStatus.PAID) {
       if (nextState.paymentStatus !== PaymentStatus.PAID) {
@@ -676,16 +937,18 @@ export class OrderService {
         status: updatedOrder.status,
         message:
           nextState.paymentStatus === PaymentStatus.PAID
-            ? `Payment confirmed via ${gatewayPayload.payment_type ?? "midtrans"}`
-            : `Payment updated to ${nextState.paymentStatus}`,
+            ? `Payment confirmed via ${gatewayPayload.payment_type ?? context.gateway} (${context.source})`
+            : `Payment updated to ${nextState.paymentStatus} via ${context.gateway} (${context.source})`,
       },
     });
 
-    await broadcastOrderStatus(
-      order.orderCode,
-      nextState.paymentStatus,
-      nextState.paymentStatus === PaymentStatus.PAID ? updatedOrder : undefined,
-    );
+    await broadcastOrderStatus({
+      orderCode: order.orderCode,
+      eventType: "payment.updated",
+      orderStatus: updatedOrder.status,
+      paymentStatus: nextState.paymentStatus,
+      fullOrder: nextState.paymentStatus === PaymentStatus.PAID ? updatedOrder : undefined,
+    });
 
     revalidateAdminDashboard();
 
@@ -709,6 +972,9 @@ export class OrderService {
         paymentStatus: true,
         paymentMethod: true,
         paidAt: true,
+        totalAmount: true,
+        createdAt: true,
+        paymentExpiresAt: true,
       },
     });
 
@@ -716,7 +982,60 @@ export class OrderService {
       throw new AppError("Order not found", 404);
     }
 
-    return this.applyGatewayUpdate(order, payload);
+    return this.applyGatewayPaymentUpdate(order, payload, {
+      gateway: "midtrans",
+      source: "webhook",
+    });
+  }
+
+  static async handleDokuNotification(payload: {
+    order?: { invoice_number?: string; amount?: number };
+    transaction?: { status?: string; date?: string; original_request_id?: string };
+    channel?: { id?: string };
+    service?: { id?: string };
+    invoice_number?: string;
+    transaction_status?: string;
+  }) {
+    const invoiceNumber = payload.order?.invoice_number ?? payload.invoice_number;
+
+    if (!invoiceNumber) {
+      throw new AppError("Invoice number is required", 400);
+    }
+
+    const order = await prisma.order.findUnique({
+      where: {
+        orderCode: invoiceNumber,
+      },
+      select: {
+        id: true,
+        orderCode: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        paidAt: true,
+        totalAmount: true,
+        createdAt: true,
+        paymentExpiresAt: true,
+      },
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
+
+    const dokuStatus = payload.transaction?.status ?? payload.transaction_status ?? "PENDING";
+
+    return this.applyGatewayPaymentUpdate(order, {
+      transaction_status: dokuStatus.toUpperCase(),
+      payment_type: payload.channel?.id ?? payload.service?.id ?? "doku_checkout",
+      transaction_time: payload.transaction?.date ?? null,
+      order: {
+        amount: payload.order?.amount,
+      },
+    }, {
+      gateway: "doku",
+      source: "webhook",
+    });
   }
 
   static async checkPaymentStatus(idOrCode: string) {
@@ -731,6 +1050,9 @@ export class OrderService {
         paymentStatus: true,
         paymentMethod: true,
         paidAt: true,
+        totalAmount: true,
+        createdAt: true,
+        paymentExpiresAt: true,
       },
     });
 
@@ -739,32 +1061,38 @@ export class OrderService {
     }
 
     if (order.paymentStatus === PaymentStatus.PAID) {
-      await broadcastOrderStatus(order.orderCode, PaymentStatus.PAID);
+      await broadcastOrderStatus({
+        orderCode: order.orderCode,
+        eventType: "payment.updated",
+        orderStatus: order.status,
+        paymentStatus: PaymentStatus.PAID,
+      });
 
       return { status: PaymentStatus.PAID, message: "Already paid", updated: false };
     }
 
     try {
-      const statusResponse = await (snap as never as {
-        transaction: { status: (orderId: string) => Promise<GatewayStatusPayload> };
-      }).transaction.status(order.orderCode);
+      const statusResponse = await getDokuOrderStatus(order.orderCode);
 
-      return this.applyGatewayUpdate(order, statusResponse);
-    } catch (error: unknown) {
-      const midtransError = error as { httpStatusCode?: number; status_code?: string };
+      return this.applyGatewayPaymentUpdate(order, {
+        transaction_status: statusResponse.transaction?.status ?? "PENDING",
+        payment_type: statusResponse.channel?.id ?? statusResponse.service?.id ?? order.paymentMethod ?? "doku_checkout",
+        transaction_time: statusResponse.transaction?.date ?? null,
+        order: {
+          amount: statusResponse.order?.amount,
+        },
+      }, {
+        gateway: "doku",
+        source: "check-payment",
+      });
+    } catch (error) {
+      console.error("DOKU check status failed", error);
 
-      if (
-        midtransError?.httpStatusCode === 404 ||
-        midtransError?.status_code === "404"
-      ) {
-        return {
-          status: PaymentStatus.PENDING,
-          updated: false,
-          message: "Transaction not found in Midtrans yet",
-        };
-      }
-
-      throw error;
+      return {
+        status: order.paymentStatus,
+        updated: false,
+        message: "Payment status is waiting for DOKU notification",
+      };
     }
   }
 
@@ -799,9 +1127,11 @@ export class OrderService {
       throw error;
     }
 
-    const updatedOrder = await prisma.order.update({
+    const { count } = await prisma.order.updateMany({
       where: {
         id: existingOrder.id,
+        status: OrderStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
       },
       data: {
         status: OrderStatus.CANCELLED,
@@ -809,7 +1139,30 @@ export class OrderService {
       },
     });
 
-    await broadcastOrderStatus(existingOrder.orderCode, OrderStatus.CANCELLED);
+    if (count === 0) {
+      throw new AppError("Pesanan sudah berubah. Silakan refresh halaman.", 409);
+    }
+
+    const updatedOrder = await prisma.order.findUniqueOrThrow({
+      where: {
+        id: existingOrder.id,
+      },
+    });
+
+    await prisma.orderLog.create({
+      data: {
+        orderId: existingOrder.id,
+        status: OrderStatus.CANCELLED,
+        message: "Order cancelled by customer",
+      },
+    });
+
+    await broadcastOrderStatus({
+      orderCode: existingOrder.orderCode,
+      eventType: "order.status.updated",
+      orderStatus: OrderStatus.CANCELLED,
+      paymentStatus: PaymentStatus.FAILED,
+    });
 
     return updatedOrder;
   }
@@ -833,6 +1186,9 @@ export class OrderService {
         paymentStatus: true,
         paymentMethod: true,
         paidAt: true,
+        totalAmount: true,
+        createdAt: true,
+        paymentExpiresAt: true,
       },
     });
 
@@ -841,15 +1197,25 @@ export class OrderService {
     }
 
     let updatedCount = 0;
+    const now = new Date();
 
     const details = await Promise.all(
       pendingOrders.map(async (order) => {
-        try {
-          const statusResponse = await (snap as never as {
-            transaction: { status: (orderId: string) => Promise<GatewayStatusPayload> };
-          }).transaction.status(order.orderCode);
+        const ageMinutes = (now.getTime() - new Date(order.createdAt).getTime()) / 60_000;
 
-          const result = await this.applyGatewayUpdate(order, statusResponse);
+        try {
+          const statusResponse = await getDokuOrderStatus(order.orderCode);
+          const result = await this.applyGatewayPaymentUpdate(order, {
+            transaction_status: statusResponse.transaction?.status ?? "PENDING",
+            payment_type: statusResponse.channel?.id ?? statusResponse.service?.id ?? order.paymentMethod ?? "doku_checkout",
+            transaction_time: statusResponse.transaction?.date ?? null,
+            order: {
+              amount: statusResponse.order?.amount,
+            },
+          }, {
+            gateway: "doku",
+            source: "sync-payment",
+          });
 
           if (result.updated) {
             updatedCount += 1;
@@ -859,23 +1225,36 @@ export class OrderService {
             orderId: order.orderCode,
             status: result.status,
             updated: result.updated,
+            source: "doku",
           };
-        } catch (error: unknown) {
-          const midtransError = error as { httpStatusCode?: number; status_code?: string };
+        } catch (error) {
+          console.error("DOKU pending sync failed", { orderCode: order.orderCode, error });
 
-          if (
-            midtransError?.httpStatusCode === 404 ||
-            midtransError?.status_code === "404"
-          ) {
+          if (ageMinutes > 60) {
+            const result = await this.applyGatewayPaymentUpdate(order, {
+              transaction_status: "expire",
+            }, {
+              gateway: "local",
+              source: "local-expire",
+            });
+
+            if (result.updated) {
+              updatedCount += 1;
+            }
+
             return {
               orderId: order.orderCode,
-              error: "Not found in Midtrans",
+              status: result.status,
+              updated: result.updated,
+              source: "local-expire",
             };
           }
 
           return {
             orderId: order.orderCode,
-            error: "Check failed",
+            status: order.paymentStatus,
+            updated: false,
+            source: "doku-error",
           };
         }
       }),

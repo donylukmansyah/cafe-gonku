@@ -4,6 +4,7 @@ import { getOrderCookie } from "@/lib/order-cookie";
 
 export function useCustomerOrderSession({
   tableId,
+  tableQrCode,
   currentTableId,
   hasHydrated,
   activeOrderCode,
@@ -13,10 +14,11 @@ export function useCustomerOrderSession({
   setOrderAccessToken,
 }: {
   tableId: string;
+  tableQrCode: string;
   currentTableId: string | null;
   hasHydrated: boolean;
   activeOrderCode: string | null;
-  setTableId: (id: string | null) => void;
+  setTableId: (id: string | null, qrCode?: string | null) => void;
   clearCart: () => void;
   setActiveOrderCode: (code: string | null) => void;
   setOrderAccessToken: (orderCode: string, token: string) => void;
@@ -26,9 +28,11 @@ export function useCustomerOrderSession({
 
     if (tableId && currentTableId !== tableId) {
       clearCart();
-      setTableId(tableId);
+      setTableId(tableId, tableQrCode);
+    } else if (tableQrCode) {
+      setTableId(tableId, tableQrCode);
     }
-  }, [hasHydrated, tableId, currentTableId, setTableId, clearCart]);
+  }, [hasHydrated, tableId, tableQrCode, currentTableId, setTableId, clearCart]);
 
   useEffect(() => {
     if (!hasHydrated) return;

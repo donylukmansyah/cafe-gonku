@@ -50,6 +50,7 @@ export const createOrderSchema = z.object({
     serviceFee: z.number().int().min(0).optional(),
     rounding: z.number().int().optional(),
     priceHash: z.string().optional(),
+    checkoutId: z.string().uuid().optional(),
 });
 
 // Types

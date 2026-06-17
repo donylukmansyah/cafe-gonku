@@ -232,10 +232,11 @@ model Order {
   
   // Payment info
   paymentStatus   PaymentStatus @default(PENDING)
-  paymentMethod   String? // "midtrans", "qris", "cash"
-  midtransToken   String? @unique // Snap token dari Midtrans
-  midtransOrderId String? @unique // Order ID untuk Midtrans
+  paymentMethod   String? // "doku_checkout", "qris", "cash"
+  midtransToken   String? @unique // Legacy field: payment redirect URL (Doku checkout URL)
+  midtransOrderId String? @unique // Legacy field: gateway order/invoice ID
   paidAt          DateTime? // ⭐ Timestamp payment (untuk priority queue!)
+  paymentExpiresAt DateTime? // Batas waktu pembayaran gateway
   
   // Timestamps
   createdAt DateTime @default(now())

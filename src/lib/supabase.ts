@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -80,12 +81,26 @@ export async function sendBroadcast(
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[Supabase REST] Broadcast failed: ${response.status} - ${errorText}`);
+            const error = new Error(`[Supabase REST] Broadcast failed: ${response.status} - ${errorText}`);
+            Sentry.captureException(error, {
+                tags: { channelName, event, integration: "supabase-realtime" },
+            });
+            console.error(error.message);
+
+            return { ok: false, status: response.status, error: error.message };
         }
-        // else {
-        //    console.log(`[Supabase REST] Broadcast sent to ${channelName}: ${event}`);
-        // }
+
+        return { ok: true, status: response.status };
     } catch (error) {
+        Sentry.captureException(error, {
+            tags: { channelName, event, integration: "supabase-realtime" },
+        });
         console.error("[Supabase REST] Broadcast error:", error);
+
+        return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Unknown broadcast error",
+        };
     }
 }
+

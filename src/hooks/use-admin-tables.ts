@@ -61,9 +61,9 @@ export function useAdminTables() {
 
     const deleteTable = useCallback(async (id: string) => {
         const result = await showConfirm(
-            "Hapus Meja?",
-            "Meja yang dihapus tidak dapat dikembalikan.",
-            "Ya, Hapus",
+            "Nonaktifkan Meja?",
+            "Meja akan disembunyikan dari QR customer, riwayat order tetap aman.",
+            "Ya, Nonaktifkan",
             "warning"
         );
 
@@ -74,7 +74,7 @@ export function useAdminTables() {
                 method: "DELETE",
             });
 
-            showSuccess("Berhasil", "Meja berhasil dihapus");
+            showSuccess("Berhasil", "Meja berhasil dinonaktifkan");
             mutate();
         } catch (error) {
             // showError("Gagal", "Terjadi kesalahan saat menghapus meja"); // Already handled by apiFetch toast

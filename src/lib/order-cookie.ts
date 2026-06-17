@@ -1,6 +1,7 @@
 "use client";
 
 const COOKIE_NAME = "cafe-gonku-order";
+const TABLE_COOKIE_NAME = "cafe-gonku-table";
 const MAX_AGE = 60 * 60 * 24;
 
 interface OrderCookieData {
@@ -30,4 +31,16 @@ export function getOrderCookie(): OrderCookieData | null {
 
 export function clearOrderCookie() {
     document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+export function setTableCookie(qrCode: string) {
+    document.cookie = `${TABLE_COOKIE_NAME}=${encodeURIComponent(qrCode)}; path=/; max-age=${MAX_AGE}; SameSite=Lax`;
+}
+
+export function getTableCookie() {
+    const match = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(`${TABLE_COOKIE_NAME}=`));
+
+    return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
 }

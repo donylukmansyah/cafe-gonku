@@ -2,9 +2,10 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { setOrderCookie, clearOrderCookie } from "@/lib/order-cookie";
+import { setOrderCookie, clearOrderCookie, setTableCookie } from "@/lib/order-cookie";
 
 export interface CartItem {
+    lineId: string;
     id: string; // menuId
     name: string;
     price: number;
@@ -23,11 +24,12 @@ export interface CartItem {
 interface CartStore {
     items: CartItem[];
     tableId: string | null;
-    setTableId: (id: string | null) => void;
-    addItem: (item: CartItem) => void;
-    editItem: (oldHash: string, newItem: CartItem) => void;
-    removeItem: (itemId: string, optionsHash: string) => void;
-    updateQuantity: (itemId: string, optionsHash: string, delta: number) => void;
+    tableQrCode: string | null;
+    setTableId: (id: string | null, qrCode?: string | null) => void;
+    addItem: (item: Omit<CartItem, "lineId"> & { lineId?: string }) => void;
+    editItem: (lineId: string, newItem: Omit<CartItem, "lineId"> & { lineId?: string }) => void;
+    removeItem: (lineId: string) => void;
+    updateQuantity: (lineId: string, delta: number) => void;
     updateItemPrices: (updates: { menuId: string; newPrice: number; optionChanges?: { valueId: string; newAdjust: number }[] }[]) => void;
     removeItemsByMenuId: (menuId: string) => void;
     clearCart: () => void;
@@ -45,6 +47,8 @@ interface CartStore {
 }
 
 // Helper to generate a unique key for items with the same menuId but different options
+const createCartLineId = () => crypto.randomUUID();
+
 export const getOptionsHash = (options: CartItem["selectedOptions"]) => {
     if (!options || options.length === 0) return "none";
     return options
@@ -59,7 +63,11 @@ export const useCart = create<CartStore>()(
         (set, get) => ({
             items: [],
             tableId: null,
-            setTableId: (id) => set({ tableId: id }),
+            tableQrCode: null,
+            setTableId: (id, qrCode) => {
+                if (qrCode) setTableCookie(qrCode);
+                set({ tableId: id, tableQrCode: qrCode ?? get().tableQrCode });
+            },
             addItem: (newItem) => {
                 const items = get().items;
                 const newHash = getOptionsHash(newItem.selectedOptions);
@@ -75,38 +83,24 @@ export const useCart = create<CartStore>()(
                     const updatedItems = [...items];
                     updatedItems[existingIndex] = {
                         ...updatedItems[existingIndex],
-                        quantity: updatedItems[existingIndex].quantity + newItem.quantity
+                        quantity: Math.min(99, updatedItems[existingIndex].quantity + newItem.quantity)
                     };
                     set({ items: updatedItems });
                 } else {
-                    set({ items: [...items, newItem] });
+                    set({ items: [...items, { ...newItem, lineId: newItem.lineId ?? createCartLineId() }] });
                 }
             },
-            editItem: (oldHash, newItem) => {
+            editItem: (lineId, newItem) => {
                 const items = get().items;
-                const newItems = items.map(item => {
-                    if (item.id === newItem.id && getOptionsHash(item.selectedOptions) === oldHash) {
-                        return newItem;
-                    }
-                    return item;
-                });
+                const newItems = items.map(item => item.lineId === lineId ? { ...newItem, lineId } : item);
                 set({ items: newItems });
             },
-            removeItem: (itemId, optionsHash) => {
-                set({
-                    items: get().items.filter(
-                        (item) =>
-                            !(item.id === itemId && getOptionsHash(item.selectedOptions) === optionsHash)
-                    ),
-                });
+            removeItem: (lineId) => {
+                set({ items: get().items.filter((item) => item.lineId !== lineId) });
             },
-            updateQuantity: (itemId, optionsHash, delta) => {
+            updateQuantity: (lineId, delta) => {
                 const items = get().items;
-                const index = items.findIndex(
-                    (item) =>
-                        item.id === itemId &&
-                        getOptionsHash(item.selectedOptions) === optionsHash
-                );
+                const index = items.findIndex((item) => item.lineId === lineId);
 
                 if (index > -1) {
                     const updatedItems = [...items];
@@ -116,7 +110,7 @@ export const useCart = create<CartStore>()(
                     } else {
                         updatedItems[index] = {
                             ...updatedItems[index],
-                            quantity: newQty
+                            quantity: Math.min(99, newQty)
                         };
                     }
                     set({ items: updatedItems });
@@ -178,9 +172,7 @@ export const useCart = create<CartStore>()(
                         [orderCode]: token
                     }
                 }));
-                if (get().activeOrderCode === orderCode) {
-                    setOrderCookie(orderCode, token);
-                }
+                setOrderCookie(orderCode, token);
             },
             getOrderAccessToken: (orderCode) => {
                 return get().orderAccessTokens[orderCode] ?? null;
@@ -188,7 +180,17 @@ export const useCart = create<CartStore>()(
         }),
         {
             name: "cafe-gonku-cart",
-            version: 2,
+            version: 3,
+            migrate: (persistedState) => {
+                const state = persistedState as CartStore;
+                return {
+                    ...state,
+                    items: (state.items ?? []).map((item) => ({
+                        ...item,
+                        lineId: item.lineId ?? createCartLineId(),
+                    })),
+                };
+            },
             onRehydrateStorage: (state) => {
                 return () => state?.setHasHydrated(true);
             }

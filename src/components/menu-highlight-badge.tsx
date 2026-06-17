@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 interface MenuHighlightBadgeProps {
   highlightType: MenuHighlightType;
   className?: string;
+  compact?: boolean;
 }
 
 export function MenuHighlightBadge({
   highlightType,
   className,
+  compact = false,
 }: MenuHighlightBadgeProps) {
   if (!isHighlightedMenu(highlightType)) {
     return null;
@@ -23,12 +25,12 @@ export function MenuHighlightBadge({
   return (
     <Badge
       className={cn(
-        "border text-[9px] font-black uppercase tracking-[0.2em]",
+        "border text-[9px] font-black uppercase tracking-[0.2em] backdrop-blur-xl supports-[backdrop-filter]:bg-opacity-70",
         meta.className,
         className,
       )}
     >
-      {meta.label}
+      {compact ? meta.shortLabel : meta.label}
     </Badge>
   );
 }

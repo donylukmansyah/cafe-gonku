@@ -62,7 +62,7 @@ export function QRDialog({
                     </div>
                     <div className="mt-8 px-4 py-2 bg-black/40 rounded-xl border border-white/5 w-full">
                         <p className="text-[10px] text-zinc-500 text-center font-mono break-all opacity-80 uppercase tracking-tighter">
-                            {appUrl}/order?table={table.qrCode}
+                            {appUrl}/t/{table.qrCode}
                         </p>
                     </div>
                 </div>

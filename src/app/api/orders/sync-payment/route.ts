@@ -4,7 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { OrderService } from "@/lib/services/order.service";
 
 // POST /api/orders/sync-payment
-// Bulk check for all PENDING orders to update their status from Midtrans
+// Bulk check for all PENDING orders to update their status from payment gateway
 export async function POST(request: Request) {
     try {
         const session = await getServerSession();

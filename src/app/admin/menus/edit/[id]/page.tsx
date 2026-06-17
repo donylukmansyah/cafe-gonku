@@ -28,7 +28,7 @@ export default async function EditMenuPage({
         imageUrl: menu.imageUrl || undefined,
         isAvailable: menu.isAvailable,
         isActive: menu.isActive,
-        highlightType: menu.highlightType,
+        highlightType: (menu.highlightType === "RECOMMENDED" ? "RECOMMENDED" : "NONE") as "NONE" | "RECOMMENDED",
         menuOptions: menu.menuOptions.map((opt) => ({
             id: opt.id,
             name: opt.name,

@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useState } from "react";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,12 +28,11 @@ export const MenuCard = memo(function MenuCard({
         <Card className="bg-zinc-900/50 border-white/5 overflow-hidden group hover:border-primary/20 transition-all backdrop-blur-sm">
             <div className="aspect-square relative overflow-hidden bg-zinc-800">
                 {imageUrl && !imageError ? (
-                    <Image
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                         src={imageUrl}
                         alt={menu.name}
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                        fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onError={() => setImageError(true)}
                     />
                 ) : (

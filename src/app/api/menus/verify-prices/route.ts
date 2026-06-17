@@ -5,7 +5,8 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
 
 const verifyPricesSchema = z.object({
-    items: z.array(z.object({
+    tableId: z.string().optional(),
+    items: z.array(z.object({ 
         menuId: z.string(),
         price: z.number(),
         selectedOptions: z.array(z.object({
@@ -17,13 +18,13 @@ const verifyPricesSchema = z.object({
 
 export async function POST(request: Request) {
     try {
-        const rateLimit = await checkRateLimit("priceVerify", getClientIp(request));
-        if (!rateLimit.success) {
-            return apiError("Terlalu banyak request. Coba lagi sebentar.", 429);
-        }
-
         const body = await request.json();
-        const { items } = verifyPricesSchema.parse(body);
+        const { items, tableId } = verifyPricesSchema.parse(body);
+
+        const rateLimit = await checkRateLimit("priceVerify", `${getClientIp(request)}:${tableId ?? "no-table"}`);
+        if (!rateLimit.success) {
+            return apiError("Terlalu banyak request untuk meja ini. Coba lagi sebentar.", 429);
+        }
 
         const menuIds = [...new Set(items.map(i => i.menuId))];
         const menus = await prisma.menu.findMany({

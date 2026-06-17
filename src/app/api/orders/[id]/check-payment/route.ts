@@ -36,7 +36,7 @@ export async function POST(
 
         console.log(`[Payment Pipeline] ${new Date().toISOString()} - check-payment API called for id: ${id}`);
 
-        const result = await timer.step("midtransStatus", () => OrderService.checkPaymentStatus(id));
+        const result = await timer.step("paymentStatus", () => OrderService.checkPaymentStatus(id));
 
         timer.finish(200, { updated: Boolean(result.updated), status: result.status });
         return apiResponse(result);

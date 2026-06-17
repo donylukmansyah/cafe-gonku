@@ -1,7 +1,11 @@
 import { z } from "zod"
 
-const menuCategorySchema = z.enum(["FOOD", "DRINK", "SNACK", "DESSERT"])
-const menuHighlightTypeSchema = z.enum(["NONE", "BEST_SELLER", "RECOMMENDED", "DELICIOUS"])
+const menuCategorySchema = z.enum(["FOOD", "DRINK", "SNACK", "DESSERT"], {
+    error: "Kategori wajib dipilih",
+})
+const menuHighlightTypeSchema = z.enum(["NONE", "RECOMMENDED"], {
+    error: "Highlight customer wajib dipilih",
+})
 
 // Menu Option Value schema
 export const menuOptionValueSchema = z.object({
@@ -22,7 +26,7 @@ export const menuOptionSchema = z.object({
 export const createMenuSchema = z.object({
     name: z.string().trim().min(1, "Nama menu wajib diisi").transform(val => val.replace(/<[^>]*>?/gm, "")),
     description: z.string().trim().optional().transform(val => val ? val.replace(/<[^>]*>?/gm, "") : val),
-    price: z.number().min(0, "Harga tidak boleh negatif"),
+    price: z.number().min(1, "Harga wajib diisi"),
     category: menuCategorySchema,
     imageUrl: z.string().url().optional().or(z.literal("")).transform(val => val || undefined),
     isAvailable: z.boolean(),
