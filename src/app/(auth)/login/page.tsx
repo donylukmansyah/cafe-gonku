@@ -13,7 +13,7 @@ interface LoginPageProps {
 
 async function LoginContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ callbackUrl?: string }> }) {
     const resolvedSearchParams = await searchParamsPromise
-    const callbackUrl = resolvedSearchParams?.callbackUrl || "/admin"
+    const callbackUrl = resolvedSearchParams?.callbackUrl || "/owner"
 
     // Server-side check inside Suspense for Next 16 Cache Components compatibility.
     await requireGuest(callbackUrl)
@@ -104,7 +104,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
                 <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center gap-2 text-zinc-600">
                     <ShieldCheck className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Secure Admin Portal &copy; 2026</span>
+                    <span className="text-xs font-bold uppercase tracking-widest">Secure Owner Portal &copy; 2026</span>
                 </div>
             </div>
 

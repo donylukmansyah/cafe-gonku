@@ -22,12 +22,12 @@ export async function GET(
         }
 
         // 2. Authentication check
-        // Check if user is staff (ADMIN or KITCHEN)
+        // Check if user is staff (OWNER or KITCHEN)
         const session = await getServerSession();
         let isStaff = false;
         if (session) {
             const userRole = (session.user as { role?: string }).role;
-            if (userRole === "KITCHEN" || userRole === "ADMIN") {
+            if (userRole === "KITCHEN" || userRole === "OWNER") {
                 isStaff = true;
             }
         }

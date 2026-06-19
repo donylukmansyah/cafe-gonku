@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getServerSession } from "@/lib/server-auth";
 import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
+import { OWNER_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
 import { DailyCashService } from "@/features/revenue/daily-cash.service";
 import { dailyCashEntrySchema } from "@/validations/cash";
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const userRole = (session.user as { role?: string }).role;
 
-    if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
+    if (userRole !== "KITCHEN" && userRole !== "OWNER") {
       return apiError("Forbidden", 403);
     }
 
@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest) {
 
     const userRole = (session.user as { role?: string }).role;
 
-    if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
+    if (userRole !== "KITCHEN" && userRole !== "OWNER") {
       return apiError("Forbidden", 403);
     }
 
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest) {
       recordedBy: session.user.name ?? session.user.email ?? null,
     });
 
-    revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
+    revalidateTag(OWNER_DASHBOARD_CACHE_TAG, "max");
 
     return apiResponse({
       entry,

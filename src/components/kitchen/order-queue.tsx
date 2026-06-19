@@ -86,14 +86,10 @@ export const OrderQueue = memo(function OrderQueue({
 
     // Client-side pagination logic
     const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+    const safeCurrentPage = Math.min(currentPage, Math.max(totalPages, 1));
     const paginatedOrders = showHistory
-        ? orders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+        ? orders.slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
         : orders;
-
-    // Reset current page when showHistory changes
-    useState(() => {
-        setCurrentPage(1);
-    });
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -258,7 +254,7 @@ export const OrderQueue = memo(function OrderQueue({
                             variant="outline"
                             size="icon"
                             onClick={() => handlePageChange(1)}
-                            disabled={currentPage === 1}
+                            disabled={safeCurrentPage === 1}
                             className="w-9 h-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all disabled:opacity-30"
                         >
                             <ChevronsLeft className="w-4 h-4" />
@@ -266,8 +262,8 @@ export const OrderQueue = memo(function OrderQueue({
                         <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
+                            onClick={() => handlePageChange(safeCurrentPage - 1)}
+                            disabled={safeCurrentPage === 1}
                             className="w-9 h-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all disabled:opacity-30"
                         >
                             <ChevronLeft className="w-4 h-4" />
@@ -276,9 +272,9 @@ export const OrderQueue = memo(function OrderQueue({
                         {/* Page Numbers */}
                         {Array.from({ length: totalPages }).map((_, idx) => {
                             const p = idx + 1;
-                            const isCurrent = p === currentPage;
+                            const isCurrent = p === safeCurrentPage;
                             // Only show neighbors
-                            if (totalPages > 5 && Math.abs(p - currentPage) > 1 && p !== 1 && p !== totalPages) {
+                            if (totalPages > 5 && Math.abs(p - safeCurrentPage) > 1 && p !== 1 && p !== totalPages) {
                                 if (p === 2 || p === totalPages - 1) {
                                     return <span key={p} className="text-zinc-700 font-bold text-sm px-1">...</span>;
                                 }
@@ -303,8 +299,8 @@ export const OrderQueue = memo(function OrderQueue({
                         <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
+                            onClick={() => handlePageChange(safeCurrentPage + 1)}
+                            disabled={safeCurrentPage === totalPages}
                             className="w-9 h-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all disabled:opacity-30"
                         >
                             <ChevronRight className="w-4 h-4" />
@@ -313,7 +309,7 @@ export const OrderQueue = memo(function OrderQueue({
                             variant="outline"
                             size="icon"
                             onClick={() => handlePageChange(totalPages)}
-                            disabled={currentPage === totalPages}
+                            disabled={safeCurrentPage === totalPages}
                             className="w-9 h-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all disabled:opacity-30"
                         >
                             <ChevronsRight className="w-4 h-4" />

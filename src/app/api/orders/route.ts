@@ -20,7 +20,7 @@ export async function GET(request: Request) {
         }
 
         const userRole = (session.user as { role?: string }).role;
-        if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
+        if (userRole !== "KITCHEN" && userRole !== "OWNER") {
             timer.finish(403);
             return apiError("Forbidden", 403);
         }

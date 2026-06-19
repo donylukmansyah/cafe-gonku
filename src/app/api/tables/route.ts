@@ -16,7 +16,7 @@ export async function GET() {
         if (!session) return apiError("Unauthorized", 401);
 
         const user = session.user as { role?: string };
-        if (user.role !== "ADMIN") return apiError("Forbidden: Admin access required", 403);
+        if (user.role !== "OWNER") return apiError("Forbidden: Owner access required", 403);
 
         const tables = await TableService.getTables();
         return apiResponse(tables);
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         if (!session) return apiError("Unauthorized", 401);
 
         const user = session.user as { role?: string };
-        if (user.role !== "ADMIN") return apiError("Forbidden: Admin access required", 403);
+        if (user.role !== "OWNER") return apiError("Forbidden: Owner access required", 403);
 
         const body = await request.json();
         const validatedData = createTableSchema.parse(body);

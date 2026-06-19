@@ -16,7 +16,7 @@ export async function PATCH(
         if (!session) return apiError("Unauthorized", 401)
 
         const user = session.user as { role?: string }
-        if (user.role !== "ADMIN") return apiError("Forbidden", 403)
+        if (user.role !== "OWNER") return apiError("Forbidden", 403)
 
         const validatedData = updateTableSchema.parse(body)
         const table = await TableService.updateTable(id, validatedData)
@@ -38,7 +38,7 @@ export async function DELETE(
         if (!session) return apiError("Unauthorized", 401)
 
         const user = session.user as { role?: string }
-        if (user.role !== "ADMIN") return apiError("Forbidden", 403)
+        if (user.role !== "OWNER") return apiError("Forbidden", 403)
 
         await TableService.deleteTable(id)
 

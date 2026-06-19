@@ -1,12 +1,12 @@
 export const ROLE_DASHBOARD_PATHS = {
-    ADMIN: "/admin",
+    OWNER: "/owner",
     KITCHEN: "/kitchen",
 } as const
 
 export type AppRole = keyof typeof ROLE_DASHBOARD_PATHS
 
 export function isAppRole(role?: string | null): role is AppRole {
-    return role === "ADMIN" || role === "KITCHEN"
+    return role === "OWNER" || role === "KITCHEN"
 }
 
 export function getDashboardPathForRole(role?: string | null) {

@@ -105,7 +105,7 @@ export function DailyCashPanel() {
             Pendapatan di Kasir
           </CardTitle>
           <CardDescription className="text-zinc-500">
-            Masukkan total pendapatan uang tunai yang diterima hari ini di kasir agar admin bisa melihat gabungan pemasukan QR dan cash.
+            Masukkan total pendapatan uang tunai yang diterima hari ini di kasir agar owner bisa melihat gabungan pemasukan QR dan cash.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -175,7 +175,7 @@ export function DailyCashPanel() {
             Riwayat Pendapatan Kasir
           </CardTitle>
           <CardDescription className="text-zinc-500">
-            Rekap 7 hari terakhir yang ikut dihitung di dashboard admin.
+            Rekap 7 hari terakhir yang ikut dihitung di dashboard owner.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

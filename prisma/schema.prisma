@@ -15,11 +15,11 @@ datasource db {
 // ============================================
 // 1. USER MANAGEMENT
 // ============================================
-// Admin: Kelola menu, meja, QR code, analytics
+// Owner: Kelola menu, meja, QR code, analytics
 // Kitchen: Lihat order queue, update status pesanan
 
 enum UserRole {
-  ADMIN
+  OWNER
   KITCHEN
 }
 
@@ -132,7 +132,7 @@ model Menu {
   category    MenuCategory
   imageUrl    String?      // URL gambar di Supabase Storage
   isAvailable Boolean      @default(true) // Kitchen bisa set false kalau habis
-  isActive    Boolean      @default(true) // Soft delete untuk admin
+  isActive    Boolean      @default(true) // Soft delete untuk owner
   highlightType MenuHighlightType @default(NONE) // Badge khusus untuk customer: best seller / recommended / delicious
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -213,6 +213,11 @@ enum PaymentStatus {
   EXPIRED // Pembayaran kadaluarsa
 }
 
+enum OrderServiceType {
+  DINE_IN
+  TAKEAWAY
+}
+
 model Order {
   id        String   @id @default(cuid())
   orderCode String   @unique // Kode unik: "GONKU-001", "GONKU-002"
@@ -227,8 +232,10 @@ model Order {
   customerPhone String?
   
   // Order details
-  totalAmount Int         @default(0) // Total harga keseluruhan
-  status      OrderStatus @default(PENDING)
+  totalAmount    Int              @default(0) // Total harga keseluruhan
+  status         OrderStatus      @default(PENDING)
+  serviceType    OrderServiceType @default(DINE_IN)
+  priorityScore  Float            @default(0) // Skor priority queue kitchen
   
   // Payment info
   paymentStatus   PaymentStatus @default(PENDING)
@@ -247,7 +254,8 @@ model Order {
   orderLogs  OrderLog[]
 
   // Indexes untuk performa
-  @@index([paymentStatus, paidAt]) // Priority queue: yang bayar duluan tampil duluan
+  @@index([paymentStatus, paidAt]) // Payment lookup
+  @@index([paymentStatus, status, priorityScore, paidAt]) // Priority queue kitchen
   @@index([status, createdAt]) // Kitchen queue: filter order aktif & urutkan
   @@index([tableId])
   @@index([status])
@@ -289,7 +297,7 @@ model OrderItem {
 // 8. ORDER ITEM OPTION
 // ============================================
 // Menyimpan pilihan option yang dipilih customer saat order
-// Snapshot data agar tidak berubah kalau admin update option
+// Snapshot data agar tidak berubah kalau owner update option
 
 model OrderItemOption {
   id                String          @id @default(cuid())
@@ -310,21 +318,9 @@ model OrderItemOption {
 }
 
 // ============================================
-// 9. DAILY SALES
+// 9. DAILY CASH RECORD
 // ============================================
-// Summary penjualan per hari untuk analytics
-
-model DailySales {
-  id           String   @id @default(cuid())
-  date         DateTime @db.Date @unique // Tanggal (format: YYYY-MM-DD)
-  totalOrders  Int      @default(0) // Jumlah order yang PAID
-  totalRevenue Int      @default(0) // Total pendapatan hari itu
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([date])
-  @@map("daily_sales")
-}
+// Catatan kas/tunai harian manual untuk analytics
 
 model DailyCashRecord {
   id         String   @id @default(cuid())
@@ -351,7 +347,7 @@ model OrderLog {
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status    String // Status yang diupdate
   message   String   @db.Text // Deskripsi perubahan
-  createdBy String? // User ID yang melakukan update (admin/kitchen)
+  createdBy String? // User ID yang melakukan update (owner/kitchen)
   createdAt DateTime @default(now())
 
   @@index([orderId])

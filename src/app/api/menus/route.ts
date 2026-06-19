@@ -3,7 +3,7 @@ import { getServerSession } from "@/lib/server-auth";
 import { createMenuSchema } from "@/validations/menu";
 import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { revalidateTag } from "next/cache";
-import { ADMIN_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
+import { OWNER_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
 import { MenuService } from "@/lib/services/menu.service";
 import { createApiTimer } from "@/lib/api-timing";
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             }
 
             const user = session.user as { role?: string };
-            if (user.role !== "ADMIN") {
+            if (user.role !== "OWNER") {
                 timer.finish(403);
                 return apiError("Forbidden", 403);
             }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         if (!session) return apiError("Unauthorized", 401);
 
         const user = session.user as { role?: string };
-        if (user.role !== "ADMIN") return apiError("Forbidden", 403);
+        if (user.role !== "OWNER") return apiError("Forbidden", 403);
 
         const body = await request.json();
         const validatedData = createMenuSchema.parse(body);
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         const menu = await MenuService.createMenu(validatedData);
 
         revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
-        revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
+        revalidateTag(OWNER_DASHBOARD_CACHE_TAG, "max");
 
         return apiResponse(menu, 201);
     } catch (error) {

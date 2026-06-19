@@ -6,7 +6,7 @@ import { getDashboardPathForRole, getPostLoginRedirect, sanitizeInternalRedirect
 import { cache } from "react"
 
 type SessionUserWithRole = Session["user"] & {
-    role?: "ADMIN" | "KITCHEN" | string
+    role?: "OWNER" | "KITCHEN" | string
 }
 
 const LOGIN_PATH = "/login"
@@ -62,7 +62,7 @@ async function getLoginRedirectPath(fallbackPath = LOGIN_PATH) {
  * Ensures the user is authenticated and has the required role.
  * Redirects to /login if unauthenticated or unauthorized.
  * 
- * @param requiredRole The role required to access the route (e.g., "ADMIN", "KITCHEN")
+ * @param requiredRole The role required to access the route (e.g., "OWNER", "KITCHEN")
  * @param redirectTo The path to redirect to if unauthorized (default: "/login")
  * @returns The active session if authorized
  */

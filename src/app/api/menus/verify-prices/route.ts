@@ -3,6 +3,7 @@ import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
+import { createApiTimer } from "@/lib/api-timing";
 
 const verifyPricesSchema = z.object({
     tableId: z.string().optional(),
@@ -17,17 +18,28 @@ const verifyPricesSchema = z.object({
 });
 
 export async function POST(request: Request) {
-    try {
-        const body = await request.json();
-        const { items, tableId } = verifyPricesSchema.parse(body);
+    const timer = createApiTimer("POST /api/menus/verify-prices");
+    let status = 200;
+    let itemCount = 0;
+    let verifiedResult: boolean | undefined;
 
-        const rateLimit = await checkRateLimit("priceVerify", `${getClientIp(request)}:${tableId ?? "no-table"}`);
+    try {
+        const { items, tableId } = await timer.step("parseBody", async () => {
+            const body = await request.json();
+            return verifyPricesSchema.parse(body);
+        });
+        itemCount = items.length;
+
+        const rateLimit = await timer.step("rateLimit", () =>
+            checkRateLimit("priceVerify", `${getClientIp(request)}:${tableId ?? "no-table"}`),
+        );
         if (!rateLimit.success) {
-            return apiError("Terlalu banyak request untuk meja ini. Coba lagi sebentar.", 429);
+            status = 429;
+            return apiError("Terlalu banyak request untuk meja ini. Coba lagi sebentar.", status);
         }
 
         const menuIds = [...new Set(items.map(i => i.menuId))];
-        const menus = await prisma.menu.findMany({
+        const menus = await timer.step("loadMenus", () => prisma.menu.findMany({
             where: { id: { in: menuIds } },
             select: {
                 id: true,
@@ -46,7 +58,7 @@ export async function POST(request: Request) {
                     },
                 },
             },
-        });
+        }));
 
         const menuMap = new Map(menus.map(m => [m.id, m]));
         const changes: {
@@ -121,17 +133,20 @@ export async function POST(request: Request) {
         }
 
         const verified = changes.length === 0;
+        verifiedResult = verified;
         let priceHash: string | undefined;
 
         if (verified) {
-            const hashItems = buildPriceHashItems(
-                items.map(item => ({
-                    menuId: item.menuId,
-                    selectedOptions: item.selectedOptions.map(opt => ({ valueId: opt.valueId })),
-                })),
-                menuMap as Map<string, { price: number; menuOptions: { values: { id: string; priceAdjust: number }[] }[] }>,
-            );
-            priceHash = computePriceHash(hashItems);
+            priceHash = await timer.step("hash", async () => {
+                const hashItems = buildPriceHashItems(
+                    items.map(item => ({
+                        menuId: item.menuId,
+                        selectedOptions: item.selectedOptions.map(opt => ({ valueId: opt.valueId })),
+                    })),
+                    menuMap as Map<string, { price: number; menuOptions: { values: { id: string; priceAdjust: number }[] }[] }>,
+                );
+                return computePriceHash(hashItems);
+            });
         }
 
         return apiResponse({
@@ -140,6 +155,12 @@ export async function POST(request: Request) {
             priceHash,
         });
     } catch (error) {
+        status = error instanceof z.ZodError ? 400 : 500;
         return handleApiError(error, "POST /api/menus/verify-prices");
+    } finally {
+        timer.finish(status, {
+            itemCount,
+            verified: verifiedResult,
+        });
     }
 }

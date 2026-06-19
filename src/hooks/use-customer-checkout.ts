@@ -140,6 +140,7 @@ export function useCustomerCheckout({
         method: "POST",
         body: JSON.stringify({
           tableId,
+          serviceType: diningType,
           items: items.map((item) => ({
             menuId: item.id,
             quantity: item.quantity,

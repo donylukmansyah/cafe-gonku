@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest) {
         if (!session) return apiError("Unauthorized", 401);
 
         const userRole = (session.user as { role?: string }).role;
-        if (userRole !== "KITCHEN" && userRole !== "ADMIN") return apiError("Forbidden", 403);
+        if (userRole !== "KITCHEN" && userRole !== "OWNER") return apiError("Forbidden", 403);
 
         const body = await request.json();
         const parseResult = bulkUpdateOrderStatusSchema.safeParse(body);

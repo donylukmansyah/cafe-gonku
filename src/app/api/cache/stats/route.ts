@@ -11,7 +11,7 @@ export async function GET() {
     if (!session) return apiError("Unauthorized", 401);
 
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "ADMIN") return apiError("Forbidden", 403);
+    if (userRole !== "OWNER") return apiError("Forbidden", 403);
 
     const stats = await getCacheStats([
       "menus",

@@ -45,7 +45,7 @@ type DashboardMetrics = {
 
 const MAX_ANALYTICS_DAYS = 90;
 
-type AdminOverview = {
+type OwnerOverview = {
   menuCount: number;
   tableCount: number;
   todayOrders: number;
@@ -231,10 +231,10 @@ export class AnalyticsService {
     });
   }
 
-  static async getAdminOverview() {
-    return cacheRemember<AdminOverview>({
+  static async getOwnerOverview() {
+    return cacheRemember<OwnerOverview>({
       scope: "analytics",
-      key: "admin-overview",
+      key: "owner-overview",
       ttlSeconds: 60,
       load: async () => {
     const { start, end } = getCafeDayRange();
@@ -285,7 +285,7 @@ export class AnalyticsService {
     const onlineRevenue = todayOnlineRevenue._sum.totalAmount ?? 0;
     const cashRevenue = todayCashRecord?.amount ?? 0;
 
-    const result: AdminOverview = {
+    const result: OwnerOverview = {
       menuCount,
       tableCount,
       todayOrders,

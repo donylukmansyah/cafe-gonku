@@ -31,6 +31,8 @@ export interface Order {
     paidAt: string | null;
     createdAt: string;
     totalAmount: number;
+    serviceType: "DINE_IN" | "TAKEAWAY";
+    priorityScore: number;
     table: {
         id: string;
         tableNumber: number;
@@ -207,7 +209,10 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                             if (exists) {
                                 return prev.map(o => o.orderCode === orderCode ? { ...o, ...fullOrder, status: fullOrder.status ?? orderStatus } : o);
                             }
-                            return [...prev, fullOrder].sort((a, b) => new Date(a.paidAt || a.createdAt).getTime() - new Date(b.paidAt || b.createdAt).getTime());
+                            return [...prev, fullOrder].sort((a, b) => {
+                                if (b.priorityScore !== a.priorityScore) return b.priorityScore - a.priorityScore;
+                                return new Date(a.paidAt || a.createdAt).getTime() - new Date(b.paidAt || b.createdAt).getTime();
+                            });
                         });
                     } else {
                         setOrders((prev) => {

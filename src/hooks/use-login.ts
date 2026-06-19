@@ -5,10 +5,10 @@ import { getPostLoginRedirect } from "@/lib/auth-routes"
 import { LoginInput } from "@/validations/auth"
 
 type SessionUserWithRole = {
-    role?: "ADMIN" | "KITCHEN" | string
+    role?: "OWNER" | "KITCHEN" | string
 }
 
-export function useLogin(callbackUrl: string = "/admin") {
+export function useLogin(callbackUrl: string = "/owner") {
     const router = useRouter()
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)

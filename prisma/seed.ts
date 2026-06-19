@@ -13,7 +13,7 @@ async function main() {
         await prisma.session.deleteMany({})
         await prisma.user.deleteMany({
             where: {
-                email: { in: ['admin@cafegonku.com', 'kitchen@cafegonku.com'] }
+                email: { in: ['owner@cafegonku.com', 'admin@cafegonku.com', 'kitchen@cafegonku.com'] }
             }
         })
         console.log('🧹 Cleaned up existing auth data')
@@ -21,20 +21,20 @@ async function main() {
         console.log('⚠️ Cleanup minor error (tables might be empty):', e)
     }
 
-    // 1. Create Admin
-    const hashedPasswordAdmin = await hashPassword('admin123')
+    // 1. Create Owner
+    const hashedPasswordOwner = await hashPassword('owner123')
 
-    const admin = await prisma.user.create({
+    const owner = await prisma.user.create({
         data: {
-            email: 'admin@cafegonku.com',
-            password: hashedPasswordAdmin,
-            name: 'Admin Cafe Gonku',
-            role: UserRole.ADMIN,
+            email: 'owner@cafegonku.com',
+            password: hashedPasswordOwner,
+            name: 'Owner Cafe Gonku',
+            role: UserRole.OWNER,
             accounts: {
                 create: {
-                    accountId: 'admin@cafegonku.com',
+                    accountId: 'owner@cafegonku.com',
                     providerId: 'credential',
-                    password: hashedPasswordAdmin,
+                    password: hashedPasswordOwner,
                     accessToken: null,
                     refreshToken: null,
                     expiresAt: null,
@@ -44,7 +44,7 @@ async function main() {
             }
         },
     })
-    console.log('✅ Admin user & account created:', admin.email)
+    console.log('✅ Owner user & account created:', owner.email)
 
     // 2. Create Kitchen
     const hashedPasswordKitchen = await hashPassword('kitchen123')

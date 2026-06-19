@@ -11,7 +11,7 @@ export async function POST(request: Request) {
         if (!session) return apiError("Unauthorized", 401);
 
         const userRole = (session.user as { role?: string }).role;
-        if (userRole !== "KITCHEN" && userRole !== "ADMIN") {
+        if (userRole !== "KITCHEN" && userRole !== "OWNER") {
             return apiError("Forbidden", 403);
         }
 

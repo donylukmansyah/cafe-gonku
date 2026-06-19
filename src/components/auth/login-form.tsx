@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react"
 
-export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) {
+export function LoginForm({ callbackUrl = "/owner" }: { callbackUrl?: string }) {
     const {
         error,
         isLoading,
@@ -65,7 +65,7 @@ export function LoginForm({ callbackUrl = "/admin" }: { callbackUrl?: string }) 
                                     id="email"
                                     type="email"
                                     autoComplete="email"
-                                    placeholder="admin@cafegonku.com"
+                                    placeholder="owner@cafegonku.com"
                                     {...register("email")}
                                     disabled={isLoading}
                                     className="h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-zinc-700 focus-visible:ring-primary/20 focus-visible:border-primary/40 rounded-2xl transition-all duration-300 text-base"

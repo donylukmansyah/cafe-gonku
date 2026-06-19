@@ -13,7 +13,6 @@ alter table public.menu_options enable row level security;
 alter table public.menu_option_values enable row level security;
 alter table public.order_items enable row level security;
 alter table public.order_item_options enable row level security;
-alter table public.daily_sales enable row level security;
 alter table public.daily_cash_records enable row level security;
 alter table public.accounts enable row level security;
 alter table public.tables enable row level security;
@@ -35,7 +34,6 @@ begin
       public.menu_option_values,
       public.order_items,
       public.order_item_options,
-      public.daily_sales,
       public.daily_cash_records,
       public.accounts,
       public.tables,
@@ -54,7 +52,6 @@ begin
       public.menu_option_values,
       public.order_items,
       public.order_item_options,
-      public.daily_sales,
       public.daily_cash_records,
       public.accounts,
       public.tables,

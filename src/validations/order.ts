@@ -17,6 +17,8 @@ export const paymentStatusSchema = z.enum([
     "EXPIRED",
 ]);
 
+export const orderServiceTypeSchema = z.enum(["DINE_IN", "TAKEAWAY"]);
+
 // Schema for updating order status (Kitchen)
 export const updateOrderStatusSchema = z.object({
     status: orderStatusSchema,
@@ -32,6 +34,7 @@ export const createOrderSchema = z.object({
     tableId: z.string().cuid(),
     customerName: z.string().trim().min(1).max(100).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
     customerPhone: z.string().trim().min(10).max(15).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
+    serviceType: orderServiceTypeSchema.default("DINE_IN"),
     items: z.array(
         z.object({
             menuId: z.string().cuid(),
@@ -56,5 +59,6 @@ export const createOrderSchema = z.object({
 // Types
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+export type OrderServiceType = z.infer<typeof orderServiceTypeSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

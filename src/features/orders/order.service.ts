@@ -4,12 +4,13 @@ import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { createDokuCheckoutPayment, getDokuOrderStatus } from "@/lib/doku";
 import { supabaseAdmin, sendBroadcast } from "@/lib/supabase";
-import { ADMIN_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
+import { OWNER_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
 import { bumpCacheVersion, cacheGet, cacheSet } from "@/lib/redis";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { getCafeDayRange, parseCafeLocalDateTime } from "@/lib/cafe-date";
 import { AppError } from "@/lib/api-utils";
 import type { CreateOrderInput } from "@/validations/order";
+import { calculateOrderPriorityScore } from "@/features/orders/order-priority";
 import { generateOrderAccessToken } from "@/lib/order-access";
 import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
 import crypto from "crypto";
@@ -85,9 +86,12 @@ const kitchenOrderSelect = {
   id: true,
   orderCode: true,
   status: true,
+  paymentStatus: true,
   paidAt: true,
   createdAt: true,
   totalAmount: true,
+  serviceType: true,
+  priorityScore: true,
   table: {
     select: {
       id: true,
@@ -131,6 +135,7 @@ const orderDetailsSelect = {
   paymentExpiresAt: true,
   paidAt: true,
   customerName: true,
+  serviceType: true,
   table: {
     select: {
       tableNumber: true,
@@ -291,8 +296,8 @@ async function broadcastOrderStatus({
   }
 }
 
-function revalidateAdminDashboard() {
-  revalidateTag(ADMIN_DASHBOARD_CACHE_TAG, "max");
+function revalidateOwnerDashboard() {
+  revalidateTag(OWNER_DASHBOARD_CACHE_TAG, "max");
   void bumpCacheVersion("analytics");
 }
 
@@ -324,7 +329,7 @@ export class OrderService {
           paymentStatus: PaymentStatus.PAID,
         };
 
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: whereClause,
       orderBy: includeServed
         ? [{ updatedAt: "desc" }]
@@ -332,6 +337,28 @@ export class OrderService {
       take: 50,
       select: kitchenOrderSelect,
     });
+
+    if (includeServed) return orders;
+
+    const now = new Date();
+    return orders
+      .map((order) => ({
+        ...order,
+        priorityScore: calculateOrderPriorityScore({
+          paymentStatus: order.paymentStatus,
+          paidAt: order.paidAt,
+          serviceType: order.serviceType,
+          orderItems: order.orderItems,
+          now,
+        }),
+      }))
+      .sort((first, second) => {
+        if (second.priorityScore !== first.priorityScore) {
+          return second.priorityScore - first.priorityScore;
+        }
+
+        return new Date(first.paidAt ?? first.createdAt).getTime() - new Date(second.paidAt ?? second.createdAt).getTime();
+      });
   }
 
   static async getLatePaymentIssues(limit = 5) {
@@ -384,7 +411,7 @@ export class OrderService {
   }
 
   static async createOrder(data: CreateOrderInput) {
-    const { tableId, items, customerName, customerPhone, serviceFee, rounding, priceHash, checkoutId } = data;
+    const { tableId, items, customerName, customerPhone, serviceType, serviceFee, rounding, priceHash, checkoutId } = data;
     const checkoutCacheKey = checkoutId ? getCheckoutIdempotencyCacheKey(tableId, checkoutId) : null;
 
     if (checkoutCacheKey) {
@@ -575,6 +602,7 @@ export class OrderService {
           totalAmount: finalTotal,
           status: OrderStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
+          serviceType,
           paymentExpiresAt,
           orderItems: {
             create: processedItems.map((item) => ({
@@ -788,6 +816,7 @@ export class OrderService {
       totalAmount?: number;
       createdAt?: Date;
       paymentExpiresAt?: Date | null;
+      serviceType?: "DINE_IN" | "TAKEAWAY" | null;
     },
     gatewayPayload: GatewayStatusPayload,
     context: GatewayUpdateContext,
@@ -915,6 +944,15 @@ export class OrderService {
             ? order.paidAt ?? nextPaidAt
             : order.paidAt,
         paymentMethod: gatewayPayload.payment_type ?? order.paymentMethod,
+        priorityScore: nextState.paymentStatus === PaymentStatus.PAID
+          ? calculateOrderPriorityScore({
+              paymentStatus: nextState.paymentStatus,
+              paidAt: order.paidAt ?? nextPaidAt,
+              serviceType: order.serviceType,
+            })
+          : order.paymentStatus === PaymentStatus.PAID
+            ? undefined
+            : 0,
       },
     });
 
@@ -950,7 +988,7 @@ export class OrderService {
       fullOrder: nextState.paymentStatus === PaymentStatus.PAID ? updatedOrder : undefined,
     });
 
-    revalidateAdminDashboard();
+    revalidateOwnerDashboard();
 
     return {
       status: nextState.paymentStatus,
@@ -975,6 +1013,7 @@ export class OrderService {
         totalAmount: true,
         createdAt: true,
         paymentExpiresAt: true,
+        serviceType: true,
       },
     });
 
@@ -1016,6 +1055,7 @@ export class OrderService {
         totalAmount: true,
         createdAt: true,
         paymentExpiresAt: true,
+        serviceType: true,
       },
     });
 
@@ -1053,6 +1093,7 @@ export class OrderService {
         totalAmount: true,
         createdAt: true,
         paymentExpiresAt: true,
+        serviceType: true,
       },
     });
 
@@ -1189,6 +1230,7 @@ export class OrderService {
         totalAmount: true,
         createdAt: true,
         paymentExpiresAt: true,
+        serviceType: true,
       },
     });
 

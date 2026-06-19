@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
         }
 
         const user = session.user as { role?: string }
-        if (user.role !== "ADMIN") {
+        if (user.role !== "OWNER") {
             console.error("Upload failed: Forbidden", user)
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }

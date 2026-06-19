@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         }
 
         const user = session.user as { role?: string };
-        if (user.role !== "ADMIN") {
+        if (user.role !== "OWNER") {
             timer.finish(403);
             return apiError("Forbidden", 403);
         }
