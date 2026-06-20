@@ -2,22 +2,29 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/server-auth"
 import { uploadMenuImage } from "@/lib/image-storage"
 import { optimizeImage } from "@/lib/image-optimizer"
+import { logger } from "@/lib/logger"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
     try {
-        console.log("Starting upload process...")
+        logger.debug("Starting upload process...")
+
+        const rateLimit = await checkRateLimit("imageUpload", getClientIp(request));
+        if (!rateLimit.success) {
+            return NextResponse.json({ error: "Terlalu banyak upload. Coba lagi sebentar." }, { status: 429 })
+        }
 
         // Check auth
         const session = await getServerSession();
 
         if (!session) {
-            console.error("Upload failed: Unauthorized")
+            logger.warn("Upload failed: Unauthorized")
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
         const user = session.user as { role?: string }
         if (user.role !== "OWNER") {
-            console.error("Upload failed: Forbidden", user)
+            logger.warn("Upload failed: Forbidden")
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
@@ -26,11 +33,11 @@ export async function POST(request: NextRequest) {
         const file = formData.get("file") as File | null
 
         if (!file) {
-            console.error("Upload failed: No file provided")
+            logger.warn("Upload failed: No file provided")
             return NextResponse.json({ error: "No file provided" }, { status: 400 })
         }
 
-        console.log(`File received: ${file.name}, size: ${file.size}, type: ${file.type}`)
+        logger.debug(`File received: ${file.name}, size: ${file.size}, type: ${file.type}`)
 
         // Validate file type
         const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
@@ -72,10 +79,9 @@ export async function POST(request: NextRequest) {
             provider: upload.provider,
         })
     } catch (error: unknown) {
-        console.error("Upload error (catch):", error)
+        logger.error("Upload error:", error)
         return NextResponse.json(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { error: `Internal Server Error: ${(error as any).message || String(error)}` },
+            { error: "Internal Server Error" },
             { status: 500 }
         )
     }

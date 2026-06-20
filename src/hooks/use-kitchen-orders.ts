@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
+import { logger } from "@/lib/logger";
 
 interface OrderItem {
     id: string;
@@ -71,7 +72,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         if (audioRef?.current) {
             audioRef.current.currentTime = 0;
             audioRef.current.play().catch((err) => {
-                console.warn("[Audio] Playback failed/blocked:", err);
+                logger.warn("[Audio] Playback failed/blocked:", err);
                 toast.error("Notifikasi suara terblokir browser. Klik layar dashboard untuk mengaktifkan.", {
                     description: "Browser butuh interaksi user sebelum memutar suara.",
                     duration: 8000
@@ -108,7 +109,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 if (soundEnabled && audioRef?.current) {
                     newOrders.forEach(order => {
                         if (order.status === "PAID" && !soundedOrdersRef.current.has(order.orderCode)) {
-                            console.log(`[Polling] Triggering sound for NEW order: ${order.orderCode}`);
+                            logger.debug(`[Polling] Triggering sound for NEW order: ${order.orderCode}`);
                             playNotification();
                             soundedOrdersRef.current.add(order.orderCode);
                         }
@@ -167,7 +168,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         try {
             await apiFetch("/api/orders/sync-payment", { method: "POST", silent: true });
         } catch (err) {
-            console.error("Sync error:", err);
+            logger.error("Sync error:", err);
         }
     }, []);
 
@@ -187,7 +188,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                 const isNewPaidOrder = isPaymentPaid && typeof orderCode === "string" && !soundedOrdersRef.current.has(orderCode);
                 const fullOrder = data?.fullOrder as Order | undefined;
 
-                console.log(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderCode}: ${orderStatus}/${paymentStatus ?? "UNKNOWN"}`);
+                logger.debug(`[Payment Pipeline] ${new Date().toISOString()} - Kitchen receive broadcast for ${orderCode}: ${orderStatus}/${paymentStatus ?? "UNKNOWN"}`);
 
                 if (isNewPaidOrder) {
                     if (soundEnabled) {

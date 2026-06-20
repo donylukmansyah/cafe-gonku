@@ -2,15 +2,30 @@
   "name": "cafe-gonku",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20.19 <23",
+    "pnpm": ">=10"
+  },
   "scripts": {
+    "node22:shell": "powershell -ExecutionPolicy Bypass -File scripts/node22-shell.ps1",
+    "check:node": "node scripts/check-node-version.mjs",
+    "predev": "pnpm check:node",
+    "prebuild": "pnpm check:node",
+    "prestart": "pnpm check:node",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "preprisma:generate": "pnpm check:node",
     "prisma:generate": "prisma generate",
+    "preprisma:studio": "pnpm check:node",
     "prisma:studio": "prisma studio",
+    "preprisma:push": "pnpm check:node",
     "prisma:push": "prisma db push",
+    "preprisma:migrate": "pnpm check:node",
     "prisma:migrate": "prisma migrate dev",
+    "preprisma:seed": "pnpm check:node",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
@@ -33,7 +48,6 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.4",
     "lucide-react": "^0.563.0",
-    "midtrans-client": "^1.4.3",
     "next": "16.1.6",
     "pg": "^8.21.0",
     "qrcode": "^1.5.4",

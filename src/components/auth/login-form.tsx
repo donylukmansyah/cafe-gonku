@@ -65,7 +65,7 @@ export function LoginForm({ callbackUrl = "/owner" }: { callbackUrl?: string }) 
                                     id="email"
                                     type="email"
                                     autoComplete="email"
-                                    placeholder="owner@cafegonku.com"
+                                    placeholder="email@cafegonku.com"
                                     {...register("email")}
                                     disabled={isLoading}
                                     className="h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-zinc-700 focus-visible:ring-primary/20 focus-visible:border-primary/40 rounded-2xl transition-all duration-300 text-base"

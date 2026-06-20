@@ -7,14 +7,13 @@ import { useCart } from "@/hooks/use-cart";
 import { apiFetch } from "@/lib/api-client";
 import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
 import { useLiveRefetch } from "@/hooks/use-live-refetch";
+import { logger } from "@/lib/logger";
 
 export interface OrderDetails {
     id: string;
     orderCode: string;
     status: "PENDING" | "PAID" | "PREPARING" | "READY" | "SERVED" | "CANCELLED" | "EXPIRED";
     paymentStatus: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
-    /** @deprecated Use paymentRedirectUrl. Kept for older Midtrans-named DB field. */
-    midtransToken?: string;
     paymentRedirectUrl?: string | null;
     totalAmount: number;
     createdAt: string;
@@ -46,6 +45,7 @@ export function useRealtimeOrder() {
 
     const [order, setOrder] = useState<OrderDetails | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingPayment, setIsCheckingPayment] = useState(false);
 
     const isMounted = useRef(true);
 
@@ -82,7 +82,7 @@ export function useRealtimeOrder() {
                 setActiveOrderCodeRef.current(null);
                 setOrder(null);
             } else {
-                console.error("Error fetching order:", error);
+                logger.error("Error fetching order:", error);
             }
         } finally {
             if (isMounted.current && showLoading) setIsLoading(false);
@@ -122,13 +122,13 @@ export function useRealtimeOrder() {
         // Initial fetch
         fetchOrderRef.current(true);
 
-        console.log(`[Supabase] Subscribing to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
+        logger.debug(`[Supabase] Subscribing to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
 
         // --- Supabase Realtime Subscription ---
         const channel = supabase
             .channel(REALTIME_CHANNELS.order(activeOrderCode))
             .on("broadcast", { event: "refresh-orders" }, (payload) => {
-                console.log("[Supabase] Order update received:", payload);
+                logger.debug("[Supabase] Order update received:", payload);
                 const data = payload.payload;
                 const orderCode = typeof data?.orderCode === "string" ? data.orderCode : data?.orderId;
 
@@ -159,7 +159,7 @@ export function useRealtimeOrder() {
             })
             .subscribe((status) => {
                 if (status === "SUBSCRIBED") {
-                    console.log(`[Supabase] Connected to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
+                    logger.debug(`[Supabase] Connected to ${REALTIME_CHANNELS.order(activeOrderCode)}`);
                     fetchOrderRef.current();
                 }
             });
@@ -183,7 +183,10 @@ export function useRealtimeOrder() {
     });
 
     useEffect(() => {
-        if (!activeOrderCode || order?.paymentStatus !== "PENDING") return;
+        if (!activeOrderCode || order?.paymentStatus !== "PENDING") {
+            setIsCheckingPayment(false);
+            return;
+        }
 
         let timeout: ReturnType<typeof setTimeout> | null = null;
         let attempt = 0;
@@ -201,6 +204,7 @@ export function useRealtimeOrder() {
             if (stopped || !isMounted.current) return;
 
             try {
+                setIsCheckingPayment(true);
                 const data = await checkPaymentStatusRef.current();
 
                 if (data.latePayment && isMounted.current) {
@@ -218,7 +222,9 @@ export function useRealtimeOrder() {
                     return;
                 }
             } catch (e) {
-                console.error("Payment check error:", e);
+                logger.error("Payment check error:", e);
+            } finally {
+                if (isMounted.current) setIsCheckingPayment(false);
             }
 
             attempt += 1;
@@ -227,7 +233,7 @@ export function useRealtimeOrder() {
             }
         };
 
-        timeout = setTimeout(checkPayment, 3_000);
+        void checkPayment();
 
         return () => {
             stopped = true;
@@ -245,6 +251,7 @@ export function useRealtimeOrder() {
 
             isChecking = true;
             try {
+                setIsCheckingPayment(true);
                 const data = await checkPaymentStatusRef.current();
                 if (data.latePayment && isMounted.current) {
                     toast.warning("Pembayaran melewati batas waktu", {
@@ -263,9 +270,10 @@ export function useRealtimeOrder() {
 
                 fetchOrderRef.current();
             } catch (error) {
-                console.error("Payment return check error:", error);
+                logger.error("Payment return check error:", error);
             } finally {
                 isChecking = false;
+                if (isMounted.current) setIsCheckingPayment(false);
             }
         };
 
@@ -283,6 +291,7 @@ export function useRealtimeOrder() {
     return {
         order,
         isLoading,
+        isCheckingPayment,
         refresh,
         activeOrderCode
     };

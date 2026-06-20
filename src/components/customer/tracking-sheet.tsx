@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, Receipt } from "lucide-react";
+import { Clock, ChefHat, Truck, Utensils, XCircle, CheckCircle, Receipt, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRealtimeOrder } from "@/hooks/use-realtime-order";
@@ -26,7 +26,7 @@ const STEPS = [
 
 export function TrackingSheet() {
     const [isOpen, setIsOpen] = useState(false);
-    const { order, refresh, activeOrderCode } = useRealtimeOrder();
+    const { order, refresh, activeOrderCode, isCheckingPayment } = useRealtimeOrder();
     const { openDokuCheckout } = useDokuCheckout();
     const setActiveOrderCode = useCart((state) => state.setActiveOrderCode);
     const getOrderAccessToken = useCart((state) => state.getOrderAccessToken);
@@ -49,7 +49,7 @@ export function TrackingSheet() {
     const [isCancelling, setIsCancelling] = useState(false);
 
     const handlePayment = () => {
-        const paymentUrl = order?.paymentRedirectUrl ?? order?.midtransToken;
+        const paymentUrl = order?.paymentRedirectUrl;
         if (!paymentUrl) {
             toast.error("Gagal memulai pembayaran. Silakan buat pesanan baru.");
             return;
@@ -105,8 +105,9 @@ export function TrackingSheet() {
         ? new Date(order.paymentExpiresAt ?? new Date(order.createdAt).getTime() + PAYMENT_EXPIRY_MINUTES * 60_000)
         : null;
     const isPaymentExpiredByTime = order?.paymentStatus === "PENDING" && paymentExpiresAt ? Date.now() > paymentExpiresAt.getTime() : false;
+    const pendingPaymentLabel = isCheckingPayment ? "Cek Pembayaran" : "Belum Bayar";
     const steps = order?.paymentStatus === "PENDING"
-        ? [{ ...STEPS[0], status: "PENDING", label: "Belum Bayar" }, ...STEPS.slice(1)]
+        ? [{ ...STEPS[0], status: "PENDING", label: pendingPaymentLabel }, ...STEPS.slice(1)]
         : STEPS;
     const isCancelled = order?.status === "CANCELLED" || order?.status === "EXPIRED";
 
@@ -154,6 +155,10 @@ export function TrackingSheet() {
                                     {order.paymentStatus === "PAID" ? (
                                         <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1">
                                             LUNAS <CheckCircle className="w-3 h-3" />
+                                        </Badge>
+                                    ) : isCheckingPayment ? (
+                                        <Badge className="bg-sky-500/10 text-sky-400 border-sky-500/20 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                            <Loader2 className="w-3 h-3 animate-spin" /> CEK BAYAR
                                         </Badge>
                                     ) : (
                                         <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] px-2 py-0.5 rounded-lg animate-pulse">
@@ -236,12 +241,17 @@ export function TrackingSheet() {
                         <div className="space-y-6 pb-24"> {/* Added padding bottom for safe scroll */}
                             {order.paymentStatus === "PENDING" && (
                                 <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4 space-y-2">
-                                    <div className="flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-widest">
-                                        <Clock className="w-4 h-4" />
-                                        Menunggu Pembayaran
+                                    <div className={cn(
+                                        "flex items-center gap-2 font-black text-xs uppercase tracking-widest",
+                                        isCheckingPayment ? "text-sky-400" : "text-amber-400",
+                                    )}>
+                                        {isCheckingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                                        {isCheckingPayment ? "Mengecek Pembayaran" : "Menunggu Pembayaran"}
                                     </div>
                                     <p className="text-xs leading-relaxed text-zinc-400">
-                                        Selesaikan pembayaran sebelum {paymentExpiresAt?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}. Jangan membayar setelah waktu habis.
+                                        {isCheckingPayment
+                                            ? "Kami sedang mencocokkan status pembayaran dari gateway. Biasanya butuh beberapa detik."
+                                            : `Selesaikan pembayaran sebelum ${paymentExpiresAt?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}. Jangan membayar setelah waktu habis.`}
                                     </p>
                                     <p className="text-[11px] leading-relaxed text-zinc-500">
                                         Jika pembayaran dilakukan setelah expired dan saldo terpotong, pesanan tidak otomatis diproses. Silakan hubungi kasir dengan kode order <span className="font-mono text-zinc-300">{order.orderCode}</span>.
@@ -331,7 +341,7 @@ export function TrackingSheet() {
                 </div>
 
                 {/* Fixed Bottom Action Bar */}
-                {(order?.status === "SERVED" || order?.status === "CANCELLED" || order?.status === "EXPIRED" || (order?.paymentStatus === "PENDING" && (order?.paymentRedirectUrl || order?.midtransToken))) && (
+                {(order?.status === "SERVED" || order?.status === "CANCELLED" || order?.status === "EXPIRED" || (order?.paymentStatus === "PENDING" && order?.paymentRedirectUrl)) && (
                     <div className="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-zinc-950 via-zinc-950 to-zinc-950/0 pt-12">
                         {/* CASE: Pending Payment */}
                         {order.paymentStatus === "PENDING" && order.status !== "CANCELLED" && order.status !== "EXPIRED" && (
@@ -352,10 +362,10 @@ export function TrackingSheet() {
                                 </Button>
                                 <Button
                                     onClick={handlePayment}
-                                    disabled={isPaymentExpiredByTime}
+                                    disabled={isPaymentExpiredByTime || isCheckingPayment}
                                     className="flex-[2] h-12 bg-amber-500 hover:bg-amber-600 text-black font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                    {isPaymentExpiredByTime ? "Waktu Habis" : "Bayar Sekarang"}
+                                    {isPaymentExpiredByTime ? "Waktu Habis" : isCheckingPayment ? "Mengecek..." : "Bayar Sekarang"}
                                 </Button>
                                 </div>
                             </div>

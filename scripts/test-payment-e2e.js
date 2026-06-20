@@ -32,10 +32,10 @@ async function simulateCustomerPolling() {
     // Customer UI
     await new Promise(r => setTimeout(r, 2000)); // wait for sub
 
-    console.log(`[${new Date().toISOString()}] Customer: Clicks 'Confirm Payment' on Midtrans`);
+    console.log(`[${new Date().toISOString()}] Customer: Clicks 'Confirm Payment' on DOKU Checkout`);
     paymentSuccessTimestamp = Date.now();
 
-    console.log(`[${new Date().toISOString()}] Customer: Midtrans Snap closed. Starting check-payment polling loop...`);
+    console.log(`[${new Date().toISOString()}] Customer: DOKU Checkout closed. Starting check-payment polling loop...`);
 
     // Simulate the setInterval behavior exactly as it is in order-client.tsx
     let pollCount = 0;

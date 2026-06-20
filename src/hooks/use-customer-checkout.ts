@@ -167,7 +167,7 @@ export function useCustomerCheckout({
       clearCart();
       onPaymentStart();
 
-      const paymentUrl = order.paymentRedirectUrl ?? order.midtransRedirectUrl;
+      const paymentUrl = order.paymentRedirectUrl;
       if (paymentUrl) {
         openDokuCheckout(paymentUrl);
       }

@@ -1,6 +1,6 @@
 # Manual Test Checklist
 
-Use this before demo/deploy. Test with fresh browser session and kitchen/admin logged in.
+Use this before demo/deploy. Test with fresh browser session and kitchen/owner logged in.
 
 ## 1. Customer menu
 
@@ -19,14 +19,14 @@ Expected:
 - No blank/error state.
 - Search/filter results come from server.
 
-## 2. Admin menu
+## 2. Owner menu
 
-- Open `/admin/menus`.
+- Open `/owner/menus`.
 - Confirm pagination works.
 - Search menu.
 - Filter category/status.
 - Delete/archive one menu.
-- Confirm menu disappears from default admin list.
+- Confirm menu disappears from default owner menu list.
 - Confirm same menu disappears from customer menu.
 - Optional: filter `INACTIVE` to see archived menu.
 
@@ -47,7 +47,7 @@ Expected:
 
 - Customer tracking becomes paid/lunas.
 - Kitchen gets new paid order.
-- Admin dashboard order/revenue updates after cache refresh.
+- Owner dashboard order/revenue updates after cache refresh.
 
 ## 4. Payment fallback
 
@@ -61,7 +61,7 @@ Expected:
 
 ## 5. Kitchen order flow
 
-- Open `/kitchen` as KITCHEN/ADMIN.
+- Open `/kitchen` as KITCHEN/OWNER.
 - Confirm paid order appears.
 - Move status: `PAID -> PREPARING -> READY -> SERVED`.
 
@@ -110,7 +110,7 @@ Expected:
 - Order does not become `PAID`.
 - No kitchen broadcast.
 - `OrderLog` contains `Late payment ignored...`.
-- Admin dashboard shows `Late Payment Alert`.
+- Owner dashboard shows `Late Payment Alert`.
 
 ## 9. Realtime fallback
 

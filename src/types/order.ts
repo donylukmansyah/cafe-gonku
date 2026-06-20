@@ -9,10 +9,6 @@ export type OrderWithDetails = Order & {
 };
 
 export interface OrderResponse extends OrderWithDetails {
-    /** @deprecated Use paymentRedirectUrl. Kept for backward compatibility with older Midtrans naming. */
-    midtransToken: string | null;
-    /** @deprecated Use paymentRedirectUrl. Kept for backward compatibility with older Midtrans naming. */
-    midtransRedirectUrl: string | null;
     paymentRedirectUrl: string | null;
     paymentGatewayOrderId: string | null;
 }

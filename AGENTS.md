@@ -3,6 +3,7 @@
 ## Quick start
 
 ```sh
+node -v                # must be Node.js 20.19+ or 22 LTS, not Node 24
 pnpm install
 # Copy .env with required vars (see Environment below), then:
 pnpm prisma:generate   # must run before dev/build — generates Prisma client
@@ -13,6 +14,7 @@ pnpm dev               # Next.js dev server
 
 | Task | Command |
 |---|---|
+| Check Node version | `pnpm check:node` |
 | Dev server | `pnpm dev` |
 | Build | `pnpm build` |
 | Lint | `pnpm lint` (eslint flat config) |
@@ -25,6 +27,10 @@ pnpm dev               # Next.js dev server
 
 No test framework is installed — there are no unit/integration tests to run.
 
+## Runtime
+
+Use Node.js LTS only: `20.19+` or `22.x`. Node 24 is intentionally blocked because newer Web Streams internals can trigger Next.js dev/render errors such as `TypeError: controller[kState].transformAlgorithm is not a function`.
+
 ## Environment
 
 Required variables (`.env`):
@@ -33,7 +39,7 @@ Required variables (`.env`):
 - `DIRECT_URL` — Direct Postgres connection (used by Prisma CLI for migrations/push via `prisma.config.ts`)
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` — Better Auth config
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — Supabase (image storage + realtime broadcasts)
-- `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` — Payment gateway
+- `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_ENV`, `NEXT_PUBLIC_DOKU_ENV`, `DOKU_NOTIFICATION_URL` — Payment gateway
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Redis caching & rate limiting
 - `PATRINS_API_KEY`, `PATRINS_FOLDER_ID` — Patrins image hosting (primary, Supabase is fallback)
 - `NEXT_PUBLIC_APP_URL`
@@ -42,10 +48,10 @@ Required variables (`.env`):
 
 - **Framework:** Next.js 16 App Router, React 19, React Compiler enabled, `cacheComponents: true`
 - **DB:** Prisma 7 with `engineType = "client"` and `@prisma/adapter-pg` driver adapter — no binary engine
-- **Auth:** Better Auth (`src/lib/auth.ts`) with email/password, roles `ADMIN` | `KITCHEN`
+- **Auth:** Better Auth (`src/lib/auth.ts`) with email/password, roles `OWNER` | `KITCHEN`
 - **Styling:** Tailwind CSS v4 (CSS-first config in `globals.css`, no `tailwind.config.*`), shadcn/ui `new-york` style
 - **State:** Zustand (cart), SWR (server data), Supabase Realtime (kitchen/order channels)
-- **Payments:** Midtrans Snap
+- **Payments:** DOKU Checkout
 - **Path alias:** `@/*` → `./src/*`
 
 ## Key directories
@@ -54,14 +60,14 @@ Required variables (`.env`):
 src/app/(auth)/        # Login page
 src/app/(customer)/    # Customer ordering flow (scans table QR → order → track)
 src/app/(kitchen)/     # Kitchen order queue display
-src/app/admin/         # Admin dashboard (menus, tables, analytics)
+src/app/owner/         # Owner dashboard (menus, tables, analytics)
 src/app/api/           # Route handlers (auth, menus, orders, upload, webhooks)
 src/features/          # Service layer (*.service.ts) — business logic
-src/lib/               # Shared infra (prisma, auth, redis, supabase, midtrans, utils)
+src/lib/               # Shared infra (prisma, auth, redis, supabase, doku, utils)
 src/validations/       # Zod 4 schemas for request validation
-src/types/             # TypeScript types and Midtrans type declarations
+src/types/             # Shared TypeScript types
 prisma/schema.prisma   # 14 models, 5 enums (UserRole, MenuCategory, MenuHighlightType, OrderStatus, PaymentStatus)
-prisma/seed.ts         # Seeds admin+kitchen users, tables, sample menus
+prisma/seed.ts         # Seeds tables/sample menus and optional env-driven bootstrap users
 ```
 
 ## Conventions

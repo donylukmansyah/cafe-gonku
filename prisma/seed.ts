@@ -1,78 +1,142 @@
+import 'dotenv/config'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient, UserRole, MenuCategory, MenuHighlightType } from '@prisma/client'
 import { hashPassword } from 'better-auth/crypto'
 
-const prisma = new PrismaClient()
+const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL
 
-async function main() {
-    console.log('🌱 Seeding database...')
-    console.log('📡 Connecting via default Prisma driver (local/tcp)...')
+if (!connectionString) {
+    throw new Error('DIRECT_URL or DATABASE_URL is required to run Prisma seed')
+}
 
-    // CLEANUP
-    try {
-        await prisma.account.deleteMany({})
-        await prisma.session.deleteMany({})
-        await prisma.user.deleteMany({
-            where: {
-                email: { in: ['owner@cafegonku.com', 'admin@cafegonku.com', 'kitchen@cafegonku.com'] }
-            }
-        })
-        console.log('🧹 Cleaned up existing auth data')
-    } catch (e) {
-        console.log('⚠️ Cleanup minor error (tables might be empty):', e)
+const adapter = new PrismaPg({ connectionString })
+const prisma = new PrismaClient({ adapter })
+
+const shouldSeedTables = process.env.SEED_TABLES === 'true'
+const shouldSeedSampleData = process.env.SEED_SAMPLE_DATA === 'true'
+
+type SeedUserConfig = {
+    email?: string
+    password?: string
+    name: string
+    role: UserRole
+}
+
+type SeedUser = {
+    email: string
+    password: string
+    name: string
+    role: UserRole
+}
+
+function getOptionalSeedUser(config: SeedUserConfig): SeedUser | null {
+    const { email, password, name, role } = config
+
+    if (!email && !password) return null
+
+    if (!email || !password) {
+        throw new Error(`Both email and password are required for seed user role ${role}`)
     }
 
-    // 1. Create Owner
-    const hashedPasswordOwner = await hashPassword('owner123')
+    if (password.length < 8) {
+        throw new Error(`Seed password for ${email} must be at least 8 characters`)
+    }
 
-    const owner = await prisma.user.create({
-        data: {
-            email: 'owner@cafegonku.com',
-            password: hashedPasswordOwner,
-            name: 'Owner Cafe Gonku',
+    return {
+        email: email.trim().toLowerCase(),
+        password,
+        name,
+        role,
+    }
+}
+
+async function upsertCredentialUser(config: SeedUser) {
+    const hashedPassword = await hashPassword(config.password)
+
+    const user = await prisma.user.upsert({
+        where: { email: config.email },
+        update: {
+            name: config.name,
+            role: config.role,
+            isActive: true,
+            password: hashedPassword,
+        },
+        create: {
+            email: config.email,
+            password: hashedPassword,
+            name: config.name,
+            role: config.role,
+            isActive: true,
+        },
+    })
+
+    const existingAccount = await prisma.account.findFirst({
+        where: {
+            userId: user.id,
+            providerId: 'credential',
+        },
+        select: { id: true },
+    })
+
+    if (existingAccount) {
+        await prisma.account.update({
+            where: { id: existingAccount.id },
+            data: {
+                accountId: config.email,
+                password: hashedPassword,
+                updatedAt: new Date(),
+            },
+        })
+    } else {
+        await prisma.account.create({
+            data: {
+                userId: user.id,
+                accountId: config.email,
+                providerId: 'credential',
+                password: hashedPassword,
+                accessToken: null,
+                refreshToken: null,
+                expiresAt: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            },
+        })
+    }
+
+    // Invalidate only this seed user's sessions after password/account changes.
+    await prisma.session.deleteMany({ where: { userId: user.id } })
+
+    return user
+}
+
+async function seedBootstrapUsers() {
+    const seedUsers = [
+        getOptionalSeedUser({
+            email: process.env.SEED_OWNER_EMAIL,
+            password: process.env.SEED_OWNER_PASSWORD,
+            name: process.env.SEED_OWNER_NAME ?? 'Owner Cafe Gonku',
             role: UserRole.OWNER,
-            accounts: {
-                create: {
-                    accountId: 'owner@cafegonku.com',
-                    providerId: 'credential',
-                    password: hashedPasswordOwner,
-                    accessToken: null,
-                    refreshToken: null,
-                    expiresAt: null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                }
-            }
-        },
-    })
-    console.log('✅ Owner user & account created:', owner.email)
-
-    // 2. Create Kitchen
-    const hashedPasswordKitchen = await hashPassword('kitchen123')
-
-    const kitchen = await prisma.user.create({
-        data: {
-            email: 'kitchen@cafegonku.com',
-            password: hashedPasswordKitchen,
-            name: 'Kitchen Staff',
+        }),
+        getOptionalSeedUser({
+            email: process.env.SEED_KITCHEN_EMAIL,
+            password: process.env.SEED_KITCHEN_PASSWORD,
+            name: process.env.SEED_KITCHEN_NAME ?? 'Kitchen Staff',
             role: UserRole.KITCHEN,
-            accounts: {
-                create: {
-                    accountId: 'kitchen@cafegonku.com',
-                    providerId: 'credential',
-                    password: hashedPasswordKitchen,
-                    accessToken: null,
-                    refreshToken: null,
-                    expiresAt: null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                }
-            }
-        },
-    })
-    console.log('✅ Kitchen user & account created:', kitchen.email)
+        }),
+    ].filter((user): user is SeedUser => Boolean(user))
 
+    if (seedUsers.length === 0) {
+        console.log('ℹ️ No seed users configured. Skipping auth user seed.')
+        return
+    }
 
-    // 3. Create Tables with QR Codes
+    for (const seedUser of seedUsers) {
+        const user = await upsertCredentialUser(seedUser)
+        console.log(`✅ ${seedUser.role} user upserted:`, user.email)
+    }
+}
+
+async function seedDemoTables() {
     for (let i = 1; i <= 10; i++) {
         await prisma.table.upsert({
             where: { tableNumber: i },
@@ -84,9 +148,11 @@ async function main() {
             },
         })
     }
-    console.log('✅ Created 10 tables')
 
-    // 4. Create Sample Menus
+    console.log('✅ Seeded 10 demo tables')
+}
+
+async function seedSampleMenus() {
     const menuData = [
         { name: 'Nasi Goreng Spesial', description: 'Nasi goreng dengan telur, ayam, dan sayuran', price: 25000, category: MenuCategory.FOOD, highlightType: MenuHighlightType.BEST_SELLER },
         { name: 'Mie Goreng', description: 'Mie goreng dengan sayuran dan telur', price: 20000, category: MenuCategory.FOOD, highlightType: MenuHighlightType.NONE },
@@ -101,22 +167,22 @@ async function main() {
     for (const menu of menuData) {
         const existingMenu = await prisma.menu.findFirst({
             where: { name: menu.name },
-            select: { id: true }
+            select: { id: true },
         })
 
         if (existingMenu) {
             await prisma.menu.update({
                 where: { id: existingMenu.id },
-                data: menu
+                data: menu,
             })
             continue
         }
 
         await prisma.menu.create({ data: menu })
     }
-    console.log(`✅ Created ${menuData.length} menus`)
 
-    // 5. Create Menu with Options (Mie Nyemek)
+    console.log(`✅ Seeded ${menuData.length} sample menus`)
+
     const existingMieNyemek = await prisma.menu.findFirst({ where: { name: 'Mie Nyemek' } })
     if (!existingMieNyemek) {
         const mieNyemek = await prisma.menu.create({
@@ -155,9 +221,28 @@ async function main() {
                 },
             },
         })
-        console.log('✅ Created menu with options:', mieNyemek.name)
+        console.log('✅ Created sample menu with options:', mieNyemek.name)
     } else {
-        console.log('✅ Mie Nyemek already exists')
+        console.log('✅ Sample menu with options already exists')
+    }
+}
+
+async function main() {
+    console.log('🌱 Seeding database...')
+    console.log('📡 Connecting via default Prisma driver (local/tcp)...')
+
+    await seedBootstrapUsers()
+
+    if (shouldSeedTables) {
+        await seedDemoTables()
+    } else {
+        console.log('ℹ️ SEED_TABLES is not true. Skipping demo table seed.')
+    }
+
+    if (shouldSeedSampleData) {
+        await seedSampleMenus()
+    } else {
+        console.log('ℹ️ SEED_SAMPLE_DATA is not true. Skipping sample menu seed.')
     }
 
     console.log('🎉 Seeding completed!')

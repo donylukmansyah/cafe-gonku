@@ -129,7 +129,7 @@ const orderDetailsSelect = {
   status: true,
   paymentStatus: true,
   paymentMethod: true,
-  midtransToken: true,
+  paymentRedirectUrl: true,
   totalAmount: true,
   createdAt: true,
   paymentExpiresAt: true,
@@ -179,7 +179,7 @@ type GatewayUpdateSource = "webhook" | "check-payment" | "sync-payment" | "local
 
 type GatewayUpdateContext = {
   source: GatewayUpdateSource;
-  gateway: "doku" | "midtrans" | "local";
+  gateway: "doku" | "local";
 };
 
 function mapGatewayStatusToOrderState(payload: GatewayStatusPayload) {
@@ -301,13 +301,7 @@ function revalidateOwnerDashboard() {
   void bumpCacheVersion("analytics");
 }
 
-function withPaymentAliases<T extends { midtransToken?: string | null; midtransOrderId?: string | null }>(order: T) {
-  return {
-    ...order,
-    paymentRedirectUrl: order.midtransToken ?? null,
-    paymentGatewayOrderId: order.midtransOrderId ?? null,
-  };
-}
+
 
 export class OrderService {
   static async getOrders(includeServed: boolean) {
@@ -407,7 +401,7 @@ export class OrderService {
       });
     }
 
-    return order ? withPaymentAliases(order) : null;
+    return order ?? null;
   }
 
   static async createOrder(data: CreateOrderInput) {
@@ -431,12 +425,12 @@ export class OrderService {
           },
         });
 
-        if (existingOrder?.paymentStatus === PaymentStatus.PENDING && existingOrder.midtransToken) {
-          return withPaymentAliases({
+        if (existingOrder?.paymentStatus === PaymentStatus.PENDING && existingOrder.paymentRedirectUrl) {
+          return {
             ...existingOrder,
-            midtransToken: existingOrder.midtransToken,
-            midtransRedirectUrl: existingOrder.midtransToken,
-          });
+            paymentRedirectUrl: existingOrder.paymentRedirectUrl,
+            paymentGatewayOrderId: existingOrder.paymentGatewayOrderId ?? null,
+          };
         }
       }
     }
@@ -695,8 +689,8 @@ export class OrderService {
           id: order.id,
         },
         data: {
-          midtransToken: dokuPayment.url,
-          midtransOrderId: orderCode,
+          paymentRedirectUrl: dokuPayment.url,
+          paymentGatewayOrderId: orderCode,
           paymentMethod: "doku_checkout",
         },
       });
@@ -705,12 +699,11 @@ export class OrderService {
         await cacheSet(checkoutCacheKey, orderCode, 60 * 60);
       }
 
-      return withPaymentAliases({
+      return {
         ...order,
-        midtransToken: dokuPayment.url,
-        midtransRedirectUrl: dokuPayment.url,
+        paymentRedirectUrl: dokuPayment.url,
         paymentGatewayOrderId: orderCode,
-      });
+      };
     } catch (error) {
       console.error("DOKU checkout failed", error);
 
@@ -998,34 +991,6 @@ export class OrderService {
     };
   }
 
-  static async handleMidtransNotification(payload: GatewayStatusPayload & { order_id: string }) {
-    const order = await prisma.order.findUnique({
-      where: {
-        orderCode: payload.order_id,
-      },
-      select: {
-        id: true,
-        orderCode: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        paidAt: true,
-        totalAmount: true,
-        createdAt: true,
-        paymentExpiresAt: true,
-        serviceType: true,
-      },
-    });
-
-    if (!order) {
-      throw new AppError("Order not found", 404);
-    }
-
-    return this.applyGatewayPaymentUpdate(order, payload, {
-      gateway: "midtrans",
-      source: "webhook",
-    });
-  }
 
   static async handleDokuNotification(payload: {
     order?: { invoice_number?: string; amount?: number };

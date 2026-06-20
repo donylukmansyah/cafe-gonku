@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { cacheSetNx } from "@/lib/redis";
 
-export type PaymentGateway = "doku" | "midtrans";
+export type PaymentGateway = "doku";
 
 export type PaymentNotificationGuardResult =
   | { ok: true; duplicate: false }

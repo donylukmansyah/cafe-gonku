@@ -131,7 +131,7 @@ export default async function OwnerDashboardPage() {
                         <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4">
                             <h3 className="text-sm font-bold text-amber-300 mb-2">SOP Kasir / Owner</h3>
                             <ol className="list-decimal pl-4 space-y-1 text-xs leading-relaxed text-zinc-300">
-                                <li>Cocokkan <span className="font-mono text-white">orderCode</span>, nominal, dan jam bayar di dashboard Doku/Midtrans.</li>
+                                <li>Cocokkan <span className="font-mono text-white">orderCode</span>, nominal, dan jam bayar di dashboard DOKU.</li>
                                 <li>Jika uang benar masuk dan customer masih mau pesan, buat pesanan baru/manual ke dapur. Jangan pakai QR/order lama.</li>
                                 <li>Jika customer tidak jadi pesan, proses refund/settlement sesuai dashboard payment gateway.</li>
                                 <li>Jangan ubah database manual kecuali sudah cocok dengan mutasi gateway.</li>

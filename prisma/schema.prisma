@@ -240,8 +240,8 @@ model Order {
   // Payment info
   paymentStatus   PaymentStatus @default(PENDING)
   paymentMethod   String? // "doku_checkout", "qris", "cash"
-  midtransToken   String? @unique // Legacy field: payment redirect URL (Doku checkout URL)
-  midtransOrderId String? @unique // Legacy field: gateway order/invoice ID
+  paymentRedirectUrl    String? @unique // URL redirect checkout dari payment gateway
+  paymentGatewayOrderId String? @unique // ID invoice/order dari payment gateway
   paidAt          DateTime? // ⭐ Timestamp payment (untuk priority queue!)
   paymentExpiresAt DateTime? // Batas waktu pembayaran gateway
   

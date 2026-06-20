@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import { Client } from 'pg'
 
+// One-off, idempotent migration helper for databases created before the role rename.
+// Keep this script until all deployed databases are confirmed to use OWNER instead of legacy ADMIN.
 const OWNER_EMAIL = 'owner@cafegonku.com'
 const LEGACY_ADMIN_EMAIL = 'admin@cafegonku.com'
 

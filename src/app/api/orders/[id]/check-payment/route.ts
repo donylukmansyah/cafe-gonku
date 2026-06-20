@@ -3,6 +3,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { OrderService } from "@/lib/services/order.service";
 import { validateOrderAccess, OrderAccessError } from "@/lib/order-access";
 import { createApiTimer } from "@/lib/api-timing";
+import { logger } from "@/lib/logger";
 
 export async function POST(
     request: Request,
@@ -34,7 +35,7 @@ export async function POST(
             return apiError("Unauthorized", 401);
         }
 
-        console.log(`[Payment Pipeline] ${new Date().toISOString()} - check-payment API called for id: ${id}`);
+        logger.debug(`[Payment Pipeline] ${new Date().toISOString()} - check-payment API called for id: ${id}`);
 
         const result = await timer.step("paymentStatus", () => OrderService.checkPaymentStatus(id));
 
