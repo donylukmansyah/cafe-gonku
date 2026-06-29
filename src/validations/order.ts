@@ -32,8 +32,6 @@ export const bulkUpdateOrderStatusSchema = z.object({
 // Schema for creating a new order (Customer)
 export const createOrderSchema = z.object({
     tableId: z.string().cuid(),
-    customerName: z.string().trim().min(1).max(100).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
-    customerPhone: z.string().trim().min(10).max(15).optional().transform(val => val?.replace(/<[^>]*>?/gm, "")),
     serviceType: orderServiceTypeSchema.default("DINE_IN"),
     items: z.array(
         z.object({

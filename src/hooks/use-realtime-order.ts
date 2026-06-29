@@ -18,7 +18,6 @@ export interface OrderDetails {
     totalAmount: number;
     createdAt: string;
     paymentExpiresAt?: string | null;
-    customerName?: string;
     table: {
         tableNumber: number;
     };

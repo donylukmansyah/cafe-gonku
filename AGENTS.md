@@ -82,6 +82,13 @@ prisma/seed.ts         # Seeds tables/sample menus and optional env-driven boots
 - Server auth: use `getServerSession()` and `requireRole()` from `src/lib/server-auth.ts`
 - Dark mode is hardcoded (`className="dark"` on root layout)
 
+## Vendor portability
+
+- See `docs/vendor-portability.md` before changing Supabase, Upstash Redis, image storage, realtime, or payment provider code.
+- Keep vendor SDK imports behind `src/lib/*` infrastructure boundaries where practical.
+- Do not migrate providers without measured limit/cost/latency pain, backup plan, rollback plan, and manual E2E checklist.
+- Current strategy: managed-first, portable-core. Avoid microservices/Kubernetes/provider-abstraction rewrites until there is real operational need.
+
 ## Prisma gotchas
 
 - **Two connection strings:** `DATABASE_URL` (pooled, runtime) vs `DIRECT_URL` (direct, CLI). Mixing them up breaks migrations or causes pooler errors.

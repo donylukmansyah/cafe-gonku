@@ -147,7 +147,7 @@ export function TrackingSheet() {
                                     Pesanan #{order?.orderCode?.slice(-4)}
                                 </SheetTitle>
                                 <p className="text-xs text-zinc-500 mt-0.5 font-medium">
-                                    {order?.customerName || "Pelanggan"} • Meja {order?.table?.tableNumber || "-"}
+                                    Meja {order?.table?.tableNumber || "-"}
                                 </p>
                             </div>
                             {order && (

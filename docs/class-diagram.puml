@@ -1,0 +1,220 @@
+@startuml
+' Cafe Gonku - Class Diagram from Prisma schema
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #1f2937
+  BorderColor #f59e0b
+  FontColor white
+  HeaderBackgroundColor #92400e
+  HeaderFontColor white
+}
+skinparam enum {
+  BackgroundColor #111827
+  BorderColor #60a5fa
+  FontColor white
+}
+skinparam backgroundColor #0b0f19
+
+class User {
+  +id: String <<PK>>
+  +email: String <<unique>>
+  +password: String
+  +name: String
+  +role: UserRole
+  +isActive: Boolean
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Session {
+  +id: String <<PK>>
+  +userId: String <<FK>>
+  +expiresAt: DateTime
+  +token: String <<unique>>
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +ipAddress: String?
+  +userAgent: String?
+}
+
+class Account {
+  +id: String <<PK>>
+  +userId: String <<FK>>
+  +accountId: String
+  +providerId: String
+  +accessToken: String?
+  +refreshToken: String?
+  +expiresAt: DateTime?
+  +password: String?
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Verification {
+  +id: String <<PK>>
+  +identifier: String
+  +value: String
+  +expiresAt: DateTime
+  +createdAt: DateTime?
+  +updatedAt: DateTime?
+}
+
+class Table {
+  +id: String <<PK>>
+  +tableNumber: Int <<unique>>
+  +qrCode: String <<unique>>
+  +isActive: Boolean
+  +capacity: Int
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Menu {
+  +id: String <<PK>>
+  +name: String
+  +description: String?
+  +price: Int
+  +category: MenuCategory
+  +imageUrl: String?
+  +isAvailable: Boolean
+  +isActive: Boolean
+  +highlightType: MenuHighlightType
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class MenuOption {
+  +id: String <<PK>>
+  +menuId: String <<FK>>
+  +name: String
+  +isRequired: Boolean
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class MenuOptionValue {
+  +id: String <<PK>>
+  +menuOptionId: String <<FK>>
+  +label: String
+  +priceAdjust: Int
+  +createdAt: DateTime
+}
+
+class Order {
+  +id: String <<PK>>
+  +orderCode: String <<unique>>
+  +accessToken: String <<unique>>
+  +tableId: String <<FK>>
+  +totalAmount: Int
+  +status: OrderStatus
+  +serviceType: OrderServiceType
+  +priorityScore: Float
+  +paymentStatus: PaymentStatus
+  +paymentMethod: String?
+  +paymentRedirectUrl: String? <<unique>>
+  +paymentGatewayOrderId: String? <<unique>>
+  +paidAt: DateTime?
+  +paymentExpiresAt: DateTime?
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class OrderItem {
+  +id: String <<PK>>
+  +orderId: String <<FK>>
+  +menuId: String <<FK>>
+  +quantity: Int
+  +price: Int
+  +notes: String?
+  +createdAt: DateTime
+}
+
+class OrderItemOption {
+  +id: String <<PK>>
+  +orderItemId: String <<FK>>
+  +menuOptionValueId: String <<FK>>
+  +optionName: String
+  +optionValue: String
+  +priceAdjust: Int
+  +createdAt: DateTime
+}
+
+class DailyCashRecord {
+  +id: String <<PK>>
+  +date: DateTime <<unique>>
+  +amount: Int
+  +notes: String?
+  +recordedBy: String?
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class OrderLog {
+  +id: String <<PK>>
+  +orderId: String <<FK>>
+  +status: String
+  +message: String
+  +createdBy: String?
+  +createdAt: DateTime
+}
+
+enum UserRole {
+  OWNER
+  KITCHEN
+}
+
+enum MenuCategory {
+  FOOD
+  DRINK
+  SNACK
+  DESSERT
+}
+
+enum MenuHighlightType {
+  NONE
+  BEST_SELLER
+  RECOMMENDED
+  DELICIOUS
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum OrderServiceType {
+  DINE_IN
+  TAKEAWAY
+}
+
+User "1" -- "0..*" Session
+User "1" -- "0..*" Account
+Table "1" -- "0..*" Order
+Menu "1" -- "0..*" MenuOption
+MenuOption "1" -- "0..*" MenuOptionValue
+Order "1" -- "1..*" OrderItem
+Menu "1" -- "0..*" OrderItem
+OrderItem "1" -- "0..*" OrderItemOption
+MenuOptionValue "1" -- "0..*" OrderItemOption
+Order "1" -- "0..*" OrderLog
+
+User --> UserRole
+Menu --> MenuCategory
+Menu --> MenuHighlightType
+Order --> OrderStatus
+Order --> PaymentStatus
+Order --> OrderServiceType
+@enduml

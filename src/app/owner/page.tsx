@@ -148,7 +148,7 @@ export default async function OwnerDashboardPage() {
                                         </span>
                                     </div>
                                     <p className="text-xs text-zinc-400">
-                                        {issue.order.customerName || "Pelanggan"} • Meja {issue.order.table.tableNumber} • Rp {issue.order.totalAmount.toLocaleString("id-ID")}
+                                        Meja {issue.order.table.tableNumber} • Rp {issue.order.totalAmount.toLocaleString("id-ID")}
                                     </p>
                                     <p className="text-[11px] text-zinc-500 line-clamp-2">{issue.message}</p>
                                 </div>

@@ -123,6 +123,16 @@ skip sample menus unless SEED_SAMPLE_DATA=true
 
 If seed user env vars are empty, auth user seed is skipped.
 
+## Portability / vendor migration
+
+Untuk anti vendor lock-in dan rencana migrasi service, baca:
+
+```txt
+docs/vendor-portability.md
+```
+
+Dokumen ini menjelaskan boundary vendor, trigger migrasi, exit plan Supabase/Postgres/Redis/storage/realtime/payment, dan checklist E2E setelah provider berubah.
+
 ## Manual runtime checks
 
 Customer flow:

@@ -134,7 +134,6 @@ const orderDetailsSelect = {
   createdAt: true,
   paymentExpiresAt: true,
   paidAt: true,
-  customerName: true,
   serviceType: true,
   table: {
     select: {
@@ -373,7 +372,6 @@ export class OrderService {
         order: {
           select: {
             orderCode: true,
-            customerName: true,
             totalAmount: true,
             paymentStatus: true,
             status: true,
@@ -405,7 +403,7 @@ export class OrderService {
   }
 
   static async createOrder(data: CreateOrderInput) {
-    const { tableId, items, customerName, customerPhone, serviceType, serviceFee, rounding, priceHash, checkoutId } = data;
+    const { tableId, items, serviceType, serviceFee, rounding, priceHash, checkoutId } = data;
     const checkoutCacheKey = checkoutId ? getCheckoutIdempotencyCacheKey(tableId, checkoutId) : null;
 
     if (checkoutCacheKey) {
@@ -591,8 +589,6 @@ export class OrderService {
           orderCode,
           accessToken,
           tableId,
-          customerName,
-          customerPhone,
           totalAmount: finalTotal,
           status: OrderStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
@@ -674,8 +670,7 @@ export class OrderService {
         },
         customer: {
           id: order.id,
-          name: customerName?.trim() || "Customer",
-          phone: customerPhone?.trim() || undefined,
+          name: "Customer",
         },
         additional_info: notificationUrl
           ? {
