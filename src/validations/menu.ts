@@ -3,7 +3,7 @@ import { z } from "zod"
 const menuCategorySchema = z.enum(["FOOD", "DRINK", "SNACK", "DESSERT"], {
     error: "Kategori wajib dipilih",
 })
-const menuHighlightTypeSchema = z.enum(["NONE", "RECOMMENDED"], {
+const menuHighlightTypeSchema = z.enum(["NONE", "BEST_SELLER", "RECOMMENDED", "DELICIOUS"], {
     error: "Highlight customer wajib dipilih",
 })
 

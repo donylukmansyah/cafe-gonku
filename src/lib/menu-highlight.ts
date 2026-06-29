@@ -34,13 +34,16 @@ export const MENU_HIGHLIGHT_META: Record<
   },
 };
 
-export const MENU_HIGHLIGHT_OPTIONS = (["NONE", "RECOMMENDED"] as const).map(
-  (value) => ({
-    value,
-    label: MENU_HIGHLIGHT_META[value].label,
-  }),
-);
+export const MENU_HIGHLIGHT_OPTIONS = ([
+  "NONE",
+  "BEST_SELLER",
+  "RECOMMENDED",
+  "DELICIOUS",
+] as const).map((value) => ({
+  value,
+  label: MENU_HIGHLIGHT_META[value].label,
+}));
 
 export function isHighlightedMenu(highlightType: MenuHighlightType) {
-  return highlightType === "RECOMMENDED";
+  return highlightType !== "NONE";
 }

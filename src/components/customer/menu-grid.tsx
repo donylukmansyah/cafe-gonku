@@ -31,7 +31,7 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
             return a.name.localeCompare(b.name);
         });
 
-    const recommendedMenus = highlightedMenus.slice(0, 3);
+    const featuredMenus = highlightedMenus.slice(0, 3);
 
     if (isLoading) {
         return <MenuGridSkeleton />;
@@ -44,19 +44,19 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
             {/* Content Container */}
             <div className="px-5">
 
-                {/* Recommended Section */}
-                {activeCategory === "ALL" && !searchQuery && recommendedMenus.length > 0 && (
+                {/* Highlighted Section */}
+                {activeCategory === "ALL" && !searchQuery && featuredMenus.length > 0 && (
                     <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-700 overflow-visible">
                         <div className="flex items-center justify-between mb-5">
                             <h2 className="text-xl font-black text-white flex items-center gap-2.5 tracking-tight px-1">
                                 <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shadow-inner">
                                     <Flame className="w-4 h-4 text-orange-500 fill-orange-500/20" />
                                 </div>
-                                Rekomendasi
+                                Menu Unggulan
                             </h2>
                         </div>
                         <div className="flex gap-5 overflow-x-auto scrollbar-hidden pb-6 pt-2 snap-x -mx-5 px-5">
-                            {recommendedMenus.map((menu) => (
+                            {featuredMenus.map((menu) => (
                                 <div
                                     key={`rec-${menu.id}`}
                                     className="min-w-[300px] bg-[#19191B] backdrop-blur-2xl border border-white/10 rounded-3xl p-5 flex gap-5 items-center relative overflow-hidden group cursor-pointer snap-center hover:bg-[#1F1F21] hover:border-primary/25 hover:-translate-y-1 transition-all duration-300 ease-out shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_45px_rgba(0,0,0,0.28)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_22px_55px_rgba(53,183,24,0.10)] active:scale-95 translate-z-0"
@@ -78,7 +78,7 @@ export function MenuGrid({ menus, allMenus, searchQuery, activeCategory, isLoadi
                                     <div className="flex-1 min-w-0 z-10">
                                         <div className="mb-2 flex items-center gap-1.5 text-[9px] font-black uppercase leading-none tracking-widest text-amber-400/90">
                                             <Sparkles className="h-3 w-3" />
-                                            <span>Rekomendasi</span>
+                                            <span>{MENU_HIGHLIGHT_META[menu.highlightType].label}</span>
                                         </div>
                                         <h3 className="font-black text-white text-[17px] line-clamp-2 leading-tight tracking-tight mb-1 group-hover:text-primary transition-colors">{menu.name}</h3>
                                         <div className="flex items-center justify-between">
