@@ -6,15 +6,12 @@ import { getDashboardPathForRole, getPostLoginRedirect, sanitizeInternalRedirect
 import { cache } from "react"
 
 type SessionUserWithRole = Session["user"] & {
+    // Role dari UserRole Prisma; dipakai bedain akses OWNER dan KITCHEN.
     role?: "OWNER" | "KITCHEN" | string
 }
 
 const LOGIN_PATH = "/login"
 
-/**
- * Retrieves the current session from the server using Next.js headers.
- * This is safe to use in Server Components, Layouts, and Server Actions.
- */
 export const getServerSession = cache(async (): Promise<Session | null> => {
     try {
         const session = await auth.api.getSession({
@@ -26,6 +23,7 @@ export const getServerSession = cache(async (): Promise<Session | null> => {
         }
 
         const user = await prisma.user.findUnique({
+            // session.user.id berasal dari session aktif; dipakai cari User by PK users.id.
             where: { id: session.user.id },
             select: { isActive: true },
         })
@@ -73,6 +71,7 @@ export async function requireRole(requiredRole: AppRole, redirectTo = LOGIN_PATH
         redirect(await getLoginRedirectPath(redirectTo))
     }
 
+    // Cek role user: hanya role yang sesuai boleh akses halaman ini.
     const role = (session.user as SessionUserWithRole).role
 
     if (role !== requiredRole) {
@@ -82,10 +81,6 @@ export async function requireRole(requiredRole: AppRole, redirectTo = LOGIN_PATH
     return session
 }
 
-/**
- * Checks if a user is already logged in and optionally redirects them to their respective dashboard.
- * Useful for the /login page to prevent authenticated users from seeing the form.
- */
 export async function requireGuest(callbackUrl?: string) {
     const session = await getServerSession()
 

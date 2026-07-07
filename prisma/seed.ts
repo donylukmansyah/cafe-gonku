@@ -19,6 +19,7 @@ type SeedUserConfig = {
     email?: string
     password?: string
     name: string
+    // Role user dibatasi enum Prisma: OWNER atau KITCHEN.
     role: UserRole
 }
 
@@ -65,6 +66,7 @@ async function upsertCredentialUser(config: SeedUser) {
             email: config.email,
             password: hashedPassword,
             name: config.name,
+            // Nilai role dari UserRole, jadi tidak bisa selain OWNER/KITCHEN.
             role: config.role,
             isActive: true,
         },
@@ -115,13 +117,13 @@ async function seedBootstrapUsers() {
             email: process.env.SEED_OWNER_EMAIL,
             password: process.env.SEED_OWNER_PASSWORD,
             name: process.env.SEED_OWNER_NAME ?? 'Owner Cafe Gonku',
-            role: UserRole.OWNER,
+            role: UserRole.OWNER, // akses dashboard owner
         }),
         getOptionalSeedUser({
             email: process.env.SEED_KITCHEN_EMAIL,
             password: process.env.SEED_KITCHEN_PASSWORD,
             name: process.env.SEED_KITCHEN_NAME ?? 'Kitchen Staff',
-            role: UserRole.KITCHEN,
+            role: UserRole.KITCHEN, // akses halaman kitchen
         }),
     ].filter((user): user is SeedUser => Boolean(user))
 
