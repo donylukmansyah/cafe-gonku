@@ -39,7 +39,7 @@ export function useCustomerCheckout({
   setActiveOrderCode: (code: string | null) => void;
   setOrderAccessToken: (orderCode: string, token: string) => void;
   onPaymentStart: () => void;
-  openDokuCheckout: (paymentUrl: string) => boolean;
+  openDokuCheckout: (paymentUrl: string, options?: { allowPopup?: boolean }) => boolean;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
@@ -169,7 +169,8 @@ export function useCustomerCheckout({
 
       const paymentUrl = order.paymentRedirectUrl;
       if (paymentUrl) {
-        openDokuCheckout(paymentUrl);
+        // Force redirect — popup would be blocked after async chain
+        openDokuCheckout(paymentUrl, { allowPopup: false });
       }
     } catch {
     } finally {

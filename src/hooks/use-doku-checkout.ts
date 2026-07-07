@@ -40,15 +40,21 @@ export function useDokuCheckout() {
     };
   }, []);
 
-  const openDokuCheckout = useCallback((paymentUrl: string) => {
-    if (typeof window.loadJokulCheckout === "function") {
-      window.loadJokulCheckout(paymentUrl);
-      return true;
-    }
+  const openDokuCheckout = useCallback(
+    (paymentUrl: string, { allowPopup = true }: { allowPopup?: boolean } = {}) => {
+      // ponytail: allowPopup=false forces redirect; upgrade to always use SDK
+      // if DOKU adds a non-popup embed mode
+      if (allowPopup && typeof window.loadJokulCheckout === "function") {
+        window.loadJokulCheckout(paymentUrl);
+        return true;
+      }
 
-    window.location.href = paymentUrl;
-    return false;
-  }, []);
+      // Redirect fallback — never blocked by popup blockers
+      window.location.href = paymentUrl;
+      return false;
+    },
+    [],
+  );
 
   return { isLoaded, openDokuCheckout };
 }
