@@ -12,7 +12,7 @@
     "dev:node22": "powershell -ExecutionPolicy Bypass -File scripts/dev-node22.ps1",
     "check:node": "node scripts/check-node-version.mjs",
     "predev": "pnpm check:node",
-    "prebuild": "pnpm check:node",
+    "prebuild": "pnpm prisma:generate",
     "prestart": "pnpm check:node",
     "dev": "next dev",
     "build": "next build",

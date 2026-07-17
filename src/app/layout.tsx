@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     description: "Smart QR Ordering System",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
     apple: "/apple-touch-icon.png",
   },
 };

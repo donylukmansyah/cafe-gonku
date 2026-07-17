@@ -73,9 +73,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent opacity-40" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] opacity-20 animate-pulse duration-[4000ms]" />
 
-                {/* Subtle Grid Pattern */}
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
-
                 <div className="relative z-10 text-center space-y-8 max-w-lg px-8">
                     <div className="mx-auto w-28 h-28 bg-zinc-900/50 backdrop-blur-xl rounded-[2rem] flex items-center justify-center border border-white/5 shadow-2xl relative group transition-all duration-500 hover:scale-105">
                         <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
