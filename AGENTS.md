@@ -3,7 +3,7 @@
 ## Quick start
 
 ```sh
-node -v                # must be Node.js 20.19+ or 22 LTS, not Node 24
+node -v                # must be Node.js 24.15+ (below 25)
 pnpm install
 # Copy .env with required vars (see Environment below), then:
 pnpm prisma:generate   # must run before dev/build — generates Prisma client
@@ -29,7 +29,7 @@ No test framework is installed — there are no unit/integration tests to run.
 
 ## Runtime
 
-Use Node.js LTS only: `20.19+` or `22.x`. Node 24 is intentionally blocked because newer Web Streams internals can trigger Next.js dev/render errors such as `TypeError: controller[kState].transformAlgorithm is not a function`.
+Use Node.js 24 LTS, version `24.15+` (below 25). Node 24.14 and earlier are blocked because a Web Streams race can trigger `TypeError: controller[kState].transformAlgorithm is not a function`.
 
 ## Environment
 

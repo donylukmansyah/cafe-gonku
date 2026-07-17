@@ -4,14 +4,14 @@ QR-based cafe ordering system built with Next.js 16, React 19, Prisma 7, Supabas
 
 ## Runtime requirements
 
-Use Node.js LTS only:
+Use Node.js 24 LTS:
 
 ```txt
-Node.js 20.19+ or 22 LTS
+Node.js 24.15+ (below 25)
 pnpm 10+
 ```
 
-Do not use Node.js 24 for local development/runtime. Newer Web Streams internals can trigger Next.js dev/render errors such as:
+Node.js 24.14 and earlier contain a Web Streams race that can trigger:
 
 ```txt
 TypeError: controller[kState].transformAlgorithm is not a function
@@ -20,18 +20,18 @@ TypeError: controller[kState].transformAlgorithm is not a function
 Recommended with `nvm-windows`:
 
 ```sh
-nvm install 22
-nvm use 22
+nvm install 24.15.0
+nvm use 24.15.0
 node -v
 ```
 
-If you cannot change global Node.js, use project-local portable Node 22:
+If you cannot change global Node.js, use project-local portable Node 24:
 
 ```powershell
-.\scripts\node22-shell.ps1
+.\scripts\node24-shell.ps1
 ```
 
-This opens a shell with project-local Node 22 active.
+This opens a shell with project-local Node 24 active.
 
 The app enforces this via:
 
@@ -57,7 +57,7 @@ http://localhost:3000
 
 | Task | Command |
 |---|---|
-| Open local Node 22 shell | `pnpm node22:shell` |
+| Open local Node 24 shell | `pnpm node24:shell` |
 | Check Node version | `pnpm check:node` |
 | Dev server | `pnpm dev` |
 | Build | `pnpm build` |

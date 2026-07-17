@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$Version = "v22.21.1"
+$Version = "v24.15.0"
 $ToolingDir = Join-Path $ProjectRoot ".tooling"
 $NodeDir = Join-Path $ToolingDir "node-$Version-win-x64"
 $NodeExe = Join-Path $NodeDir "node.exe"
@@ -19,4 +19,4 @@ Set-Location $ProjectRoot
 Write-Host "Node active:" -ForegroundColor Green
 node -v
 Write-Host "Starting Next.js dev server..." -ForegroundColor Cyan
-pnpm dev
+pnpm exec next dev
