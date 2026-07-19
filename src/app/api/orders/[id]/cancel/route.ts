@@ -1,7 +1,7 @@
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { OrderService } from "@/lib/services/order.service";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { validateOrderAccess, OrderAccessError } from "@/lib/order-access";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { OrderService } from "@/features/orders/server/order.service";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
+import { validateOrderAccess, OrderAccessError } from "@/features/orders/server/order-access";
 
 // POST /api/orders/[id]/cancel - Cancel a pending order
 export async function POST(

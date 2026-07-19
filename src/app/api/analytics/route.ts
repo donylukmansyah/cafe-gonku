@@ -1,8 +1,8 @@
 import { connection, NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { AnalyticsService } from "@/lib/services/analytics.service";
-import { createApiTimer } from "@/lib/api-timing";
+import { getServerSession } from "@/server/auth/server-auth";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { AnalyticsService } from "@/features/analytics/server/analytics.service";
+import { createApiTimer } from "@/server/http/api-timing";
 
 export async function GET(request: NextRequest) {
     await connection();

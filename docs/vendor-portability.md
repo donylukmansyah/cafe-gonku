@@ -16,14 +16,14 @@ This project should stay a boring monolith. Do not introduce microservices, Kube
 
 | Area | Current provider/library | Current boundary | Lock-in risk | Notes |
 |---|---|---|---|---|
-| Database | Supabase Postgres + Prisma | `src/lib/prisma.ts`, Prisma schema | Low | Supabase DB is standard Postgres. Migration path is `pg_dump`/`pg_restore` plus env changes. |
-| Payment | DOKU Checkout | `src/lib/doku.ts`, `/api/payments/doku/notification` | Medium, expected | Payment gateways are inherently vendor-specific. Domain fields are already generic. |
-| Realtime | Supabase Realtime broadcast | `src/lib/supabase.ts`, `useRealtimeOrder`, `useKitchenOrders`, `use-realtime-menu-updates` | Medium | App has polling/refetch fallback, so realtime is convenience, not source of truth. |
-| Cache | Upstash Redis REST | `src/lib/redis.ts` | Medium | Cache helpers isolate most calls. Rate limiting still uses `@upstash/ratelimit` in `src/lib/rate-limit.ts`. |
-| Rate limit | Upstash Ratelimit | `src/lib/rate-limit.ts` | Medium | Easy to replace with Redis TCP/custom limiter later if needed. |
-| Image storage | Supabase Storage currently; Patrins delete/download support present | `src/lib/image-storage.ts`, `src/app/api/upload/route.ts` | Medium | Upload path goes through one module. Good migration candidate to S3-compatible storage later. |
-| Image proxy/URL | Supabase/Patrins URL helpers | `src/lib/image-url.ts`, `/api/images/patrins/[id]` | Low-Medium | Keep image URLs stable or store provider/path metadata before moving. |
-| Monitoring | Sentry | Sentry config files + `src/lib/api-timing.ts` | Low | Optional. App should run without custom monitoring features. |
+| Database | Supabase Postgres + Prisma | `src/server/db/prisma.ts`, Prisma schema | Low | Supabase DB is standard Postgres. Migration path is `pg_dump`/`pg_restore` plus env changes. |
+| Payment | DOKU Checkout | `src/server/payment/doku.ts`, `/api/payments/doku/notification` | Medium, expected | Payment gateways are inherently vendor-specific. Domain fields are already generic. |
+| Realtime | Supabase Realtime broadcast | `src/server/realtime/supabase.ts` and `src/shared/client/supabase.ts`, `useRealtimeOrder`, `useKitchenOrders`, `use-realtime-menu-updates` | Medium | App has polling/refetch fallback, so realtime is convenience, not source of truth. |
+| Cache | Upstash Redis REST | `src/server/cache/redis.ts` | Medium | Cache helpers isolate most calls. Rate limiting still uses `@upstash/ratelimit` in `src/server/rate-limit/rate-limit.ts`. |
+| Rate limit | Upstash Ratelimit | `src/server/rate-limit/rate-limit.ts` | Medium | Easy to replace with Redis TCP/custom limiter later if needed. |
+| Image storage | Supabase Storage | `src/server/storage/image-storage.ts`, `src/app/api/upload/route.ts` | Medium | Upload path goes through one module. Good migration candidate to S3-compatible storage later. |
+| Image URL | Supabase URL helper | `src/features/menus/image-url.ts` | Low-Medium | Keep image URLs stable or store provider/path metadata before moving. |
+| Monitoring | Sentry | Sentry config files + `src/server/http/api-timing.ts` | Low | Optional. App should run without custom monitoring features. |
 
 ## Current portability assessment
 
@@ -47,9 +47,9 @@ Known coupling:
 ```txt
 - Supabase client is used directly by realtime hooks.
 - Supabase broadcast helper is tied to Supabase REST Realtime API.
-- Upstash Redis REST client is used directly inside src/lib/redis.ts.
-- Upstash Ratelimit is used directly inside src/lib/rate-limit.ts.
-- Supabase Storage is currently the upload implementation in src/lib/image-storage.ts.
+- Upstash Redis REST client is used directly inside src/server/cache/redis.ts.
+- Upstash Ratelimit is used directly inside src/server/rate-limit/rate-limit.ts.
+- Supabase Storage is currently the upload implementation in src/server/storage/image-storage.ts.
 - DOKU frontend script is used by useDokuCheckout().
 ```
 
@@ -60,7 +60,7 @@ This coupling is acceptable now because it is concentrated in infrastructure fil
 When adding features:
 
 1. Do not import vendor SDKs directly in feature services, UI components, or route handlers unless the file is clearly an infrastructure boundary.
-2. Keep vendor SDK imports inside `src/lib/*` or a provider-specific adapter file.
+2. Keep vendor SDK imports inside `src/server/*` or a provider-specific adapter file.
 3. Use generic domain names in Prisma models and TypeScript types.
 4. Do not create fields like `supabaseFileId`, `upstashKey`, or `dokuToken` unless there is a strong reason. Prefer `imageProvider`, `imagePath`, `paymentGatewayOrderId`, `paymentRedirectUrl`.
 5. Do not remove polling/refetch fallbacks when improving realtime.
@@ -73,7 +73,7 @@ Preferred dependency direction:
 ```txt
 UI / hooks / route handlers
   -> feature services
-  -> src/lib wrappers
+  -> src/server infrastructure
   -> vendor SDK/API
 ```
 
@@ -127,7 +127,7 @@ Do not migrate if:
 
 ### Storage migration triggers
 
-Migrate Supabase Storage/Patrins to R2/S3/MinIO if:
+Migrate Supabase Storage to R2/S3/MinIO if:
 
 ```txt
 - storage quota or bandwidth limit is hit
@@ -252,8 +252,8 @@ Do not run migrate dev against production until migration history is baselined.
 Current boundary:
 
 ```txt
-src/lib/redis.ts
-src/lib/rate-limit.ts
+src/server/cache/redis.ts
+src/server/rate-limit/rate-limit.ts
 ```
 
 Recommended future work before migration:
@@ -281,20 +281,14 @@ Use REDIS_URL for TCP Redis.
 Keep app working when Redis is down by failing open for cache/rate-limit, as current code does.
 ```
 
-### 3. Supabase/Patrins image storage -> S3-compatible storage
+### 3. Supabase image storage -> S3-compatible storage
 
 Current boundary:
 
 ```txt
-src/lib/image-storage.ts
+src/server/storage/image-storage.ts
 src/app/api/upload/route.ts
-src/lib/image-url.ts
-```
-
-Recommended future provider shape:
-
-```ts
-type ImageStorageProvider = "supabase" | "patrins" | "s3" | "local";
+src/features/menus/image-url.ts
 ```
 
 Recommended env shape:
@@ -311,7 +305,7 @@ S3_PUBLIC_BASE_URL="https://cdn.example.com"
 
 Migration steps:
 
-1. Implement new provider inside `src/lib/image-storage.ts` or `src/lib/storage/s3.ts`.
+1. Implement the new provider inside `src/server/storage/image-storage.ts` or a provider-specific module under `src/server/storage/`.
 2. Upload new images to S3-compatible storage.
 3. Keep old image URLs working.
 4. Optional: backfill old images asynchronously:
@@ -334,10 +328,11 @@ Cloudflare R2 or MinIO is better for portability.
 Current boundary:
 
 ```txt
-src/lib/supabase.ts sendBroadcast()
-src/hooks/use-realtime-order.ts
-src/hooks/use-kitchen-orders.ts
-src/hooks/use-realtime-menu-updates.ts
+src/server/realtime/supabase.ts sendBroadcast()
+src/shared/client/supabase.ts
+src/features/orders/hooks/use-realtime-order.ts
+src/features/orders/hooks/use-kitchen-orders.ts
+src/features/menus/hooks/use-realtime-menu-updates.ts
 ```
 
 Minimum migration path:
@@ -379,11 +374,11 @@ For 100-300 orders/day, polling fallback alone is acceptable if Supabase Realtim
 Current boundary:
 
 ```txt
-src/lib/doku.ts
-src/hooks/use-doku-checkout.ts
+src/server/payment/doku.ts
+src/features/orders/hooks/use-doku-checkout.ts
 src/app/api/payments/doku/notification/route.ts
-src/features/orders/order.service.ts
-src/lib/payment-notification.ts
+src/features/orders/server/order.service.ts
+src/features/orders/server/payment/payment-notification.ts
 ```
 
 Current generic fields:
@@ -427,12 +422,11 @@ If DOKU must be replaced later, migrate by adding a second provider adapter and 
 Example target structure only when needed:
 
 ```txt
-src/lib/payments/
+src/server/payment/
   types.ts
   doku.ts
   midtrans.ts
   pak-kasir.ts
-  index.ts
 ```
 
 Migration from DOKU to another provider should be incremental:

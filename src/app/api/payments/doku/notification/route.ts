@@ -1,8 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
-import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { isDokuTimestampFresh, verifyDokuSignature } from "@/lib/doku";
-import { guardPaymentBusinessEvent, guardPaymentNotificationReplay } from "@/lib/payment-notification";
-import { OrderService } from "@/lib/services/order.service";
+import { apiError, apiResponse, handleApiError } from "@/server/http/api-utils";
+import { isDokuTimestampFresh, verifyDokuSignature } from "@/server/payment/doku";
+import { guardPaymentBusinessEvent, guardPaymentNotificationReplay } from "@/features/orders/server/payment/payment-notification";
+import { OrderService } from "@/features/orders/server/order.service";
 
 const REQUEST_TARGET = "/api/payments/doku/notification";
 

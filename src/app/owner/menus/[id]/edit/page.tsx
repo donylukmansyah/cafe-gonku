@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
-import { MenuForm } from "@/components/owner/menu-form"
-import { MenuService } from "@/lib/services/menu.service"
+import { MenuForm } from "@/features/menus/components/owner/menu-form"
+import { MenuService } from "@/features/menus/server/menu.service"
 
 async function getMenu(id: string) {
     return MenuService.getMenuById(id)

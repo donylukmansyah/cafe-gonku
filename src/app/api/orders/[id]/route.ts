@@ -1,8 +1,8 @@
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { OrderService } from "@/lib/services/order.service";
-import { getServerSession } from "@/lib/server-auth";
-import { validateOrderAccess, OrderAccessError } from "@/lib/order-access";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { OrderService } from "@/features/orders/server/order.service";
+import { getServerSession } from "@/server/auth/server-auth";
+import { validateOrderAccess, OrderAccessError } from "@/features/orders/server/order-access";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
 
 export async function GET(
     request: Request,

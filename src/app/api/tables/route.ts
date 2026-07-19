@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
+import { getServerSession } from "@/server/auth/server-auth";
 import { z } from "zod";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { TableService } from "@/lib/services/table.service";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { TableService } from "@/features/tables/server/table.service";
 
 const createTableSchema = z.object({
     tableNumber: z.coerce.number().min(1, "Nomor meja harus positif"),

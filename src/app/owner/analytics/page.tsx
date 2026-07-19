@@ -1,24 +1,24 @@
 "use client"
 
-import { useOwnerAnalytics } from "@/hooks/use-owner-analytics"
-import "@/components/owner/analytics/print-styles.css"
+import { useOwnerAnalytics } from "@/features/analytics/hooks/use-owner-analytics"
+import "@/features/analytics/components/print-styles.css"
 
 // Components (All memoized)
-import { StatsCards } from "@/components/owner/analytics/stats-cards"
+import { StatsCards } from "@/features/analytics/components/stats-cards"
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DateFilter } from "@/components/owner/analytics/date-filter"
-import { PdfExportButton } from "@/components/owner/analytics/pdf-export-button"
+import { DateFilter } from "@/features/analytics/components/date-filter"
+import { PdfExportButton } from "@/features/analytics/components/pdf-export-button"
 
 const RevenueChart = dynamic(
-    () => import("@/components/owner/analytics/revenue-chart").then(mod => mod.RevenueChart),
+    () => import("@/features/analytics/components/revenue-chart").then(mod => mod.RevenueChart),
     {
         ssr: false,
         loading: () => <Skeleton className="w-full h-[500px] rounded-3xl bg-zinc-900/40 border border-white/5" />
     }
 )
-import { TopMenus } from "@/components/owner/analytics/top-menus"
-import { DetailedReport } from "@/components/owner/analytics/detailed-report"
+import { TopMenus } from "@/features/analytics/components/top-menus"
+import { DetailedReport } from "@/features/analytics/components/detailed-report"
 
 export default function AnalyticsPage() {
     const {

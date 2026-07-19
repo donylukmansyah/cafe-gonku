@@ -9,7 +9,7 @@ export async function proxy(request: NextRequest) {
         default-src 'self';
         script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sandbox.doku.com https://jokul.doku.com;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://sandbox.doku.com https://jokul.doku.com;
-        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com https://patrins.com https://sandbox.doku.com https://jokul.doku.com;
+        img-src 'self' blob: data: https://*.supabase.co https://ui-avatars.com https://sandbox.doku.com https://jokul.doku.com;
         font-src 'self' https://fonts.gstatic.com;
         object-src 'none';
         base-uri 'self';

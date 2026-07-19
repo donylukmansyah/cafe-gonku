@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { TableService } from "@/lib/services/table.service";
-import { MenuService } from "@/lib/services/menu.service";
-import { OrderClient } from "./order-client";
+import { TableService } from "@/features/tables/server/table.service";
+import { MenuService } from "@/features/menus/server/menu.service";
+import { OrderClient } from "@/features/orders/components/customer/order-client";
 import { Button } from "@/components/ui/button";
 import { MapPin, Utensils } from "lucide-react";
 import Link from "next/link";

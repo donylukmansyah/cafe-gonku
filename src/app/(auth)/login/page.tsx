@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { Coffee, ShieldCheck } from "lucide-react"
-import { LoginForm } from "@/components/auth/login-form"
-import { requireGuest } from "@/lib/server-auth"
+import { LoginForm } from "@/features/auth/components/login-form"
+import { requireGuest } from "@/server/auth/server-auth"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 

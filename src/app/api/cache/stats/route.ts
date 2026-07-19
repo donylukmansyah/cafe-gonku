@@ -1,7 +1,7 @@
 import { connection } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
-import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { getCacheStats } from "@/lib/redis";
+import { getServerSession } from "@/server/auth/server-auth";
+import { apiError, apiResponse, handleApiError } from "@/server/http/api-utils";
+import { getCacheStats } from "@/server/cache/redis";
 
 export async function GET() {
   await connection();

@@ -1,8 +1,8 @@
-import { requireRole } from "@/lib/server-auth"
+import { requireRole } from "@/server/auth/server-auth"
 import { Coffee, Loader2 } from "lucide-react"
-import { SidebarLogoutButton } from "@/components/owner/sidebar-logout-button"
-import { SidebarMenuButton } from "@/components/owner/sidebar-menu-button"
-import { SidebarDesktopNav } from "@/components/owner/sidebar-desktop-nav"
+import { SidebarLogoutButton } from "@/app/owner/_components/sidebar-logout-button"
+import { SidebarMenuButton } from "@/app/owner/_components/sidebar-menu-button"
+import { SidebarDesktopNav } from "@/app/owner/_components/sidebar-desktop-nav"
 import { Suspense } from "react"
 
 async function OwnerLayoutContent({

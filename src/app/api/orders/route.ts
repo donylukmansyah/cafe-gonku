@@ -1,11 +1,11 @@
 
-import { getServerSession } from "@/lib/server-auth";
-import { createOrderSchema } from "@/validations/order";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { OrderService } from "@/lib/services/order.service";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { createApiTimer } from "@/lib/api-timing";
-import { setOrderTokenCookie } from "@/lib/order-access";
+import { getServerSession } from "@/server/auth/server-auth";
+import { createOrderSchema } from "@/features/orders/schema";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { OrderService } from "@/features/orders/server/order.service";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
+import { createApiTimer } from "@/server/http/api-timing";
+import { setOrderTokenCookie } from "@/features/orders/server/order-access";
 
 // GET /api/orders - Get orders for Kitchen Display (Priority Queue)
 export async function GET(request: Request) {

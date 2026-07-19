@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
-import { updateMenuSchema } from "@/validations/menu";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { getServerSession } from "@/server/auth/server-auth";
+import { updateMenuSchema } from "@/features/menus/schema";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
 import { revalidateTag } from "next/cache";
-import { OWNER_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
-import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
-import { MenuService } from "@/lib/services/menu.service";
+import { OWNER_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/shared/cache-tags";
+import { REALTIME_CHANNELS } from "@/shared/realtime-channels";
+import { MenuService } from "@/features/menus/server/menu.service";
 
 // GET /api/menus/[id] - Get single menu
 export async function GET(
@@ -44,7 +44,7 @@ export async function PATCH(
 
         const finalMenu = await MenuService.updateMenu(id, validatedData);
 
-        const lib = await import("@/lib/supabase");
+        const lib = await import("@/server/realtime/supabase");
         await lib.sendBroadcast("menu-update", {
             menuId: finalMenu!.id,
             fullMenu: {
@@ -70,7 +70,7 @@ export async function PATCH(
     }
 }
 
-// DELETE /api/menus/[id] - Delete menu (Hard Delete)
+// DELETE /api/menus/[id] - Soft delete menu
 export async function DELETE(
     request: NextRequest,
     props: { params: Promise<{ id: string }> }
@@ -89,7 +89,7 @@ export async function DELETE(
         revalidateTag(MENU_PUBLIC_CACHE_TAG, "max");
         revalidateTag(OWNER_DASHBOARD_CACHE_TAG, "max");
 
-        return apiResponse({ message: "Menu archived successfully" }, 200);
+        return apiResponse({ message: "Menu deleted successfully" }, 200);
     } catch (error) {
         return handleApiError(error, "DELETE /api/menus/[id]");
     }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "@/lib/server-auth"
-import { uploadMenuImage } from "@/lib/image-storage"
-import { optimizeImage } from "@/lib/image-optimizer"
-import { logger } from "@/lib/logger"
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { getServerSession } from "@/server/auth/server-auth"
+import { uploadMenuImage } from "@/server/storage/image-storage"
+import { optimizeImage } from "@/server/storage/image-optimizer"
+import { logger } from "@/shared/logger"
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit"
 
 export async function POST(request: NextRequest) {
     try {
@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             url: upload.url,
             path: upload.path,
-            provider: upload.provider,
         })
     } catch (error: unknown) {
         logger.error("Upload error:", error)

@@ -1,7 +1,7 @@
-import { getServerSession } from "@/lib/server-auth";
-import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { OrderService } from "@/lib/services/order.service";
+import { getServerSession } from "@/server/auth/server-auth";
+import { apiError, apiResponse, handleApiError } from "@/server/http/api-utils";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
+import { OrderService } from "@/features/orders/server/order.service";
 
 // POST /api/orders/sync-payment
 // Bulk check for all PENDING orders to update their status from payment gateway

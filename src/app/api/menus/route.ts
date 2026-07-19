@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
-import { createMenuSchema } from "@/validations/menu";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { getServerSession } from "@/server/auth/server-auth";
+import { createMenuSchema } from "@/features/menus/schema";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
 import { revalidateTag } from "next/cache";
-import { OWNER_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
-import { MenuService } from "@/lib/services/menu.service";
-import { createApiTimer } from "@/lib/api-timing";
+import { OWNER_DASHBOARD_CACHE_TAG, MENU_PUBLIC_CACHE_TAG } from "@/shared/cache-tags";
+import { MenuService } from "@/features/menus/server/menu.service";
+import { createApiTimer } from "@/server/http/api-timing";
 
 // GET /api/menus - List all menus
 export async function GET(request: NextRequest) {

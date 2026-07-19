@@ -13,10 +13,6 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'cgcyxcprqtsxyabvekjs.supabase.co',
       },
-      {
-        protocol: 'https',
-        hostname: 'patrins.com',
-      },
     ],
   },
   async headers() {

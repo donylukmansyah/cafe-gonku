@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { prisma } from "@/lib/prisma";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { computePriceHash, buildPriceHashItems } from "@/lib/price-hash";
-import { createApiTimer } from "@/lib/api-timing";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { prisma } from "@/server/db/prisma";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
+import { computePriceHash, buildPriceHashItems } from "@/features/orders/server/price-hash";
+import { createApiTimer } from "@/server/http/api-timing";
 
 const verifyPricesSchema = z.object({
     tableId: z.string().optional(),

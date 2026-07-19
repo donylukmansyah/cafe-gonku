@@ -1,9 +1,9 @@
-import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { OrderService } from "@/lib/services/order.service";
-import { validateOrderAccess, OrderAccessError } from "@/lib/order-access";
-import { createApiTimer } from "@/lib/api-timing";
-import { logger } from "@/lib/logger";
+import { apiError, apiResponse, handleApiError } from "@/server/http/api-utils";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
+import { OrderService } from "@/features/orders/server/order.service";
+import { validateOrderAccess, OrderAccessError } from "@/features/orders/server/order-access";
+import { createApiTimer } from "@/server/http/api-timing";
+import { logger } from "@/shared/logger";
 
 export async function POST(
     request: Request,

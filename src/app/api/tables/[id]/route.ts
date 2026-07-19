@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server"
-import { getServerSession } from "@/lib/server-auth"
-import { updateTableSchema } from "@/validations/table"
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils"
-import { TableService } from "@/lib/services/table.service"
+import { getServerSession } from "@/server/auth/server-auth"
+import { updateTableSchema } from "@/features/tables/schema"
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils"
+import { TableService } from "@/features/tables/server/table.service"
 
 export async function PATCH(
     request: NextRequest,
@@ -42,7 +42,7 @@ export async function DELETE(
 
         await TableService.deleteTable(id)
 
-        return apiResponse({ message: "Table deactivated successfully" })
+        return apiResponse({ message: "Table deleted successfully" })
     } catch (error) {
         return handleApiError(error, "DELETE /api/tables/[id]")
     }

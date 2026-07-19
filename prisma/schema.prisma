@@ -101,6 +101,7 @@ model Table {
   capacity    Int      @default(4) // Kapasitas kursi
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // Soft delete: hilang dari owner/customer, riwayat order tetap aman
 
   // Relations
   orders Order[]

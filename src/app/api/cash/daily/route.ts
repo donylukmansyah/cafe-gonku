@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getServerSession } from "@/lib/server-auth";
-import { apiError, apiResponse, handleApiError } from "@/lib/api-utils";
-import { OWNER_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags";
-import { DailyCashService } from "@/features/revenue/daily-cash.service";
-import { dailyCashEntrySchema } from "@/validations/cash";
+import { getServerSession } from "@/server/auth/server-auth";
+import { apiError, apiResponse, handleApiError } from "@/server/http/api-utils";
+import { OWNER_DASHBOARD_CACHE_TAG } from "@/shared/cache-tags";
+import { DailyCashService } from "@/features/revenue/server/daily-cash.service";
+import { dailyCashEntrySchema } from "@/features/revenue/schema";
 
 export async function GET(request: NextRequest) {
   try {

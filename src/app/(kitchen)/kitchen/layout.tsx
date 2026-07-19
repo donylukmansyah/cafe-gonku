@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/server-auth"
+import { requireRole } from "@/server/auth/server-auth"
 import { Suspense } from "react"
 import { Loader2 } from "lucide-react"
 

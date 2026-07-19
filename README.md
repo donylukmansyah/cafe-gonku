@@ -28,7 +28,7 @@ node -v
 If you cannot change global Node.js, use project-local portable Node 24:
 
 ```powershell
-.\scripts\node24-shell.ps1
+.\scripts\runtime\node24-shell.ps1
 ```
 
 This opens a shell with project-local Node 24 active.

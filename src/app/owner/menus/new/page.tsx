@@ -1,4 +1,4 @@
-import { MenuForm } from "@/components/owner/menu-form"
+import { MenuForm } from "@/features/menus/components/owner/menu-form"
 
 export default function NewMenuPage() {
     return (

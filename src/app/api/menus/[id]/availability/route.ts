@@ -1,11 +1,11 @@
 import { type NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
+import { getServerSession } from "@/server/auth/server-auth";
 import { z } from "zod";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
 import { revalidateTag } from "next/cache";
-import { MENU_PUBLIC_CACHE_TAG } from "@/lib/cache-tags";
-import { REALTIME_CHANNELS } from "@/lib/realtime-channels";
-import { MenuService } from "@/lib/services/menu.service";
+import { MENU_PUBLIC_CACHE_TAG } from "@/shared/cache-tags";
+import { REALTIME_CHANNELS } from "@/shared/realtime-channels";
+import { MenuService } from "@/features/menus/server/menu.service";
 
 const updateAvailabilitySchema = z.object({
     isAvailable: z.boolean(),
@@ -36,7 +36,7 @@ export async function PATCH(
 
         const updatedMenu = await MenuService.updateMenuAvailability(id, isAvailable);
 
-        const lib = await import("@/lib/supabase");
+        const lib = await import("@/server/realtime/supabase");
         await lib.sendBroadcast("menu-update", {
             menuId: updatedMenu.id,
             isAvailable: updatedMenu.isAvailable

@@ -4,19 +4,19 @@ import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TableList } from "@/components/owner/tables/table-list"
+import { TableList } from "@/features/tables/components/table-list"
 import dynamic from "next/dynamic"
 
 const CreateTableDialog = dynamic(
-    () => import("@/components/owner/tables/create-table-dialog").then(mod => mod.CreateTableDialog),
+    () => import("@/features/tables/components/create-table-dialog").then(mod => mod.CreateTableDialog),
     { ssr: false }
 )
 const QRDialog = dynamic(
-    () => import("@/components/owner/tables/qr-dialog").then(mod => mod.QRDialog),
+    () => import("@/features/tables/components/qr-dialog").then(mod => mod.QRDialog),
     { ssr: false }
 )
 import { useState, useCallback, useMemo } from "react"
-import { useOwnerTables, type TableData } from "@/hooks/use-owner-tables"
+import { useOwnerTables, type TableData } from "@/features/tables/hooks/use-owner-tables"
 
 export default function TablesPage() {
     const {

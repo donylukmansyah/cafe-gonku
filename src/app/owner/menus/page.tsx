@@ -5,8 +5,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, LayoutGrid, List, Filter } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MenuList } from "@/components/owner/menus/menu-list"
-import { useOwnerMenus } from "@/hooks/use-owner-menus"
+import { MenuList } from "@/features/menus/components/owner/menus/menu-list"
+import { useOwnerMenus } from "@/features/menus/hooks/use-owner-menus"
 import {
     Input
 } from "@/components/ui/input"

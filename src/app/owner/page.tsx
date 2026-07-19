@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { AnalyticsService } from "@/lib/services/analytics.service"
-import { OWNER_DASHBOARD_CACHE_TAG } from "@/lib/cache-tags"
-import { OrderService } from "@/lib/services/order.service"
+import { AnalyticsService } from "@/features/analytics/server/analytics.service"
+import { OWNER_DASHBOARD_CACHE_TAG } from "@/shared/cache-tags"
+import { OrderService } from "@/features/orders/server/order.service"
 
 async function getStats() {
     'use cache';

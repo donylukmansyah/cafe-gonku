@@ -1,7 +1,7 @@
 "use client";
 
 import { SWRConfig } from "swr";
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch } from "@/shared/client/api-client";
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
     return (

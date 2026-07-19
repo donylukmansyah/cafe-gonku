@@ -1,8 +1,8 @@
 import { type NextRequest } from "next/server";
-import { getServerSession } from "@/lib/server-auth";
-import { updateOrderStatusSchema } from "@/validations/order";
-import { apiResponse, handleApiError, apiError } from "@/lib/api-utils";
-import { OrderService } from "@/lib/services/order.service";
+import { getServerSession } from "@/server/auth/server-auth";
+import { updateOrderStatusSchema } from "@/features/orders/schema";
+import { apiResponse, handleApiError, apiError } from "@/server/http/api-utils";
+import { OrderService } from "@/features/orders/server/order.service";
 
 // PATCH /api/orders/[id]/status - Update order status
 export async function PATCH(

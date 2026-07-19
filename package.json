@@ -8,11 +8,11 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "node24:shell": "powershell -ExecutionPolicy Bypass -File scripts/node24-shell.ps1",
-    "check:node": "node scripts/check-node-version.mjs",
+    "node24:shell": "powershell -ExecutionPolicy Bypass -File scripts/runtime/node24-shell.ps1",
+    "check:node": "node scripts/runtime/check-node-version.mjs",
     "prebuild": "pnpm prisma:generate",
     "prestart": "pnpm check:node",
-    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-node24.ps1",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/runtime/dev-node24.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
