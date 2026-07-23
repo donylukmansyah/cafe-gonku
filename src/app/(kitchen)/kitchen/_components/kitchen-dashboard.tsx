@@ -148,6 +148,7 @@ export function KitchenDashboardContent() {
     } = useKitchenMenus();
 
     useEffect(() => {
+        // Mulai ambil antrean kitchen dan dengarkan order baru realtime.
         const cleanupOrders = startPolling();
         const cleanupMenus = initializeMenus();
         return () => { cleanupOrders(); cleanupMenus(); };
@@ -209,7 +210,7 @@ export function KitchenDashboardContent() {
                         <TabsList className="bg-zinc-950 border border-zinc-800 p-1.5 h-auto w-full sm:w-auto justify-start rounded-2xl flex flex-col sm:flex-row gap-1">
                             <TabsTrigger value="queue" className={TAB_TRIGGER_CLASS}>
                                 <ChefHat className="w-4 h-4 mr-2" />
-                                Pesanan Aktif
+                                Antrean Terbayar
                             </TabsTrigger>
                             <TabsTrigger value="menu" className={TAB_TRIGGER_CLASS}>
                                 <UtensilsCrossed className="w-4 h-4 mr-2" />
@@ -230,6 +231,7 @@ export function KitchenDashboardContent() {
                     </div>
 
                     <TabsContent value="queue" className="mt-0 outline-none">
+                        {/* Tampilkan order sesuai urutan priority queue dari backend. */}
                         <OrderQueue
                             orders={orders}
                             isLoading={isLoadingOrders}

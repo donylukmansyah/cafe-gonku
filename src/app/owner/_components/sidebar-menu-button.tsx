@@ -6,15 +6,9 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/shared/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
-import { Menu, LayoutDashboard, UtensilsCrossed, TableProperties, BarChart3, Coffee } from "lucide-react"
+import { Menu, Coffee } from "lucide-react"
 import { SidebarLogoutButton } from "./sidebar-logout-button"
-
-const navigation = [
-    { name: "Dashboard", href: "/owner", icon: LayoutDashboard },
-    { name: "Menu", href: "/owner/menus", icon: UtensilsCrossed },
-    { name: "Meja", href: "/owner/tables", icon: TableProperties },
-    { name: "Analytics", href: "/owner/analytics", icon: BarChart3 },
-]
+import { OWNER_NAVIGATION } from "@/app/owner/_components/owner-navigation"
 
 export function SidebarMenuButton({ sessionName, sessionEmail }: { sessionName?: string | null, sessionEmail?: string | null }) {
     const [open, setOpen] = useState(false)
@@ -44,7 +38,7 @@ export function SidebarMenuButton({ sessionName, sessionEmail }: { sessionName?:
 
                     {/* Navigation */}
                     <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-                        {navigation.map((item) => {
+                        {OWNER_NAVIGATION.map((item) => {
                             const isActive = item.href === "/owner"
                                 ? pathname === "/owner"
                                 : pathname === item.href || pathname.startsWith(item.href + "/")

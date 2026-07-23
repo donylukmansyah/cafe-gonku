@@ -88,6 +88,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         const historyFlag = historyOverride !== undefined ? historyOverride : showHistory;
 
         try {
+            // Ambil antrean kitchen dari backend; urutan priority queue sudah dihitung server.
             const data = await apiFetch<{ orders: Order[] }>(`/api/orders?includeServed=${historyFlag}`, {
                 silent: !isManual
             });
@@ -97,7 +98,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
             const newOrders = data.orders;
             const newHash = getOrdersHash(newOrders, historyFlag);
 
-            // Only update state if data actually changed
+            // Update tampilan hanya kalau data order berubah.
             if (newHash !== lastDataHashRef.current || isManual) {
                 // On initial load (when soundedOrdersRef is empty), mark existing orders as sounded
                 // to prevent notification splash on login/refresh
@@ -137,7 +138,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         async (orderIds: string[], newStatus: string) => {
             setIsUpdating(true);
 
-            // Optimistic update
+            // Ubah status di UI dulu agar tombol kitchen terasa cepat.
             setOrders((prev) =>
                 prev.map((order) =>
                     orderIds.includes(order.id)
@@ -177,6 +178,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
         fetchOrders();
         syncPendingOrders();
 
+        // Realtime menerima order baru setelah pembayaran berhasil.
         const channel = supabase
             .channel(REALTIME_CHANNELS.kitchenUpdates)
             .on("broadcast", { event: "refresh-orders" }, (payload) => {
@@ -211,6 +213,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
                                 return prev.map(o => o.orderCode === orderCode ? { ...o, ...fullOrder, status: fullOrder.status ?? orderStatus } : o);
                             }
                             return [...prev, fullOrder].sort((a, b) => {
+                                // Jaga urutan saat order baru masuk lewat realtime.
                                 if (b.priorityScore !== a.priorityScore) return b.priorityScore - a.priorityScore;
                                 return new Date(a.paidAt || a.createdAt).getTime() - new Date(b.paidAt || b.createdAt).getTime();
                             });
@@ -238,7 +241,7 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
         pollingRef.current = setInterval(() => {
             if (document.visibilityState === "visible") fetchOrders();
-        }, 10000); // Increased to 10s for better balance (still feels live)
+        }, 10000); // Refresh berkala supaya kitchen tetap dapat antrean terbaru.
 
         const syncInterval = setInterval(() => {
             syncPendingOrders();

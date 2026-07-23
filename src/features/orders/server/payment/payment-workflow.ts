@@ -47,6 +47,7 @@ export async function getLatePaymentIssues(limit = 5) {
   });
 }
 
+// Proses status dari payment gateway lalu update order.
 export async function applyGatewayPaymentUpdate(
   order: {
     id: string;
@@ -76,6 +77,7 @@ export async function applyGatewayPaymentUpdate(
     );
   }
 
+  // Ambil waktu bayar dari gateway; dipakai sebagai paidAt order.
   const nextPaidAt = resolveGatewayPaidAt(gatewayPayload) ?? new Date();
   const paymentExpiredAt = order.paymentExpiresAt ?? (order.createdAt
     ? new Date(order.createdAt.getTime() + PAYMENT_EXPIRY_MINUTES * 60_000)
@@ -181,13 +183,13 @@ export async function applyGatewayPaymentUpdate(
         : nextState.paymentStatus === PaymentStatus.PAID
           ? OrderStatus.PAID
           : nextState.orderStatus,
-      // Saat pembayaran berhasil, simpan waktu bayar untuk hitung waktu tunggu.
+      // paidAt jadi waktu mulai antrean kitchen.
       paidAt:
         nextState.paymentStatus === PaymentStatus.PAID
           ? order.paidAt ?? nextPaidAt
           : order.paidAt,
       paymentMethod: gatewayPayload.payment_type ?? order.paymentMethod,
-      // Simpan score awal saat order masuk kitchen queue.
+      // Score awal disimpan setelah order lolos pembayaran.
       priorityScore: nextState.paymentStatus === PaymentStatus.PAID
         ? calculateOrderPriorityScore({
             paymentStatus: nextState.paymentStatus,
@@ -243,6 +245,7 @@ export async function applyGatewayPaymentUpdate(
 }
 
 
+// Webhook DOKU masuk ke sini untuk dicocokkan dengan orderCode.
 export async function handleDokuNotification(payload: {
   order?: { invoice_number?: string; amount?: number };
   transaction?: { status?: string; date?: string; original_request_id?: string };

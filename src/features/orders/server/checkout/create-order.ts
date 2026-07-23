@@ -179,6 +179,7 @@ export async function createOrder(data: CreateOrderInput) {
   const accessToken = generateOrderAccessToken();
   const paymentExpiresAt = new Date(Date.now() + PAYMENT_EXPIRY_MINUTES * 60_000);
 
+  // Buat order awal; belum masuk kitchen queue karena belum dibayar.
   const order = await prisma.$transaction(async (tx) => {
     const lockKey = Buffer.from(tableId).reduce((h, b) => (h * 31 + b) | 0, 0);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
@@ -206,9 +207,10 @@ export async function createOrder(data: CreateOrderInput) {
         accessToken,
         tableId,
         totalAmount: finalTotal,
+        // paidAt masih kosong dan priorityScore masih default 0 sampai DOKU confirm PAID.
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.PENDING,
-        serviceType,
+        serviceType, // Dipakai nanti untuk nilai U_i (tipe pesanan) priority queue.
         paymentExpiresAt,
         orderItems: {
           create: processedItems.map((item) => ({
@@ -269,6 +271,7 @@ export async function createOrder(data: CreateOrderInput) {
       ? `${appUrl}/t/${encodeURIComponent(order.table.qrCode)}?order_id=${encodeURIComponent(orderCode)}`
       : undefined;
 
+    // Minta URL pembayaran DOKU untuk customer bayar.
     const dokuPayment = await createDokuCheckoutPayment({
       order: {
         amount: finalTotal,
@@ -295,6 +298,7 @@ export async function createOrder(data: CreateOrderInput) {
         : undefined,
     });
 
+    // Simpan URL DOKU; status tetap PENDING sampai webhook pembayaran masuk.
     await prisma.order.update({
       where: {
         id: order.id,

@@ -1,7 +1,5 @@
-// ============================================
 // PRISMA SCHEMA - CAFE GONKU
 // QR-Based Restaurant Ordering System
-// ============================================
 
 generator client {
   provider   = "prisma-client-js"
@@ -12,11 +10,10 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================
 // 1. USER MANAGEMENT
-// ============================================
-// Owner: Kelola menu, meja, QR code, analytics
-// Kitchen: Lihat order queue, update status pesanan
+// users: menyimpan user internal sistem, yaitu OWNER dan KITCHEN.
+// OWNER mengelola menu, meja, QR code, dan laporan.
+// KITCHEN melihat antrean pesanan dan update status masak.
 
 enum UserRole {
   OWNER
@@ -41,23 +38,46 @@ model User {
   sessions      Session[]
 }
 
+// sessions: menyimpan sesi login aktif.
+// Satu user bisa login di beberapa browser/device; expiresAt menentukan kapan sesi habis.
 model Session {
-  // PK: identitas unik session/login aktif.
-  id           String   @id @default(cuid())
-  // FK: pemilik session, mengarah ke users.id.
-  userId       String
-  expiresAt    DateTime
-  token        String
-  createdAt    DateTime
-  updatedAt    DateTime
-  ipAddress    String?
-  userAgent    String?
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // PK: identitas unik untuk setiap sesi login.
+  id String @id @default(cuid())
 
+  // FK: ID user pemilik sesi, mengarah ke users.id.
+  userId String
+
+  // Waktu sesi kedaluwarsa; setelah lewat, user harus login kembali.
+  expiresAt DateTime
+
+  // Kunci unik sesi yang disimpan di cookie untuk mengenali user yang sedang login.
+  // Token bukan password dan tidak boleh dibagikan, ditampilkan, atau dicatat di log.
+  token String
+
+  // Waktu sesi dibuat.
+  createdAt DateTime
+
+  // Waktu terakhir data sesi diperbarui.
+  updatedAt DateTime
+
+  // Alamat IP saat sesi dibuat, jika tersedia.
+  ipAddress String?
+
+  // Informasi browser atau perangkat user, jika tersedia.
+  userAgent String?
+
+  // Relasi ke user; sesi ikut terhapus ketika user dihapus.
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Memastikan setiap token hanya dimiliki oleh satu sesi.
   @@unique([token])
+
+  // Memetakan model Session ke tabel sessions di database.
   @@map("sessions")
 }
 
+// accounts: menyimpan metode login user.
+// Saat ini memakai credential/email-password; bisa dikembangkan ke Google/GitHub OAuth.
 model Account {
   // PK: identitas unik metode login/auth account.
   id           String    @id @default(cuid())
@@ -76,6 +96,7 @@ model Account {
   @@map("accounts")
 }
 
+// verification: menyimpan token/kode verifikasi dari sistem auth.
 model Verification {
   id         String    @id @default(cuid())
   identifier String
@@ -87,11 +108,9 @@ model Verification {
   @@map("verification")
 }
 
-// ============================================
 // 2. TABLE & QR CODE MANAGEMENT
-// ============================================
-// Setiap meja punya QR code unik
-// User scan QR → redirect ke /order?table=<qrCode>
+// tables: menyimpan data meja dan QR code unik.
+// Customer scan QR untuk membuka halaman pemesanan sesuai meja.
 
 model Table {
   id          String   @id @default(cuid())
@@ -111,10 +130,8 @@ model Table {
   @@map("tables")
 }
 
-// ============================================
 // 3. MENU
-// ============================================
-// Menu makanan & minuman yang tersedia di Cafe Gonku
+// menus: menyimpan data menu, harga, kategori, gambar, dan status tersedia.
 
 enum MenuCategory {
   FOOD    // Makanan
@@ -155,11 +172,9 @@ model Menu {
   @@map("menus")
 }
 
-// ============================================
 // 4. MENU OPTION
-// ============================================
-// Opsi customization per menu (misal: Level Pedas, Ukuran, Rasa)
-// Menu TANPA opsi = tidak perlu bikin row di tabel ini
+// menu_options: menyimpan jenis opsi pada menu.
+// Contoh: Level Pedas, Ukuran, Rasa. Menu tanpa opsi tidak perlu row di tabel ini.
 
 model MenuOption {
   id         String   @id @default(cuid())
@@ -177,11 +192,9 @@ model MenuOption {
   @@map("menu_options")
 }
 
-// ============================================
 // 5. MENU OPTION VALUE
-// ============================================
-// Pilihan dalam option
-// Contoh: Option "Rasa" → values: "Pedas Jeruk", "Asin Jeruk", "Pedas Biasa"
+// menu_option_values: menyimpan daftar pilihan dari menu_options.
+// Contoh Level Pedas punya pilihan Level 1, Level 2, Level 3.
 
 model MenuOptionValue {
   id           String     @id @default(cuid())
@@ -198,10 +211,9 @@ model MenuOptionValue {
   @@map("menu_option_values")
 }
 
-// ============================================
 // 6. ORDER
-// ============================================
-// Pesanan dari customer
+// orders: menyimpan data pesanan customer.
+// Tabel utama priority queue: paymentStatus, status, serviceType, paidAt, priorityScore.
 
 enum OrderStatus {
   PENDING   // Belum bayar
@@ -235,16 +247,16 @@ model Order {
   
   // Order details
   totalAmount    Int              @default(0) // Total harga keseluruhan
-  status         OrderStatus      @default(PENDING)
-  serviceType    OrderServiceType @default(DINE_IN)
-  priorityScore  Float            @default(0) // Skor priority queue kitchen
+  status         OrderStatus      @default(PENDING) // Status proses pesanan di kitchen
+  serviceType    OrderServiceType @default(DINE_IN) // DINE_IN atau TAKEAWAY untuk nilai U_i
+  priorityScore  Float            @default(0) // Score awal priority queue kitchen
   
   // Payment info
-  paymentStatus   PaymentStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING) // Gerbang kitchen: hanya PAID yang masuk queue
   paymentMethod   String? // "doku_checkout", "qris", "cash"
   paymentRedirectUrl    String? @unique // URL redirect checkout dari payment gateway
   paymentGatewayOrderId String? @unique // ID invoice/order dari payment gateway
-  paidAt          DateTime? // Timestamp payment (untuk priority queue!)
+  paidAt          DateTime? // Waktu bayar, dipakai hitung T_i dan urutan saat score sama
   paymentExpiresAt DateTime? // Batas waktu pembayaran gateway
   
   // Timestamps
@@ -265,10 +277,9 @@ model Order {
   @@map("orders")
 }
 
-// ============================================
 // 7. ORDER ITEM
-// ============================================
-// Item-item dalam satu order
+// order_items: menyimpan detail menu yang dipesan dalam satu order.
+// Contoh Order GONKU-001 punya Mie Nyemek x1 dan Es Teh x2.
 
 model OrderItem {
   id       String @id @default(cuid())
@@ -295,11 +306,10 @@ model OrderItem {
   @@map("order_items")
 }
 
-// ============================================
 // 8. ORDER ITEM OPTION
-// ============================================
-// Menyimpan pilihan option yang dipilih customer saat order
-// Snapshot data agar tidak berubah kalau owner update option
+// order_item_options: menyimpan opsi yang dipilih customer saat order.
+// Contoh customer pilih Level Pedas = Level 3.
+// Disimpan snapshot agar riwayat tidak berubah saat owner edit opsi/menu.
 
 model OrderItemOption {
   id                String          @id @default(cuid())
@@ -319,10 +329,8 @@ model OrderItemOption {
   @@map("order_item_options")
 }
 
-// ============================================
 // 9. DAILY CASH RECORD
-// ============================================
-// Catatan kas/tunai harian manual untuk analytics
+// daily_cash_records: menyimpan catatan kas harian manual untuk laporan pendapatan owner.
 
 model DailyCashRecord {
   id         String   @id @default(cuid())
@@ -337,11 +345,9 @@ model DailyCashRecord {
   @@map("daily_cash_records")
 }
 
-// ============================================
 // 10. ORDER LOG
-// ============================================
-// Audit trail untuk tracking perubahan status order
-// Opsional tapi berguna untuk debugging
+// order_logs: mencatat riwayat perubahan status order.
+// Contoh PAID → PREPARING → READY → SERVED.
 
 model OrderLog {
   id        String   @id @default(cuid())

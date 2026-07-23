@@ -3,21 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/shared/utils"
-import { LayoutDashboard, UtensilsCrossed, TableProperties, BarChart3 } from "lucide-react"
-
-const navigation = [
-    { name: "Dashboard", href: "/owner", icon: LayoutDashboard },
-    { name: "Menu", href: "/owner/menus", icon: UtensilsCrossed },
-    { name: "Meja", href: "/owner/tables", icon: TableProperties },
-    { name: "Analytics", href: "/owner/analytics", icon: BarChart3 },
-]
+import { OWNER_NAVIGATION } from "@/app/owner/_components/owner-navigation"
 
 export function SidebarDesktopNav() {
     const pathname = usePathname()
 
     return (
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-            {navigation.map((item) => {
+            {OWNER_NAVIGATION.map((item) => {
                 const isActive = item.href === "/owner"
                     ? pathname === "/owner"
                     : pathname === item.href || pathname.startsWith(item.href + "/")

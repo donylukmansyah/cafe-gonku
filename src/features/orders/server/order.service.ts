@@ -11,14 +11,15 @@ import {
   syncPendingPayments,
 } from "@/features/orders/server/payment/payment-workflow";
 
+// Facade agar route lama tetap memanggil OrderService.
 export class OrderService {
-  static getOrders = getKitchenOrders;
+  static getOrders = getKitchenOrders; // Ambil antrean kitchen yang sudah di-sort priority queue.
   static getLatePaymentIssues = getLatePaymentIssues;
-  static createOrder = createOrder;
+  static createOrder = createOrder; // Buat order awal dari checkout customer.
   static bulkUpdateOrderStatus = bulkUpdateOrderStatus;
   static updateOrderStatus = updateOrderStatus;
   static applyGatewayPaymentUpdate = applyGatewayPaymentUpdate;
-  static handleDokuNotification = handleDokuNotification;
+  static handleDokuNotification = handleDokuNotification; // Terima webhook DOKU setelah pembayaran.
   static checkPaymentStatus = checkPaymentStatus;
   static cancelOrder = cancelOrder;
   static syncPendingPayments = syncPendingPayments;

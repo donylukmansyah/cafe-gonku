@@ -5,7 +5,7 @@ export const dailyCashEntrySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  amount: z.number().int().min(0, "Nominal kas tidak boleh negatif"),
+  amount: z.number().int().min(1, "Nominal kas wajib lebih dari Rp0"),
   notes: z
     .string()
     .trim()

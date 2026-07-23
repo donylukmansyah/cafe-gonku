@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIp } from "@/server/rate-limit/rate-limit";
 import { createApiTimer } from "@/server/http/api-timing";
 import { setOrderTokenCookie } from "@/features/orders/server/order-access";
 
-// GET /api/orders - Get orders for Kitchen Display (Priority Queue)
+// API untuk halaman kitchen mengambil antrean yang sudah diurutkan priority queue.
 export async function GET(request: Request) {
     const timer = createApiTimer("GET /api/orders");
 
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const includeServed = searchParams.get("includeServed") === "true";
 
+        // Ambil data kitchen dari service; filter PAID dan sorting priority queue ada di backend.
         const orders = await timer.step("orders", () => OrderService.getOrders(includeServed));
 
         timer.finish(200, { includeServed, count: orders.length });
@@ -38,8 +39,7 @@ export async function GET(request: Request) {
     }
 }
 
-// POST /api/orders - Create new order (Customer)
-// Security Refactor: Move price calculation to server
+// API checkout customer: buat order awal sebelum pembayaran.
 export async function POST(request: Request) {
     const timer = createApiTimer("POST /api/orders");
 

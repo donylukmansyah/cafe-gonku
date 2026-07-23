@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { apiFetch } from "@/shared/client/api-client";
 
 type DailyCashEntry = {
@@ -51,13 +52,18 @@ export function useDailyCash() {
   const saveEntry = async () => {
     const normalizedAmount = Number(amountInput.replace(/\./g, ""));
 
+    if (!amountInput || !Number.isInteger(normalizedAmount) || normalizedAmount <= 0) {
+      toast.error("Nominal kas wajib lebih dari Rp0");
+      return false;
+    }
+
     setIsSaving(true);
 
     try {
       await apiFetch("/api/cash/daily", {
         method: "PUT",
         body: JSON.stringify({
-          amount: Number.isNaN(normalizedAmount) ? 0 : normalizedAmount,
+          amount: normalizedAmount,
           notes,
         }),
       });

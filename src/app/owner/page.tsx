@@ -1,10 +1,11 @@
-import { cacheLife, cacheTag } from "next/cache"
+import { cacheLife, cacheTag, updateTag } from "next/cache"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { UtensilsCrossed, TableProperties, ShoppingCart, TrendingUp, ArrowRight, Activity, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AnalyticsService } from "@/features/analytics/server/analytics.service"
 import { OWNER_DASHBOARD_CACHE_TAG } from "@/shared/cache-tags"
+import { bumpCacheVersion } from "@/server/cache/redis"
 import { OrderService } from "@/features/orders/server/order.service"
 
 async function getStats() {
@@ -21,6 +22,12 @@ async function getLatePaymentIssues() {
     cacheTag(OWNER_DASHBOARD_CACHE_TAG);
 
     return OrderService.getLatePaymentIssues(5);
+}
+
+async function refreshOwnerDashboard() {
+    "use server";
+    await bumpCacheVersion("analytics");
+    updateTag(OWNER_DASHBOARD_CACHE_TAG);
 }
 
 export default async function OwnerDashboardPage() {
@@ -55,7 +62,7 @@ export default async function OwnerDashboardPage() {
             icon: ShoppingCart,
             color: "text-primary",
             bgColor: "bg-primary/10",
-            href: "/owner/analytics",
+            href: "/owner/laporan-transaksi?tab=riwayat",
         },
         {
             title: "Revenue Hari Ini",
@@ -64,7 +71,7 @@ export default async function OwnerDashboardPage() {
             icon: TrendingUp,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",
-            href: "/owner/analytics",
+            href: "/owner/laporan-transaksi?tab=laporan",
         },
     ]
 
@@ -78,12 +85,12 @@ export default async function OwnerDashboardPage() {
                         Overview aktivitas bisnis dan performa cafe Anda hari ini.
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" className="h-10 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white hover:border-primary/30 transition-all rounded-full px-6 cursor-pointer">
+                <form action={refreshOwnerDashboard}>
+                    <Button type="submit" variant="outline" className="h-10 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white hover:border-primary/30 transition-all rounded-full px-6 cursor-pointer">
                         <Activity className="mr-2 h-4 w-4 text-primary" />
                         Refresh Data
                     </Button>
-                </div>
+                </form>
             </div>
 
             {/* Stats Grid */}
@@ -206,7 +213,7 @@ export default async function OwnerDashboardPage() {
                                 </div>
                             </div>
                         </Link>
-                        <Link href="/owner/analytics">
+                        <Link href="/owner/laporan-transaksi?tab=laporan">
                             <div className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-primary/5 hover:border-primary/30 cursor-pointer transition-all group relative overflow-hidden">
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                                 <div className="p-3.5 bg-black/40 rounded-xl group-hover:bg-primary/20 transition-colors border border-white/5">

@@ -10,6 +10,7 @@ export async function GET() {
   return apiResponse({ message: "DOKU notification endpoint is alive" });
 }
 
+// Endpoint webhook DOKU; dipanggil DOKU setelah customer bayar.
 export async function POST(request: Request) {
   try {
     const body = await request.text();
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     const requestTimestamp = request.headers.get("Request-Timestamp") ?? "";
     const signature = request.headers.get("Signature") ?? "";
 
+    // Pastikan notification benar dari DOKU sebelum update order.
     const isValid = verifyDokuSignature({
       clientId,
       requestId,
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
       return apiError("Stale notification", 401);
     }
 
+    // Cegah notification yang sama diproses dua kali.
     const replayGuard = await guardPaymentNotificationReplay({
       gateway: "doku",
       clientId,
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
       return apiResponse({ message: businessEventGuard.message, duplicate: true });
     }
 
+    // Jika valid, lanjut update paymentStatus, paidAt, dan priorityScore.
     const result = await OrderService.handleDokuNotification(payload);
 
     return apiResponse(result);

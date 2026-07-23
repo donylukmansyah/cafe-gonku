@@ -50,7 +50,7 @@ export async function getKitchenOrders(includeServed: boolean) {
         status: {
           in: ACTIVE_KITCHEN_STATUSES,
         },
-        // Belum bayar tidak masuk kitchen queue.
+        // Gerbang priority queue: hanya order PAID yang boleh tampil di kitchen.
         paymentStatus: PaymentStatus.PAID,
       };
 
@@ -67,7 +67,7 @@ export async function getKitchenOrders(includeServed: boolean) {
 
   const now = new Date();
   return orders
-    // Hitung ulang score agar waktu tunggu (T_i) selalu mengikuti waktu sekarang.
+    // Hitung ulang score di sini karena waktu tunggu terus bertambah.
     .map((order) => ({
       ...order,
       priorityScore: calculateOrderPriorityScore({
@@ -79,12 +79,12 @@ export async function getKitchenOrders(includeServed: boolean) {
       }),
     }))
     .sort((first, second) => {
-      // Score terbesar diproses lebih dulu.
+      // Urutan utama: priorityScore terbesar tampil paling atas.
       if (second.priorityScore !== first.priorityScore) {
         return second.priorityScore - first.priorityScore;
       }
 
-      // Kalau score sama, pakai paidAt paling lama.
+      // Jika score sama, order yang lebih dulu dibayar diproses lebih dulu.
       return new Date(first.paidAt ?? first.createdAt).getTime() - new Date(second.paidAt ?? second.createdAt).getTime();
     });
 }

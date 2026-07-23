@@ -36,6 +36,15 @@ type DashboardMetrics = {
     category: string;
     quantity: number;
   }[];
+  paidTransactions: {
+    orderCode: string;
+    paidAt: string;
+    totalAmount: number;
+    serviceType: string;
+    paymentMethod: string | null;
+    orderStatus: string;
+    tableNumber: number;
+  }[];
   totalRevenue: number;
   netIncome: number;
   onlineRevenue: number;
@@ -58,7 +67,7 @@ export class AnalyticsService {
   static async getDashboardMetrics(options: MetricsOptions = { days: 7 }) {
     return cacheRemember<DashboardMetrics>({
       scope: "analytics",
-      key: `metrics:${options.startDate ?? ""}:${options.endDate ?? ""}:${options.days ?? 7}`,
+      key: `metrics:v2:${options.startDate ?? ""}:${options.endDate ?? ""}:${options.days ?? 7}`,
       ttlSeconds: 60,
       load: async () => {
     let dateKeys: string[];
@@ -97,8 +106,20 @@ export class AnalyticsService {
           },
         },
         select: {
+          orderCode: true,
           paidAt: true,
           totalAmount: true,
+          serviceType: true,
+          paymentMethod: true,
+          status: true,
+          table: {
+            select: {
+              tableNumber: true,
+            },
+          },
+        },
+        orderBy: {
+          paidAt: "desc",
         },
       }),
       prisma.orderItem.groupBy({
@@ -214,11 +235,25 @@ export class AnalyticsService {
     });
 
     const topMenus = allMenuSales.slice(0, 5);
+    const paidTransactions = paidOrders.flatMap((order) =>
+      order.paidAt
+        ? [{
+            orderCode: order.orderCode,
+            paidAt: order.paidAt.toISOString(),
+            totalAmount: order.totalAmount,
+            serviceType: order.serviceType,
+            paymentMethod: order.paymentMethod,
+            orderStatus: order.status,
+            tableNumber: order.table.tableNumber,
+          }]
+        : [],
+    );
 
     const result: DashboardMetrics = {
       chartData,
       topMenus,
       allMenuSales,
+      paidTransactions,
       totalRevenue: onlineRevenue + cashRevenue,
       netIncome: onlineRevenue + cashRevenue,
       onlineRevenue,

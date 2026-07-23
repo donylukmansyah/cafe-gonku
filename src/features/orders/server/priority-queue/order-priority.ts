@@ -1,13 +1,14 @@
 import { PaymentStatus } from "@prisma/client";
 
-// Bobot rumus priority queue: P_i = (w1 × K_i) + (w2 × T_i) + (w3 × U_i).
+// File ini menghitung angka priorityScore dari data order.
+// Rumus: P_i = (w1 × K_i) + (w2 × T_i) + (w3 × U_i).
 export const ORDER_PRIORITY_WEIGHTS = {
   payment: 0.5,
   waitingTime: 0.5,
   urgency: 3,
 } as const;
 
-// Mapping U_i: TAKEAWAY lebih tinggi sesuai SOP cafe, tapi DINE_IN tetap bisa naik lewat waktu tunggu.
+// U_i: TAKEAWAY lebih tinggi, DINE_IN tetap bisa naik lewat waktu tunggu.
 export const ORDER_SERVICE_URGENCY = {
   DINE_IN: 1,
   TAKEAWAY: 2,
@@ -44,7 +45,7 @@ export function calculateOrderPriorityScore({
   orderItems = [],
   now = new Date(),
 }: CalculateOrderPriorityInput) {
-  // K_i: PAID = 1, belum bayar = 0. Di kitchen queue, order belum bayar tetap difilter di service.
+  // K_i: PAID = 1, belum bayar = 0.
   const paymentValue = paymentStatus === PaymentStatus.PAID ? 1 : 0;
 
   // T_i: lama tunggu sejak paidAt, dihitung menit agar score naik seiring waktu.
@@ -55,7 +56,7 @@ export function calculateOrderPriorityScore({
   // U_i: tipe pesanan. TAKEAWAY dapat nilai awal lebih tinggi dari DINE_IN.
   const urgencyValue = ORDER_SERVICE_URGENCY[resolveOrderServiceType(serviceType, orderItems)];
 
-  // Score terbesar diprioritaskan. Kalau score sama, kitchen queue pakai paidAt paling dulu bayar.
+  // Hasil ini dipakai kitchen queue untuk menentukan urutan pesanan.
   return (
     ORDER_PRIORITY_WEIGHTS.payment * paymentValue +
     ORDER_PRIORITY_WEIGHTS.waitingTime * waitingTimeMinutes +

@@ -84,7 +84,7 @@ export const OrderQueue = memo(function OrderQueue({
         }
     };
 
-    // Client-side pagination logic
+    // Data order sudah terurut dari backend; komponen ini hanya menampilkan kartu.
     const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
     const safeCurrentPage = Math.min(currentPage, Math.max(totalPages, 1));
     const paginatedOrders = showHistory
@@ -232,6 +232,7 @@ export const OrderQueue = memo(function OrderQueue({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {paginatedOrders.map((order) => (
+                    // Urutan map mengikuti hasil priority queue dari API.
                     <OrderCard
                         key={order.id}
                         order={order}

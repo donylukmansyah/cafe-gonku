@@ -22,6 +22,15 @@ export type AnalyticsData = {
         quantity: number;
         category: string;
     }[];
+    paidTransactions: {
+        orderCode: string;
+        paidAt: string;
+        totalAmount: number;
+        serviceType: string;
+        paymentMethod: string | null;
+        orderStatus: string;
+        tableNumber: number;
+    }[];
     totalRevenue: number;
     onlineRevenue: number;
     cashRevenue: number;
@@ -33,6 +42,7 @@ const defaultData: AnalyticsData = {
     chartData: [],
     topMenus: [],
     allMenuSales: [],
+    paidTransactions: [],
     totalRevenue: 0,
     onlineRevenue: 0,
     cashRevenue: 0,
